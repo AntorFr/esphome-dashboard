@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype reTerminal D1001 — dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+  body{margin:0;background:#0A0A0C;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px 0;}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  .tab{padding:8px 2px;font-size:15px;color:#8A8A92;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+  .tab.active{color:#fff;border-bottom-color:#FFB020;font-weight:500;}
+  .tile{text-align:left;background:#17171E;border:none;border-radius:16px;padding:16px;cursor:pointer;color:#fff;display:flex;flex-direction:column;gap:10px;}
+  .tile:active{background:#1f1f29;}
+  .bar{height:5px;border-radius:3px;background:#26262F;overflow:hidden;}
+  .bar > div{height:100%;border-radius:3px;}
+</style>
+</head>
+<body>
+<h2 class="sr-only">Prototype reTerminal D1001 en portrait : header, onglets de groupes, grille de tuiles ; taper une tuile ouvre la carte en détail.</h2>
+
+<div style="background:#1B1B22;border-radius:34px;padding:12px;">
+  <div id="screen" style="position:relative;width:360px;height:576px;border-radius:24px;background:#0E0E12;overflow:hidden;">
+
+    <div style="padding:22px 20px 0;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <div style="font-size:40px;font-weight:500;line-height:1;">14:32</div>
+          <div style="font-size:14px;color:#8A8A92;margin-top:5px;">vendredi 27 juin</div>
+        </div>
+        <div style="text-align:right;color:#8A8A92;">
+          <i class="ti ti-cloud" style="font-size:24px;" aria-hidden="true"></i>
+          <div style="font-size:14px;margin-top:2px;">19°</div>
+        </div>
+      </div>
+      <div id="tabs" style="display:flex;gap:16px;margin-top:18px;border-bottom:1px solid #232330;overflow-x:auto;"></div>
+    </div>
+
+    <div id="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 20px;"></div>
+
+    <div id="detail" style="position:absolute;inset:0;background:#0E0E12;display:none;flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:12px;padding:20px;">
+        <button id="back" aria-label="Retour" style="background:#17171E;border:none;border-radius:12px;width:40px;height:40px;color:#fff;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+        <div id="dTitle" style="font-size:18px;font-weight:500;">Plafonnier</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+        <div style="position:relative;width:220px;height:220px;">
+          <svg width="220" height="220" viewBox="0 0 220 220" style="position:absolute;inset:0;">
+            <path id="dTrack" fill="none" stroke="#232330" stroke-width="16" stroke-linecap="round"/>
+            <path id="dArc" fill="none" stroke="#FFB020" stroke-width="16" stroke-linecap="round"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+            <i id="dIcon" class="ti ti-bulb" style="font-size:30px;color:#FFB020;" aria-hidden="true"></i>
+            <div id="dVal" style="font-size:42px;font-weight:500;line-height:1;">60%</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:0 28px 36px;display:flex;flex-direction:column;gap:18px;">
+        <input id="dSlider" type="range" min="0" max="100" value="60" style="width:100%;accent-color:#FFB020;">
+        <button id="dToggle" style="background:#17171E;border:none;border-radius:14px;padding:14px;color:#fff;font-size:16px;cursor:pointer;">Éteindre</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var START=150,SWEEP=300;
+  function polar(cx,cy,r,deg){var a=deg*Math.PI/180;return {x:cx+r*Math.sin(a),y:cy-r*Math.cos(a)};}
+  function arcPath(cx,cy,r,from,to){var span=Math.abs(to-from);if(span<0.5)return '';var steps=Math.max(2,Math.round(span/3)),d='';for(var i=0;i<=steps;i++){var deg=from+(to-from)*i/steps,p=polar(cx,cy,r,deg);d+=(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);}return d;}
+
+  var groups=[
+    {name:'Salon',devices:[
+      {name:'Plafonnier',type:'light',accent:'#FFB020',icon:'ti-bulb',on:true,value:0.6},
+      {name:'Lampe',type:'light',accent:'#FFB020',icon:'ti-bulb',on:false,value:0.3},
+      {name:'Volet',type:'cover',accent:'#4F8CFF',icon:'ti-window',on:true,value:0.4},
+      {name:'TV',type:'media',accent:'#A06CFF',icon:'ti-player-play',on:true,value:0.7},
+      {name:'Prise',type:'switch',accent:'#3DD68C',icon:'ti-plug',on:true,value:1}
+    ]},
+    {name:'Cuisine',devices:[
+      {name:'Spots',type:'light',accent:'#FFB020',icon:'ti-bulb',on:true,value:0.8},
+      {name:'Volet',type:'cover',accent:'#4F8CFF',icon:'ti-window',on:true,value:1},
+      {name:'Enceinte',type:'media',accent:'#A06CFF',icon:'ti-speaker',on:false,value:0.3}
+    ]},
+    {name:'Chambre',devices:[
+      {name:'Lampe',type:'light',accent:'#FFB020',icon:'ti-bulb',on:false,value:0.2},
+      {name:'Volet',type:'cover',accent:'#4F8CFF',icon:'ti-window',on:true,value:0.6}
+    ]},
+    {name:'Bureau',devices:[
+      {name:'Bureau',type:'light',accent:'#FFB020',icon:'ti-bulb',on:true,value:0.5},
+      {name:'Prise PC',type:'switch',accent:'#3DD68C',icon:'ti-plug',on:true,value:1}
+    ]},
+    {name:'Bain',devices:[
+      {name:'Plafond',type:'light',accent:'#FFB020',icon:'ti-bulb',on:false,value:0.4}
+    ]}
+  ];
+  var tabsEl=document.getElementById('tabs'),gridEl=document.getElementById('grid'),detailEl=document.getElementById('detail');
+  var dTrack=document.getElementById('dTrack'),dArc=document.getElementById('dArc'),dIcon=document.getElementById('dIcon'),dVal=document.getElementById('dVal'),dTitle=document.getElementById('dTitle'),dSlider=document.getElementById('dSlider'),dToggle=document.getElementById('dToggle');
+  var active=0,cur=null;
+
+  function stateLabel(d){if(d.type==='switch')return d.on?'Allumé':'Éteint';if(d.type==='light')return d.on?Math.round(d.value*100)+'%':'Éteint';if(d.type==='cover')return Math.round(d.value*100)+'%';return d.on?'Lecture':'Pause';}
+  function activeOf(d){return d.type==='cover'?true:d.on;}
+
+  function renderTabs(){
+    tabsEl.innerHTML='';
+    groups.forEach(function(g,i){var b=document.createElement('button');b.className='tab'+(i===active?' active':'');b.textContent=g.name;b.onclick=function(){active=i;renderTabs();renderGrid();};tabsEl.appendChild(b);});
+  }
+  function renderGrid(){
+    gridEl.innerHTML='';
+    groups[active].devices.forEach(function(d){
+      var on=activeOf(d),col=on?d.accent:'#5F5E5A';
+      var t=document.createElement('button');t.className='tile';
+      var bar=(d.type==='switch')?'':'<div class="bar"><div style="width:'+Math.round(d.value*100)+'%;background:'+col+'"></div></div>';
+      t.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;"><i class="ti '+d.icon+'" style="font-size:26px;color:'+col+'"></i><span style="font-size:13px;color:'+(on?d.accent:'#8A8A92')+'">'+stateLabel(d)+'</span></div>'+
+        '<div style="font-size:15px;">'+d.name+'</div>'+bar;
+      t.onclick=function(){openDetail(d);};
+      gridEl.appendChild(t);
+    });
+  }
+  function renderDetailArc(){
+    var on=activeOf(cur);
+    dTrack.setAttribute('d',arcPath(110,110,84,START,START-SWEEP));
+    var f=(cur.type==='switch')?(cur.on?1:0):(cur.on||cur.type==='cover'?cur.value:0);
+    dArc.setAttribute('d',f>0?arcPath(110,110,84,START,START-SWEEP*f):'');
+    dArc.setAttribute('stroke',on?cur.accent:'#232330');
+    dIcon.style.color=on?cur.accent:'#5F5E5A';
+    dVal.textContent=stateLabel(cur);
+  }
+  function openDetail(d){
+    cur=d;dTitle.textContent=groups[active].name+' · '+d.name;dIcon.className='ti '+d.icon;
+    var pct=Math.round(d.value*100);dSlider.value=pct;dSlider.style.accentColor=d.accent;
+    dSlider.style.display=(d.type==='switch')?'none':'block';
+    dToggle.style.display=(d.type==='cover')?'none':'block';
+    dToggle.textContent=d.on?(d.type==='media'?'Pause':'Éteindre'):(d.type==='media'?'Lecture':'Allumer');
+    renderDetailArc();detailEl.style.display='flex';
+  }
+  function closeDetail(){detailEl.style.display='none';cur=null;renderGrid();}
+
+  dSlider.addEventListener('input',function(){if(!cur)return;cur.value=dSlider.value/100;if(cur.type!=='cover')cur.on=cur.value>0;renderDetailArc();});
+  dToggle.addEventListener('click',function(){if(!cur)return;cur.on=!cur.on;dToggle.textContent=cur.on?(cur.type==='media'?'Pause':'Éteindre'):(cur.type==='media'?'Lecture':'Allumer');renderDetailArc();});
+  document.getElementById('back').addEventListener('click',closeDetail);
+
+  renderTabs();renderGrid();
+})();
+</script>
+</body>
+</html>

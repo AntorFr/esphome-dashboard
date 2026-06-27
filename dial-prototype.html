@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype Dial — navigation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+  body{margin:0;background:#0A0A0C;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+  button#holdBtn{padding:11px 14px;border-radius:12px;border:1px solid #333;background:#17171E;color:#fff;font-size:14px;cursor:pointer;}
+  button#holdBtn:active{background:#23232c;}
+</style>
+</head>
+<body>
+<h2 class="sr-only">Prototype Dial : navigation d'un groupe, et menu en lanceur circulaire de vrais cercles dont celui en focus grossit quand on tourne.</h2>
+
+<div style="padding:1rem 0;display:flex;flex-direction:column;align-items:center;gap:16px;">
+
+  <div style="background:#1B1B22;border-radius:50%;padding:11px;">
+    <div id="screen" style="position:relative;width:240px;height:240px;border-radius:50%;background:#0E0E12;overflow:hidden;touch-action:none;user-select:none;">
+      <svg width="240" height="240" viewBox="0 0 240 240" style="position:absolute;inset:0;">
+        <g id="valGroup">
+          <path id="valTrack" fill="none" stroke="#232330" stroke-width="14" stroke-linecap="round"/>
+          <path id="valArc" fill="none" stroke="#FFB020" stroke-width="14" stroke-linecap="round"/>
+        </g>
+        <path id="retL" fill="none" stroke="#EDEDF0" stroke-width="5" stroke-linecap="round" style="opacity:0"/>
+        <path id="retR" fill="none" stroke="#EDEDF0" stroke-width="5" stroke-linecap="round" style="opacity:0"/>
+      </svg>
+
+      <div id="cardContent" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+        <i id="cardIcon" class="ti ti-bulb" style="font-size:26px;color:#FFB020;" aria-hidden="true"></i>
+        <div id="cardVal" style="font-size:34px;font-weight:500;color:#fff;line-height:1;">60%</div>
+        <div id="cardName" style="font-size:13px;color:#FFB020;">Plafonnier</div>
+      </div>
+
+      <div id="dots" style="position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:7px;"></div>
+      <div id="hint" style="position:absolute;left:0;right:0;bottom:9px;text-align:center;color:#6E6E78;font-size:11px;opacity:.7;"><i class="ti ti-chevron-up" aria-hidden="true"></i> menu</div>
+
+      <div id="menuLayer" style="position:absolute;inset:0;background:#0E0E12;display:none;touch-action:none;">
+        <svg id="menuSvg" width="240" height="240" viewBox="0 0 240 240" style="position:absolute;inset:0;"></svg>
+        <div id="menuIcons" style="position:absolute;inset:0;pointer-events:none;"></div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none;">
+          <div id="menuName" style="font-size:22px;font-weight:500;color:#fff;">Salon</div>
+          <div style="font-size:13px;color:#8A8A92;">5 appareils</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button id="holdBtn" aria-label="Maintenir pour revenir au menu" style="width:240px;">Maintenir le bouton (retour menu)</button>
+
+</div>
+
+<script>
+(function(){
+  var SVGNS='http://www.w3.org/2000/svg';
+  var screen=document.getElementById('screen');
+  var valGroup=document.getElementById('valGroup'),valTrack=document.getElementById('valTrack'),valArc=document.getElementById('valArc');
+  var retL=document.getElementById('retL'),retR=document.getElementById('retR');
+  var cardContent=document.getElementById('cardContent');
+  var cardIcon=document.getElementById('cardIcon'),cardVal=document.getElementById('cardVal'),cardName=document.getElementById('cardName');
+  var dots=document.getElementById('dots'),hint=document.getElementById('hint');
+  var menuLayer=document.getElementById('menuLayer'),menuSvg=document.getElementById('menuSvg'),menuIcons=document.getElementById('menuIcons'),menuName=document.getElementById('menuName');
+  var holdBtn=document.getElementById('holdBtn');
+
+  var SWEEP=300,START=150;
+  var cards=[
+    {name:'Plafonnier',icon:'ti-bulb',accent:'#FFB020',kind:'dim',value:0.6,on:true},
+    {name:'Lampe',icon:'ti-bulb',accent:'#FFB020',kind:'dim',value:0.3,on:false},
+    {name:'Volet',icon:'ti-window',accent:'#4F8CFF',kind:'cover',value:0.4,on:true},
+    {name:'TV',icon:'ti-player-play',accent:'#A06CFF',kind:'media',value:0.7,on:true},
+    {name:'Prise',icon:'ti-plug',accent:'#3DD68C',kind:'switch',value:1,on:true}
+  ];
+  var groups=[{name:'Salon',icon:'ti-sofa'},{name:'Cuisine',icon:'ti-tools-kitchen-2'},{name:'Chambre',icon:'ti-bed'},{name:'Bureau',icon:'ti-device-desktop'},{name:'Bain',icon:'ti-bath'}];
+  var N=cards.length, NG=groups.length, idx=0, view='group', retProg=0, animId=null;
+
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function polar(cx,cy,r,deg){var a=deg*Math.PI/180;return {x:cx+r*Math.sin(a),y:cy-r*Math.cos(a)};}
+  function arcPath(cx,cy,r,from,to){var span=Math.abs(to-from);if(span<0.5)return '';var steps=Math.max(2,Math.round(span/3)),d='';for(var i=0;i<=steps;i++){var deg=from+(to-from)*i/steps,p=polar(cx,cy,r,deg);d+=(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);}return d;}
+  function hx(c){return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];}
+  function lerpC(a,b,t){var A=hx(a),B=hx(b);function h(x){x=Math.round(clamp(x,0,255));return ('0'+x.toString(16)).slice(-2);}return '#'+h(A[0]+(B[0]-A[0])*t)+h(A[1]+(B[1]-A[1])*t)+h(A[2]+(B[2]-A[2])*t);}
+  function angTop(ang){var a=((ang%360)+360)%360;if(a>180)a=360-a;return a;}
+
+  function label(c){if(c.kind==='switch')return c.on?'Allumé':'Éteint';if(c.kind==='dim')return c.on?Math.round(c.value*100)+'%':'Éteint';if(c.kind==='cover')return Math.round(c.value*100)+'%';return c.on?'Lecture':'Pause';}
+  function frac(c){if(c.kind==='switch')return c.on?1:0;if(c.kind==='dim')return c.on?c.value:0;return c.value;}
+  function renderCard(){
+    var c=cards[idx],active=(c.kind==='cover')?true:c.on;
+    cardIcon.className='ti '+c.icon;cardIcon.style.color=active?c.accent:'#5F5E5A';
+    cardVal.textContent=label(c);cardName.textContent=c.name;cardName.style.color=active?c.accent:'#8A8A92';
+    valTrack.setAttribute('d',arcPath(120,120,90,START,START-SWEEP));
+    var f=frac(c);valArc.setAttribute('d',f>0?arcPath(120,120,90,START,START-SWEEP*f):'');valArc.setAttribute('stroke',active?c.accent:'#232330');
+    var html='';for(var i=0;i<N;i++){html+='<span style="width:'+(i===idx?16:6)+'px;height:6px;border-radius:3px;background:'+(i===idx?'#fff':'#3A3A44')+';transition:width .2s"></span>';}dots.innerHTML=html;
+  }
+  function renderReturn(p){
+    retProg=p;
+    retR.setAttribute('d',arcPath(120,120,106,150,150-150*p));
+    retL.setAttribute('d',arcPath(120,120,106,210,210+150*p));
+    var show=p>0.002;retL.style.opacity=retR.style.opacity=show?1:0;
+    cardContent.style.opacity=(1-0.45*p).toFixed(2);hint.style.opacity=show?0:0.7;dots.style.opacity=show?(1-p).toFixed(2):1;
+  }
+  function backAnim(){if(animId)cancelAnimationFrame(animId);var s=performance.now(),from=retProg;(function st(now){var t=clamp((now-s)/220,0,1);renderReturn(from*(1-t));if(t<1)animId=requestAnimationFrame(st);})(performance.now());}
+  function resetTransforms(){valGroup.style.transition='none';cardContent.style.transition='none';valGroup.style.transform='translateX(0)';cardContent.style.transform='translateX(0)';}
+
+  var mCircles=[],mIcons=[];
+  for(var i=0;i<NG;i++){var cc=document.createElementNS(SVGNS,'circle');menuSvg.appendChild(cc);mCircles.push(cc);var s=document.createElement('i');s.className='ti '+groups[i].icon;s.style.position='absolute';s.style.transform='translate(-50%,-50%)';s.setAttribute('aria-hidden','true');menuIcons.appendChild(s);mIcons.push(s);}
+  var rot=0,rotBase=0,target=0,menuRaf=null;
+  function renderMenu(r){
+    for(var i=0;i<NG;i++){
+      var ang=(i-r)*(360/NG),ad=angTop(ang),ff=clamp(1-ad/(360/NG),0,1),p=polar(120,120,82,ang),rad=25+4*ff;
+      var c=mCircles[i];c.setAttribute('cx',p.x.toFixed(1));c.setAttribute('cy',p.y.toFixed(1));c.setAttribute('r',rad.toFixed(1));
+      c.setAttribute('fill',lerpC('#1E1E26','#3A2E12',ff));c.setAttribute('stroke','#FFB020');c.setAttribute('stroke-opacity',ff.toFixed(2));c.setAttribute('stroke-width','2');
+      var ic=mIcons[i];ic.style.left=p.x.toFixed(1)+'px';ic.style.top=p.y.toFixed(1)+'px';ic.style.fontSize=(19+6*ff).toFixed(1)+'px';ic.style.color=lerpC('#8A8A92','#FFB020',ff);
+    }
+    var nm=((Math.round(r)%NG)+NG)%NG;menuName.textContent=groups[nm].name;
+  }
+  function animMenu(){var d=target-rot;if(Math.abs(d)<0.002){rot=target;renderMenu(rot);return;}rot+=d*0.25;renderMenu(rot);menuRaf=requestAnimationFrame(animMenu);}
+  function goMenu(){view='menu';renderReturn(0);cardContent.style.opacity=1;menuLayer.style.display='block';rot=target=rotBase;renderMenu(rot);}
+  function enterGroup(){view='group';menuLayer.style.display='none';idx=0;resetTransforms();renderCard();}
+
+  var sx=0,sy=0,mode='none',drag=false;
+  screen.addEventListener('pointerdown',function(e){if(view!=='group')return;if(animId)cancelAnimationFrame(animId);drag=true;mode='none';sx=e.clientX;sy=e.clientY;try{screen.setPointerCapture(e.pointerId);}catch(_){}});
+  screen.addEventListener('pointermove',function(e){
+    if(!drag)return;var dx=e.clientX-sx,dy=e.clientY-sy;
+    if(mode==='none'&&Math.hypot(dx,dy)>8)mode=Math.abs(dx)>Math.abs(dy)?'h':'v';
+    if(mode==='v'){var p=dy<0?clamp(-dy/130,0,1):0;renderReturn(p);if(p>=1){drag=false;goMenu();}}
+    else if(mode==='h'){var t='translateX('+clamp(dx,-60,60)+'px)';valGroup.style.transition='none';cardContent.style.transition='none';valGroup.style.transform=t;cardContent.style.transform=t;}
+  });
+  function endDrag(e){
+    if(!drag)return;drag=false;var dx=(e.clientX||sx)-sx;
+    if(mode==='h'){if(dx<=-40)idx=(idx+1)%N;else if(dx>=40)idx=(idx-1+N)%N;renderCard();var t='translateX('+clamp(dx,-60,60)+'px)';valGroup.style.transform=t;cardContent.style.transform=t;requestAnimationFrame(function(){valGroup.style.transition='transform .2s';cardContent.style.transition='transform .2s';valGroup.style.transform='translateX(0)';cardContent.style.transform='translateX(0)';});}
+    else if(mode==='v'){if(retProg>=1)goMenu();else backAnim();}
+    else {var c=cards[idx];if(c.kind!=='cover'){c.on=!c.on;renderCard();}}
+  }
+  screen.addEventListener('pointerup',endDrag);screen.addEventListener('pointercancel',endDrag);
+
+  var mDown=false,mSX=0,mSY=0,mMode='none';
+  menuLayer.addEventListener('pointerdown',function(e){if(view!=='menu')return;e.stopPropagation();if(menuRaf)cancelAnimationFrame(menuRaf);mDown=true;mMode='none';mSX=e.clientX;mSY=e.clientY;try{menuLayer.setPointerCapture(e.pointerId);}catch(_){}});
+  menuLayer.addEventListener('pointermove',function(e){if(!mDown)return;var dx=e.clientX-mSX,dy=e.clientY-mSY;if(mMode==='none'&&Math.hypot(dx,dy)>8)mMode='rot';if(mMode==='rot'){rot=rotBase-dx/55;renderMenu(rot);}});
+  menuLayer.addEventListener('pointerup',function(e){
+    if(!mDown)return;mDown=false;
+    if(mMode==='rot'){target=Math.round(rot);rotBase=target;animMenu();}
+    else{var rect=screen.getBoundingClientRect();var px=(e.clientX-rect.left)*(240/rect.width),py=(e.clientY-rect.top)*(240/rect.height);var best=-1,bd=1e9;for(var i=0;i<NG;i++){var ang=(i-rotBase)*(360/NG),p=polar(120,120,82,ang),d=Math.hypot(px-p.x,py-p.y);if(d<bd){bd=d;best=i;}}if(best>=0&&bd<30)enterGroup();}
+  });
+  menuLayer.addEventListener('pointercancel',function(){mDown=false;});
+
+  var holding=false,hStart=0,hRaf=null;
+  function holdStep(now){var p=clamp((now-hStart)/1100,0,1);renderReturn(p);if(p>=1){holding=false;goMenu();return;}if(holding)hRaf=requestAnimationFrame(holdStep);}
+  holdBtn.addEventListener('pointerdown',function(e){if(view!=='group')return;e.preventDefault();if(animId)cancelAnimationFrame(animId);holding=true;hStart=performance.now();hRaf=requestAnimationFrame(holdStep);});
+  function holdEnd(){if(!holding)return;holding=false;if(hRaf)cancelAnimationFrame(hRaf);if(retProg<1)backAnim();}
+  holdBtn.addEventListener('pointerup',holdEnd);holdBtn.addEventListener('pointerleave',holdEnd);holdBtn.addEventListener('pointercancel',holdEnd);
+
+  renderCard();renderMenu(0);
+})();
+</script>
+</body>
+</html>
