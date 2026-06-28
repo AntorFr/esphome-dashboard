@@ -1,7 +1,11 @@
-# Seeed reTerminal D1001 — ESP32-P4 (+ C6 WiFi via esp_hosted, hors périmètre ici),
-# écran MIPI-DSI 800x1280 portrait (modèle intégré SEEED-RETERMINAL-D1001), touch GT911.
-# Le WiFi (esp_hosted/C6) est volontairement omis (non requis pour `esphome config`).
-# Brochage I2C/touch À VALIDER SUR MATÉRIEL (cf. docs/lessons-learned.md §6).
+# Seeed reTerminal D1001 — ESP32-P4 (+ ESP32-C6 WiFi/BLE via SDIO).
+# Écran MIPI-DSI 800x1280 portrait (modèle intégré SEEED-RETERMINAL-D1001).
+# Brochage extrait du SCHÉMA OFFICIEL Seeed (reTerminal D1001_sch.pdf, rev v01).
+#
+# ⚠️ TACTILE : le contrôleur est un GSL3670 (SiLead) — NON SUPPORTÉ par ESPHome
+#    (aucune plateforme touchscreen gsl/silead). L'écran + le WiFi fonctionnent, mais
+#    la navigation tactile nécessitera un composant externe GSL3670 (TODO).
+#    Voir docs/lessons-learned.md.
 esp32:
   board: esp32-p4-evboard
   cpu_frequency: 360MHz
@@ -10,37 +14,46 @@ esp32:
 
 psram:
 
-# LDO interne alimentant le PHY MIPI-DSI du P4 (canal 3, 2.5V). À ajuster selon la carte.
+# LDO interne alimentant le PHY MIPI-DSI du P4 (canal 3, 2.5V).
 esp_ldo:
   - id: ldo_mipi_phy
     channel: 3
     voltage: 2.5V
 
-# WiFi/BLE via le co-processeur ESP32-C6 (le P4 n'a pas de PHY radio) sur SDIO.
-# Brochage de référence P4<->C6 (doc ESPHome) — À VALIDER SUR LE D1001.
-# Le bloc `wifi:` (avec credentials) reste dans la config device.
+# WiFi/BLE via le co-processeur ESP32-C6 sur SDIO (le P4 n'a pas de PHY radio).
+# Pins schéma : CMD=GPIO6, CLK=GPIO11, D0..D3=GPIO7/8/9/10, C6_CHIP_PU(reset)=GPIO13.
+# Le bloc `wifi:` (credentials) reste dans la config device.
 esp32_hosted:
   type: sdio
   variant: ESP32C6
-  reset_pin: GPIO5
-  cmd_pin: GPIO35
-  clk_pin: GPIO36
-  d0_pin: GPIO37
-  d1_pin: GPIO38
-  d2_pin: GPIO33
-  d3_pin: GPIO34
+  reset_pin: GPIO13
+  cmd_pin: GPIO6
+  clk_pin: GPIO11
+  d0_pin: GPIO7
+  d1_pin: GPIO8
+  d2_pin: GPIO9
+  d3_pin: GPIO10
   active_high: true
-  sdio_frequency: 10MHz
+  sdio_frequency: 20MHz
 
+# I2C "système" (I2C1 du schéma) : IO expander, RTC, IMU, codec, ADC, chargeur.
 i2c:
-  - id: d1001_i2c
-    sda: GPIO7
-    scl: GPIO8
+  - id: i2c_sys
+    sda: GPIO20
+    scl: GPIO21
+    scan: false
+  # I2C "écran/caméra" (I2C0 du schéma) : touch GSL3670 (0x40) + caméra.
+  # Déclaré pour le futur driver tactile ; pas de périphérique ESPHome dessus pour l'instant.
+  - id: i2c_panel
+    sda: GPIO37
+    scl: GPIO38
     scan: false
 
+# IO expander XL9535 @ 0x20 (sur I2C système) : pilote enable/reset de l'écran
+# (et reset tactile EXP_GPO12). Référencé par le modèle d'écran ci-dessous.
 xl9535:
   - id: d1001_expander
-    i2c_id: d1001_i2c
+    i2c_id: i2c_sys
     address: 0x20
 
 display:
@@ -50,20 +63,16 @@ display:
     update_interval: never
     enable_pin:
       - xl9535: d1001_expander
-        number: 0
+        number: 0          # LCD_PWR_EN (EXP_GPO0)
       - xl9535: d1001_expander
-        number: 7
+        number: 7          # alim/backlight (EXP_GPO7)
     reset_pin:
       xl9535: d1001_expander
-      number: 2
+      number: 2            # LCD_RST (EXP_GPO2)
 
-touchscreen:
-  - platform: gt911
-    id: d1001_touch
-    i2c_id: d1001_i2c
+# Tactile GSL3670 : à implémenter en composant externe (I2C0 GPIO37/38, addr 0x40,
+# INT GPIO16, RST via expander EXP_GPO12). Une fois dispo, l'ajouter à lvgl.touchscreens.
 
 lvgl:
   displays:
     - d1001_display
-  touchscreens:
-    - d1001_touch

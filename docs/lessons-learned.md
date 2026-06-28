@@ -73,3 +73,33 @@ décrit que `groups`/`cards` ([ADR-0006](adr/0006-config-auto-inject.md)).
 **Parade** : valider d'abord sur le Dial (terrain stable), s'appuyer sur les configs P4
 connues (`chrisdunnname/esphome-p4-86-panel`, `jtenniswood/esphome-lvgl` Guition P4) pour le
 bring-up D1001.
+
+## 7. reTerminal D1001 — tactile GSL3670 : pas natif ESPHome, mais driver dispo
+
+**Symptôme** : le D1001 utilise un contrôleur tactile **GSL3670 (SiLead)**, pour lequel
+**ESPHome n'a aucune plateforme native** (`touchscreen:` dispo : axs15231, cst816, cst226,
+ektf2232, ft5x06, gt911, tt21100, xpt2046… mais pas gsl/silead). Sans driver : écran + WiFi
+OK mais **pas d'entrée tactile**.
+
+**Parade (chemin clair)** : Seeed fournit un driver **`esp_lcd_touch_gsl3670`** (framework
+Espressif `esp_lcd_touch`) dans le BSP `Seeed-Studio/reTerminal-D1001/components/esp_lcd_touch_gsl3670` :
+- API : `esp_lcd_touch_new_i2c_gsl3670(io, config, &touch)` ; adresse **0x40**
+  (`ESP_LCD_TOUCH_IO_I2C_GSL3670_ADDRESS`).
+- ⚠️ `gsl_point_id.c` = **firmware/coefficients à uploader à l'init** (spécifique SiLead).
+- Bus : I2C0 (SDA GPIO37 / SCL GPIO38), INT GPIO16, RST via XL9535 EXP_GPO12.
+
+→ **TODO (jalon dédié)** : écrire un composant externe ESPHome `touchscreen` GSL3670 qui
+**enveloppe `esp_lcd_touch_gsl3670`** (vendoriser le composant esp-idf + firmware, créer un
+`esp_lcd_panel_io_i2c` sur le bus, exposer les points à la base `Touchscreen` d'ESPHome),
+puis l'ajouter à `lvgl.touchscreens`. En attendant, le D1001 est « display + WiFi only ».
+
+## 8. Brochage D1001 — source de vérité = schéma officiel Seeed
+
+Le BSP GitHub `Seeed-Studio/reTerminal-D1001` **ne contient pas** les pins en dur (tirés de
+l'esp-bsp Espressif via dépendance). La source fiable est le **schéma PDF officiel**
+(`reTerminal D1001_sch.pdf`). Pins extraits (rev v01) :
+- **SDIO→C6** : CMD=GPIO6, CLK=GPIO11, D0..D3=GPIO7/8/9/10, C6_CHIP_PU(reset)=GPIO13.
+- **I2C1 (système)** : SDA=GPIO20, SCL=GPIO21 → XL9535 **0x20**, RTC 0x51, IMU 0x6A, codec 0x18.
+- **I2C0 (écran/cam)** : SDA=GPIO37, SCL=GPIO38 → touch 0x40, caméra 0x26.
+- **Écran** : LCD_PWR_EN=EXP_GPO0, LCD_RST=EXP_GPO2, backlight/alim EXP_GPO7 (via XL9535).
+- **MicroSD** : CMD=GPIO44, CLK=GPIO43, D0..D3=GPIO39/40/41/42.
