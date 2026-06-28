@@ -1,0 +1,57 @@
+#pragma once
+// Port Renderer (interface abstraite) + types partagés de navigation.
+// Le Controller (couche 1) ne dépend que de cette interface, jamais de LVGL.
+#include <functional>
+#include <vector>
+#include "model.h"
+
+namespace esphome {
+namespace ha_dashboard {
+
+// Niveaux de navigation communs aux deux écrans (cf. docs/ux-interaction.md).
+enum class NavState : uint8_t {
+  IDLE = 0,   // veille
+  MENU,       // choix du groupe
+  GROUP,      // choix de la card dans le groupe
+  CARD,       // réglage/détail d'une card
+};
+
+// Events sémantiques émis par la couche Input (et par les widgets natifs LVGL)
+// vers le Controller. `index` = item ciblé pour une sélection directe (sinon -1).
+enum class InputEvent : uint8_t {
+  WAKE = 0,     // sortir de veille
+  FOCUS_NEXT,   // focus suivant (encodeur / swipe)
+  FOCUS_PREV,   // focus précédent
+  SELECT,       // valider le focus (ou index si fourni)
+  BACK,         // remonter d'un niveau
+  TOGGLE,       // action principale de la card (on/off)
+  SLEEP,        // retour veille (timeout)
+};
+
+// Instantané de l'état de navigation passé au renderer.
+struct ViewModel {
+  NavState state{NavState::IDLE};
+  const std::vector<Group> *groups{nullptr};
+  int group_index{0};  // groupe courant / focalisé
+  int card_index{0};   // card courante / focalisée
+};
+
+class Renderer {
+ public:
+  virtual ~Renderer() = default;
+
+  using EventHandler = std::function<void(InputEvent, int)>;
+
+  // Branche le callback d'events sémantiques (widgets natifs -> Controller).
+  virtual void set_event_handler(EventHandler handler) = 0;
+
+  // Construit l'arbre d'objets LVGL une seule fois à partir du modèle statique.
+  // (Pas de destroy/recreate aux transitions — cf. ADR-0005.)
+  virtual void build(const std::vector<Group> &groups) = 0;
+
+  // Reflète l'état de navigation courant (update-in-place + chargement d'écran).
+  virtual void render(const ViewModel &vm) = 0;
+};
+
+}  // namespace ha_dashboard
+}  // namespace esphome

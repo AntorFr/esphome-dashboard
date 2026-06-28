@@ -1,0 +1,48 @@
+#pragma once
+// COUCHE 1 — Controller : machine à états de navigation. HW-agnostique :
+// ne connaît ni LVGL ni le hardware, dialogue via l'interface Renderer + InputEvent.
+#include <cstdint>
+#include <vector>
+#include "model.h"
+#include "renderer.h"
+
+namespace esphome {
+namespace ha_dashboard {
+
+class Controller {
+ public:
+  void set_renderer(Renderer *renderer) { this->renderer_ = renderer; }
+  void set_model(std::vector<Group> *groups) { this->groups_ = groups; }
+  void set_inactivity_timeout(uint32_t ms) { this->timeout_ms_ = ms; }
+
+  // Premier rendu (état IDLE) une fois le renderer prêt.
+  void start();
+
+  // Reçoit un event sémantique. `index` >= 0 = sélection directe d'un item.
+  void handle(InputEvent event, int index);
+
+  // À appeler à chaque loop : gère le timeout d'inactivité -> veille.
+  void tick(uint32_t now_ms);
+
+  NavState state() const { return this->state_; }
+
+ protected:
+  void render_();
+  int group_count_() const;
+  int card_count_(int group_index) const;
+  void enter_group_(int group_index);
+
+  std::vector<Group> *groups_{nullptr};
+  Renderer *renderer_{nullptr};
+
+  NavState state_{NavState::IDLE};
+  int group_index_{0};
+  int card_index_{0};
+  bool group_skipped_{false};  // groupe mono-card sauté -> BACK depuis CARD remonte au MENU
+
+  uint32_t timeout_ms_{30000};
+  uint32_t last_event_ms_{0};
+};
+
+}  // namespace ha_dashboard
+}  // namespace esphome

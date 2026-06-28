@@ -4,7 +4,7 @@
 > (cf. [ADR-0006](adr/0006-config-auto-inject.md)). Cible : décrire **uniquement**
 > `display` + `groups` + `cards`.
 
-## Configuration minimale
+## Configuration cible (auto-inject — à terminer, cf. ADR-0006)
 
 ```yaml
 substitutions:
@@ -22,11 +22,38 @@ dashboard:
       cards:
         - { type: light,  entity: light.salon_plafond }
         - { type: switch, entity: switch.salon_prise }
+```
+
+## Configuration ACTUELLE (prototype M0.5)
+
+Tant que l'auto-inject n'est pas terminé, l'utilisateur inclut le board explicitement et
+règle `profile:` sur le composant `ha_dashboard:` (voir `examples/` et `tests/`) :
+
+```yaml
+external_components:
+  - source: github://AntorFR/esphome-dashboard   # ou local en dev
+
+packages:
+  board: !include packages/boards/m5stack_dial.yaml   # ou reterminal_d1001.yaml
+
+ha_dashboard:
+  profile: dial                 # dial | reterminal_d1001
+  inactivity_timeout: 30s
+  encoder: dial_encoder         # (Dial) id du rotary_encoder fourni par le board
+  encoder_button: dial_button   # (Dial) id du binary_sensor bouton
+  groups:
+    - name: "Salon"
+      icon: sofa
+      cards:
+        - { type: light,  entity: light.salon_plafond }
+        - { type: switch, entity: switch.salon_prise }
     - name: "Cuisine"
-      icon: kitchen
       cards:
         - { type: light, entity: light.cuisine_spots, color: "#FF8800" }
 ```
+
+> Le board fournit `display:`, `touchscreen:`, `lvgl:` (+ encodeur/bouton sur le Dial).
+> Clé du composant = `ha_dashboard:` (= nom du dossier composant).
 
 ## Schéma `dashboard:`
 

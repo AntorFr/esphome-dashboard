@@ -15,7 +15,7 @@
 
 ## Jalons
 
-### M0 — Base de connaissance (docs/) ✅ EN COURS
+### M0 — Base de connaissance (docs/) ✅ FAIT
 - [x] `.gitignore` + arborescence repo
 - [x] `architecture.md`
 - [x] `lessons-learned.md` (bug tactile en tête)
@@ -23,8 +23,24 @@
 - [x] `ux-interaction.md` + `interaction-dial.md` + `interaction-d1001.md`
 - [x] `color-system.md` + `config-reference.md`
 - [x] `roadmap.md`
-- [ ] Mémoires Claude
-- [ ] **Revue utilisateur avant M1**
+- [x] Mémoires Claude
+
+### M0.5 — Prototype de navigation (validation archi) ✅ FAIT
+Objectif : valider que l'architecture logicielle compile sur les **deux** cibles avec une
+navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
+- [x] Composant C++ `ha_dashboard` : `model` + `Controller` (machine à états) + interface
+      `Renderer` + `LvglRenderer` (LVGL 9.5 C API) + glue Component (encodeur/bouton Dial)
+- [x] Schéma Python `__init__.py` (profile / groups / cards) + codegen
+- [x] Packages board : `m5stack_dial.yaml` (GC9A01A) et `reterminal_d1001.yaml` (P4/MIPI-DSI)
+- [x] `esphome config` **valide sur les deux** (test_dial.yaml, test_d1001.yaml)
+- [~] `esphome compile` Dial (S3) — en cours de validation
+- [ ] `esphome compile` D1001 (P4) — à valider (toolchain P4)
+- [ ] Test sur matériel réel (gestes, robustesse tactile ADR-0005)
+
+> Écart assumé vs cible : config actuelle = `profile:` + include board explicite ;
+> l'auto-inject via substitution `display` + `entrypoint.yaml` (ADR-0006) reste à faire.
+> LVGL est hébergé par le composant `lvgl:` d'ESPHome (runtime), nos widgets sont construits
+> en C++ via l'API C LVGL (cf. note ADR-0003).
 
 ### M1 — Walking skeleton : card `light` bout-en-bout (Dial + D1001)
 - [ ] Modèle `Card`/`Group` (+ drapeau `available`)

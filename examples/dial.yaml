@@ -1,0 +1,34 @@
+# Exemple utilisateur — M5Stack Dial.
+# En production : remplacer le external_components local par
+#   external_components: [ { source: github://AntorFR/esphome-dashboard } ]
+# et fournir wifi/api/ota dans un secrets.yaml.
+esphome:
+  name: salon-dial
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+packages:
+  board: !include ../packages/boards/m5stack_dial.yaml
+
+logger:
+
+# wifi / api / ota : à ajouter par l'utilisateur (non requis pour `esphome config`).
+
+ha_dashboard:
+  profile: dial
+  inactivity_timeout: 30s
+  encoder: dial_encoder
+  encoder_button: dial_button
+  groups:
+    - name: Salon
+      icon: sofa
+      cards:
+        - { type: light, entity: light.salon_plafond }
+        - { type: switch, entity: switch.salon_prise }
+    - name: Cuisine
+      icon: kitchen
+      cards:
+        - { type: light, entity: light.cuisine_spots }

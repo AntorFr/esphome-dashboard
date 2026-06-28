@@ -1,0 +1,53 @@
+# Seeed reTerminal D1001 — ESP32-P4 (+ C6 WiFi via esp_hosted, hors périmètre ici),
+# écran MIPI-DSI 800x1280 portrait (modèle intégré SEEED-RETERMINAL-D1001), touch GT911.
+# Le WiFi (esp_hosted/C6) est volontairement omis (non requis pour `esphome config`).
+# Brochage I2C/touch À VALIDER SUR MATÉRIEL (cf. docs/lessons-learned.md §6).
+esp32:
+  board: esp32-p4-evboard
+  cpu_frequency: 360MHz
+  framework:
+    type: esp-idf
+
+psram:
+
+# LDO interne alimentant le PHY MIPI-DSI du P4 (canal 3, 2.5V). À ajuster selon la carte.
+esp_ldo:
+  - id: ldo_mipi_phy
+    channel: 3
+    voltage: 2.5V
+
+i2c:
+  - id: d1001_i2c
+    sda: GPIO7
+    scl: GPIO8
+    scan: false
+
+xl9535:
+  - id: d1001_expander
+    i2c_id: d1001_i2c
+    address: 0x20
+
+display:
+  - platform: mipi_dsi
+    id: d1001_display
+    model: SEEED-RETERMINAL-D1001
+    update_interval: never
+    enable_pin:
+      - xl9535: d1001_expander
+        number: 0
+      - xl9535: d1001_expander
+        number: 7
+    reset_pin:
+      xl9535: d1001_expander
+      number: 2
+
+touchscreen:
+  - platform: gt911
+    id: d1001_touch
+    i2c_id: d1001_i2c
+
+lvgl:
+  displays:
+    - d1001_display
+  touchscreens:
+    - d1001_touch

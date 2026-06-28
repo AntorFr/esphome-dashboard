@@ -1,0 +1,26 @@
+# Validation schéma/codegen pour le Seeed reTerminal D1001 (ESP32-P4).
+#   esphome config tests/test_d1001.yaml
+esphome:
+  name: test-d1001
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+packages:
+  board: !include ../packages/boards/reterminal_d1001.yaml
+
+logger:
+
+ha_dashboard:
+  profile: reterminal_d1001
+  groups:
+    - name: Salon
+      icon: sofa
+      cards:
+        - { type: light, entity: light.salon_plafond }
+        - { type: switch, entity: switch.salon_prise }
+    - name: Cuisine
+      cards:
+        - { type: light, entity: light.cuisine_spots }

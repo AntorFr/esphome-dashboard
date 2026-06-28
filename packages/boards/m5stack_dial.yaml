@@ -1,0 +1,67 @@
+# M5Stack Dial — ESP32-S3 (M5StampS3), écran rond GC9A01A 240x240 (SPI),
+# touch FT3267 (FT5x06-compatible, I2C), encodeur + bouton.
+# Brochage usuel du M5Dial — À VALIDER SUR MATÉRIEL (cf. docs/lessons-learned.md §6).
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+spi:
+  - id: dial_spi
+    clk_pin: GPIO6
+    mosi_pin: GPIO5
+
+output:
+  - platform: ledc
+    id: dial_bl_output
+    pin: GPIO9
+
+light:
+  - platform: monochromatic
+    id: dial_backlight
+    output: dial_bl_output
+    restore_mode: ALWAYS_ON
+    internal: true
+
+display:
+  - platform: mipi_spi
+    id: dial_display
+    model: GC9A01A
+    spi_id: dial_spi
+    cs_pin: GPIO7
+    dc_pin: GPIO4
+    reset_pin: GPIO8
+    update_interval: never
+
+i2c:
+  - id: dial_i2c
+    sda: GPIO11
+    scl: GPIO12
+    scan: false
+
+touchscreen:
+  - platform: ft5x06
+    id: dial_touch
+    i2c_id: dial_i2c
+
+sensor:
+  - platform: rotary_encoder
+    id: dial_encoder
+    pin_a: GPIO40
+    pin_b: GPIO41
+
+binary_sensor:
+  - platform: gpio
+    id: dial_button
+    pin:
+      number: GPIO42
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+
+lvgl:
+  displays:
+    - dial_display
+  touchscreens:
+    - dial_touch
