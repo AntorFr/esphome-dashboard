@@ -16,6 +16,22 @@ esp_ldo:
     channel: 3
     voltage: 2.5V
 
+# WiFi/BLE via le co-processeur ESP32-C6 (le P4 n'a pas de PHY radio) sur SDIO.
+# Brochage de référence P4<->C6 (doc ESPHome) — À VALIDER SUR LE D1001.
+# Le bloc `wifi:` (avec credentials) reste dans la config device.
+esp32_hosted:
+  type: sdio
+  variant: ESP32C6
+  reset_pin: GPIO5
+  cmd_pin: GPIO35
+  clk_pin: GPIO36
+  d0_pin: GPIO37
+  d1_pin: GPIO38
+  d2_pin: GPIO33
+  d3_pin: GPIO34
+  active_high: true
+  sdio_frequency: 10MHz
+
 i2c:
   - id: d1001_i2c
     sda: GPIO7

@@ -41,8 +41,9 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [x] Card liée à un `switch::Switch*` (`switch_id`) — état live `->state`, action `->toggle()`
 - [x] Re-render auto sur changement d'état HA (`add_on_state_callback`)
 - [x] Schéma : `type: switch` requiert `switch_id` ; `language: fr|en`
-- [x] Config de test réaliste `examples/dial_office.yaml` (menus Focus + Outils du device réel)
-- [x] `esphome config` OK (dial/d1001/dial.yaml/dial_office.yaml) ; `compile` Dial OK
+- [x] Configs de test réalistes `examples/dial_office.yaml` (Dial) et `examples/d1001_office.yaml`
+      (D1001, WiFi via esp32_hosted/C6) — mêmes menus Focus + Outils du device réel
+- [x] `esphome config` OK (tous) ; `compile` Dial OK ; `compile` D1001 réaliste en validation
 - [ ] Menus Musique/Chauffage/Portail = cartes media_player/climate/cover (M5)
 
 > Écart assumé vs cible : config actuelle = `profile:` + include board explicite ;
