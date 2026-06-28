@@ -33,8 +33,8 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [x] Schéma Python `__init__.py` (profile / groups / cards) + codegen
 - [x] Packages board : `m5stack_dial.yaml` (GC9A01A) et `reterminal_d1001.yaml` (P4/MIPI-DSI)
 - [x] `esphome config` **valide sur les deux** (test_dial.yaml, test_d1001.yaml)
-- [~] `esphome compile` Dial (S3) — en cours de validation
-- [ ] `esphome compile` D1001 (P4) — à valider (toolchain P4)
+- [x] `esphome compile` Dial (ESP32-S3) — OK (RAM 8.2% / Flash 28.8%)
+- [x] `esphome compile` D1001 (ESP32-P4) — OK (RAM 5.3% / Flash 31.2%)
 - [ ] Test sur matériel réel (gestes, robustesse tactile ADR-0005)
 
 > Écart assumé vs cible : config actuelle = `profile:` + include board explicite ;
