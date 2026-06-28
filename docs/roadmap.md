@@ -37,6 +37,14 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [x] `esphome compile` D1001 (ESP32-P4) — OK (RAM 5.3% / Flash 31.2%)
 - [ ] Test sur matériel réel (gestes, robustesse tactile ADR-0005)
 
+### M1a — Carte `switch` (binary) avec binding HA réel ✅ FAIT
+- [x] Card liée à un `switch::Switch*` (`switch_id`) — état live `->state`, action `->toggle()`
+- [x] Re-render auto sur changement d'état HA (`add_on_state_callback`)
+- [x] Schéma : `type: switch` requiert `switch_id` ; `language: fr|en`
+- [x] Config de test réaliste `examples/dial_office.yaml` (menus Focus + Outils du device réel)
+- [x] `esphome config` OK (dial/d1001/dial.yaml/dial_office.yaml) ; `compile` Dial OK
+- [ ] Menus Musique/Chauffage/Portail = cartes media_player/climate/cover (M5)
+
 > Écart assumé vs cible : config actuelle = `profile:` + include board explicite ;
 > l'auto-inject via substitution `display` + `entrypoint.yaml` (ADR-0006) reste à faire.
 > LVGL est hébergé par le composant `lvgl:` d'ESPHome (runtime), nos widgets sont construits

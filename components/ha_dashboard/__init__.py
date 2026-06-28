@@ -5,19 +5,20 @@ Voir docs/config-reference.md et docs/architecture.md.
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import binary_sensor, sensor
+from esphome.components import binary_sensor, sensor, switch
 from esphome.const import CONF_ID, CONF_NAME, CONF_TYPE
 
 CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
-# sensor / binary_sensor sont toujours référencés par le C++ (encodeur/bouton du Dial),
-# même si le board courant ne les utilise pas (ex. D1001 tactile seul) -> AUTO_LOAD.
-AUTO_LOAD = ["sensor", "binary_sensor"]
+# sensor / binary_sensor / switch sont toujours référencés par le C++ (encodeur/bouton du
+# Dial, binding switch), même si le board courant ne les utilise pas -> AUTO_LOAD.
+AUTO_LOAD = ["sensor", "binary_sensor", "switch"]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
 
 CONF_PROFILE = "profile"
+CONF_LANGUAGE = "language"
 CONF_INACTIVITY_TIMEOUT = "inactivity_timeout"
 CONF_ENCODER = "encoder"
 CONF_ENCODER_BUTTON = "encoder_button"
@@ -26,6 +27,7 @@ CONF_ICON = "icon"
 CONF_CARDS = "cards"
 CONF_ENTITY = "entity"
 CONF_COLOR = "color"
+CONF_SWITCH_ID = "switch_id"
 
 PROFILES = ["dial", "reterminal_d1001"]
 
@@ -44,13 +46,27 @@ def _hex_color(value):
     return f"#{value}"
 
 
-CARD_SCHEMA = cv.Schema(
-    {
-        cv.Required(CONF_TYPE): cv.enum(CARD_TYPES, lower=True),
-        cv.Required(CONF_ENTITY): cv.entity_id,
-        cv.Optional(CONF_NAME): cv.string,
-        cv.Optional(CONF_COLOR): _hex_color,
-    }
+def _validate_card(card):
+    # type switch -> switch_id requis (binding HA réel via un esphome switch).
+    # type light  -> entity requis (stub pour l'instant, binding réel = jalon suivant).
+    if card[CONF_TYPE] == CARD_TYPES["switch"] and CONF_SWITCH_ID not in card:
+        raise cv.Invalid("Une card 'switch' requiert 'switch_id'")
+    if card[CONF_TYPE] == CARD_TYPES["light"] and CONF_ENTITY not in card:
+        raise cv.Invalid("Une card 'light' requiert 'entity'")
+    return card
+
+
+CARD_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Required(CONF_TYPE): cv.enum(CARD_TYPES, lower=True),
+            cv.Optional(CONF_SWITCH_ID): cv.use_id(switch.Switch),
+            cv.Optional(CONF_ENTITY): cv.entity_id,
+            cv.Optional(CONF_NAME): cv.string,
+            cv.Optional(CONF_COLOR): _hex_color,
+        }
+    ),
+    _validate_card,
 )
 
 GROUP_SCHEMA = cv.Schema(
@@ -65,6 +81,7 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(HaDashboard),
         cv.Optional(CONF_PROFILE, default="dial"): cv.one_of(*PROFILES, lower=True),
+        cv.Optional(CONF_LANGUAGE, default="en"): cv.one_of("fr", "en", lower=True),
         cv.Optional(
             CONF_INACTIVITY_TIMEOUT, default="30s"
         ): cv.positive_time_period_milliseconds,
@@ -80,6 +97,7 @@ async def to_code(config):
     await cg.register_component(var, config)
 
     cg.add(var.set_profile(config[CONF_PROFILE]))
+    cg.add(var.set_language(config[CONF_LANGUAGE]))
     cg.add(var.set_inactivity_timeout(config[CONF_INACTIVITY_TIMEOUT]))
 
     if CONF_ENCODER in config:
@@ -97,13 +115,21 @@ async def to_code(config):
             if CONF_COLOR in card:
                 color = int(card[CONF_COLOR].lstrip("#"), 16)
                 has_color = True
-            cg.add(
-                var.add_card(
-                    group_index,
-                    card[CONF_TYPE],
-                    card[CONF_ENTITY],
-                    card.get(CONF_NAME, ""),
-                    color,
-                    has_color,
+            if card[CONF_TYPE] == CARD_TYPES["switch"]:
+                sw = await cg.get_variable(card[CONF_SWITCH_ID])
+                cg.add(
+                    var.add_switch_card(
+                        group_index, sw, card.get(CONF_NAME, ""), color, has_color
+                    )
                 )
-            )
+            else:  # light (stub)
+                cg.add(
+                    var.add_card(
+                        group_index,
+                        card[CONF_TYPE],
+                        card.get(CONF_ENTITY, ""),
+                        card.get(CONF_NAME, ""),
+                        color,
+                        has_color,
+                    )
+                )

@@ -179,12 +179,12 @@ void LvglRenderer::render(const ViewModel &vm) {
       if (c != nullptr && this->card_title_ != nullptr && this->card_value_ != nullptr) {
         lv_label_set_text(this->card_title_, c->name.c_str());
         char buf[32];
-        if (!c->available) {
+        if (!c->available()) {
           std::snprintf(buf, sizeof(buf), "indisponible");
         } else if (c->type == CardType::SWITCH) {
-          std::snprintf(buf, sizeof(buf), "%s", c->on ? "Allumé" : "Éteint");
+          std::snprintf(buf, sizeof(buf), "%s", c->is_on() ? "Allumé" : "Éteint");
         } else {  // light
-          if (c->on)
+          if (c->is_on())
             std::snprintf(buf, sizeof(buf), "%d%%", (int) (c->value * 100));
           else
             std::snprintf(buf, sizeof(buf), "Éteint");

@@ -1,7 +1,5 @@
-# Exemple utilisateur — M5Stack Dial.
-# En production : remplacer le external_components local par
-#   external_components: [ { source: github://AntorFR/esphome-dashboard } ]
-# et fournir wifi/api/ota dans un secrets.yaml.
+# Exemple générique — M5Stack Dial (cartes binaires).
+# En production : { source: github://AntorFR/esphome-dashboard } + secrets.yaml.
 esphome:
   name: salon-dial
 
@@ -15,10 +13,19 @@ packages:
 
 logger:
 
-# wifi / api / ota : à ajouter par l'utilisateur (non requis pour `esphome config`).
+# Exemple autonome : switches `template`. Pour un binding HA réel + wifi/api,
+# voir examples/dial_office.yaml.
+switch:
+  - platform: template
+    id: sw_prise_salon
+    optimistic: true
+  - platform: template
+    id: sw_prise_cuisine
+    optimistic: true
 
 ha_dashboard:
   profile: dial
+  language: fr
   inactivity_timeout: 30s
   encoder: dial_encoder
   encoder_button: dial_button
@@ -26,9 +33,8 @@ ha_dashboard:
     - name: Salon
       icon: sofa
       cards:
-        - { type: light, entity: light.salon_plafond }
-        - { type: switch, entity: switch.salon_prise }
+        - { type: switch, switch_id: sw_prise_salon, name: "Prise salon" }
     - name: Cuisine
       icon: kitchen
       cards:
-        - { type: light, entity: light.cuisine_spots }
+        - { type: switch, switch_id: sw_prise_cuisine, name: "Prise cuisine" }

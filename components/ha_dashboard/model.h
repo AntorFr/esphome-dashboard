@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "esphome/components/switch/switch.h"
 
 namespace esphome {
 namespace ha_dashboard {
@@ -22,10 +23,17 @@ struct Card {
   uint32_t color{0};       // override couleur (0xRRGGBB) ; sinon défaut par domaine
   bool has_color{false};
 
-  // État runtime (placeholder en attendant le binding HA)
+  // Binding HA : pour une card switch, pointe sur un esphome switch (souvent une
+  // plateforme `homeassistant`) -> état live via ->state, action via ->toggle().
+  switch_::Switch *sw{nullptr};
+
+  // État runtime local (utilisé tant qu'il n'y a pas de binding, ex. light stub).
   bool on{false};
   float value{0.0f};       // 0..1 (luminosité / position / volume)
-  bool available{true};
+
+  // État on/off effectif : binding si présent, sinon état local.
+  bool is_on() const { return this->sw != nullptr ? this->sw->state : this->on; }
+  bool available() const { return true; }  // disponibilité HA fine = jalon suivant
 };
 
 struct Group {

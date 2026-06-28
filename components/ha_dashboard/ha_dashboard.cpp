@@ -29,6 +29,25 @@ void HaDashboard::add_card(int group_index, int type, const std::string &entity,
   this->groups_[group_index].cards.push_back(c);
 }
 
+void HaDashboard::add_switch_card(int group_index, switch_::Switch *sw, const std::string &name, uint32_t color,
+                                  bool has_color) {
+  if (group_index < 0 || group_index >= (int) this->groups_.size())
+    return;
+  Card c;
+  c.type = CardType::SWITCH;
+  c.sw = sw;
+  if (!name.empty()) {
+    c.name = name;
+  } else if (sw != nullptr) {
+    c.name = sw->get_name().c_str();
+  } else {
+    c.name = "Switch";
+  }
+  c.color = color;
+  c.has_color = has_color;
+  this->groups_[group_index].cards.push_back(c);
+}
+
 void HaDashboard::setup() {
   this->renderer_.set_profile(this->profile_);
   this->controller_.set_inactivity_timeout(this->timeout_ms_);
@@ -47,6 +66,15 @@ void HaDashboard::build_if_ready_() {
   this->renderer_.set_event_handler([this](InputEvent e, int idx) { this->controller_.handle(e, idx); });
   this->controller_.set_renderer(&this->renderer_);
   this->controller_.set_model(&this->groups_);
+
+  // Re-render quand l'état HA d'une card switch change (binding live).
+  for (auto &g : this->groups_) {
+    for (auto &c : g.cards) {
+      if (c.sw != nullptr)
+        c.sw->add_on_state_callback([this](bool) { this->controller_.refresh(); });
+    }
+  }
+
   this->controller_.start();
 
   if (this->encoder_ != nullptr)
@@ -102,6 +130,7 @@ void HaDashboard::loop() {
 void HaDashboard::dump_config() {
   ESP_LOGCONFIG(TAG, "ha_dashboard:");
   ESP_LOGCONFIG(TAG, "  profile: %s", this->profile_.c_str());
+  ESP_LOGCONFIG(TAG, "  language: %s", this->language_.c_str());
   ESP_LOGCONFIG(TAG, "  inactivity_timeout: %u ms", (unsigned) this->timeout_ms_);
   ESP_LOGCONFIG(TAG, "  encoder: %s", YESNO(this->encoder_ != nullptr));
   ESP_LOGCONFIG(TAG, "  button: %s", YESNO(this->button_ != nullptr));

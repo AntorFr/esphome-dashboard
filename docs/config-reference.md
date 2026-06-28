@@ -36,8 +36,15 @@ external_components:
 packages:
   board: !include packages/boards/m5stack_dial.yaml   # ou reterminal_d1001.yaml
 
+# La card `switch` se lie à un esphome switch (souvent plateforme `homeassistant`).
+switch:
+  - platform: homeassistant
+    id: sw_prise_salon
+    entity_id: switch.salon_prise
+
 ha_dashboard:
   profile: dial                 # dial | reterminal_d1001
+  language: fr                  # fr | en
   inactivity_timeout: 30s
   encoder: dial_encoder         # (Dial) id du rotary_encoder fourni par le board
   encoder_button: dial_button   # (Dial) id du binary_sensor bouton
@@ -45,15 +52,22 @@ ha_dashboard:
     - name: "Salon"
       icon: sofa
       cards:
-        - { type: light,  entity: light.salon_plafond }
-        - { type: switch, entity: switch.salon_prise }
-    - name: "Cuisine"
-      cards:
-        - { type: light, entity: light.cuisine_spots, color: "#FF8800" }
+        - { type: switch, switch_id: sw_prise_salon, name: "Prise salon" }
+        - { type: light,  entity: light.salon_plafond }   # light = stub (binding à venir)
 ```
+
+### Schéma de card (état M0.5)
+| `type` | Champ requis | Binding |
+|--------|--------------|---------|
+| `switch` | `switch_id` (id d'un esphome switch) | **réel** : `->state` / `->toggle()` |
+| `light`  | `entity` (entity_id) | stub (placeholder, binding réel = jalon suivant) |
+
+Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (optionnel `#RRGGBB`).
 
 > Le board fournit `display:`, `touchscreen:`, `lvgl:` (+ encodeur/bouton sur le Dial).
 > Clé du composant = `ha_dashboard:` (= nom du dossier composant).
+> Domaines liables en `switch` (plateforme `homeassistant`) : switch, input_boolean, light,
+> fan, humidifier, remote, siren, automation. media_player / climate / cover = cartes M5.
 
 ## Schéma `dashboard:`
 

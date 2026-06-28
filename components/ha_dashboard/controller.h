@@ -24,6 +24,9 @@ class Controller {
   // À appeler à chaque loop : gère le timeout d'inactivité -> veille.
   void tick(uint32_t now_ms);
 
+  // Re-rendu de l'état courant (ex. quand l'état HA d'une card change).
+  void refresh() { this->render_(); }
+
   NavState state() const { return this->state_; }
 
  protected:

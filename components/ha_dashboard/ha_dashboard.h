@@ -22,6 +22,7 @@ class HaDashboard : public Component {
   float get_setup_priority() const override { return setup_priority::LATE; }
 
   void set_profile(const std::string &profile) { this->profile_ = profile; }
+  void set_language(const std::string &language) { this->language_ = language; }
   void set_inactivity_timeout(uint32_t ms) { this->timeout_ms_ = ms; }
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
@@ -30,6 +31,9 @@ class HaDashboard : public Component {
   void add_group(const std::string &name, const std::string &icon);
   void add_card(int group_index, int type, const std::string &entity, const std::string &name, uint32_t color,
                 bool has_color);
+  // Card switch liée à un esphome switch (binding HA réel).
+  void add_switch_card(int group_index, switch_::Switch *sw, const std::string &name, uint32_t color,
+                       bool has_color);
 
  protected:
   void build_if_ready_();
@@ -44,6 +48,7 @@ class HaDashboard : public Component {
   binary_sensor::BinarySensor *button_{nullptr};
 
   std::string profile_{"dial"};
+  std::string language_{"en"};
   uint32_t timeout_ms_{30000};
   bool built_{false};
 

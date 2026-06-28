@@ -101,13 +101,18 @@ void Controller::handle(InputEvent event, int index) {
       switch (event) {
         case InputEvent::TOGGLE:
         case InputEvent::SELECT: {
-          // Prototype : bascule l'état local (binding HA = jalon suivant).
           int gi = this->group_index_, ci = this->card_index_;
           if (this->groups_ && gi < (int) this->groups_->size() &&
               ci < (int) (*this->groups_)[gi].cards.size()) {
             Card &c = (*this->groups_)[gi].cards[ci];
-            c.on = !c.on;
-            ESP_LOGI(TAG, "toggle card '%s' -> %s", c.name.c_str(), c.on ? "on" : "off");
+            if (c.sw != nullptr) {
+              // Binding HA réel : la confirmation d'état déclenchera un refresh.
+              c.sw->toggle();
+              ESP_LOGI(TAG, "toggle '%s' (entité liée)", c.name.c_str());
+            } else {
+              c.on = !c.on;
+              ESP_LOGI(TAG, "toggle '%s' -> %s (local)", c.name.c_str(), c.on ? "on" : "off");
+            }
           }
           break;
         }
