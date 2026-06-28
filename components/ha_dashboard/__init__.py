@@ -10,6 +10,9 @@ from esphome.const import CONF_ID, CONF_NAME, CONF_TYPE
 
 CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
+# sensor / binary_sensor sont toujours référencés par le C++ (encodeur/bouton du Dial),
+# même si le board courant ne les utilise pas (ex. D1001 tactile seul) -> AUTO_LOAD.
+AUTO_LOAD = ["sensor", "binary_sensor"]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
