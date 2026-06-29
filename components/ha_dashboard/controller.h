@@ -33,6 +33,7 @@ class Controller {
 
  protected:
   void render_();
+  void primary_action_(Card &card);  // tap/toggle action depending on the card type
   int group_count_() const;
   int card_count_(int group_index) const;
   void enter_group_(int group_index);

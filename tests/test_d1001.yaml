@@ -10,8 +10,15 @@ external_components:
 
 packages:
   board: !include ../packages/boards/reterminal_d1001.yaml
+  fonts: !include ../packages/fonts/montserrat_fr.yaml
 
 logger:
+
+# api (+ network) requis : ha_dashboard tire homeassistant_addon (cover/climate/media).
+wifi:
+  ssid: "test-ssid"
+  password: "test-password"
+api:
 
 switch:
   - platform: template
@@ -20,6 +27,9 @@ switch:
 
 ha_dashboard:
   profile: reterminal_d1001
+  font_small: ha_font_small
+  font_medium: ha_font_medium
+  font_large: ha_font_large
   groups:
     - name: Salon
       icon: sofa

@@ -105,15 +105,7 @@ void Controller::handle(InputEvent event, int index) {
           int gi = this->group_index_, ci = this->card_index_;
           if (this->groups_ && gi < (int) this->groups_->size() &&
               ci < (int) (*this->groups_)[gi].cards.size()) {
-            Card &c = (*this->groups_)[gi].cards[ci];
-            if (c.sw != nullptr) {
-              // Binding HA réel : la confirmation d'état déclenchera un refresh.
-              c.sw->toggle();
-              ESP_LOGI(TAG, "toggle '%s' (entité liée)", c.name.c_str());
-            } else {
-              c.on = !c.on;
-              ESP_LOGI(TAG, "toggle '%s' -> %s (local)", c.name.c_str(), c.on ? "on" : "off");
-            }
+            this->primary_action_((*this->groups_)[gi].cards[ci]);
           }
           break;
         }
@@ -140,12 +132,7 @@ void Controller::handle(InputEvent event, int index) {
           if (this->groups_ && gi < (int) this->groups_->size() && index >= 0 &&
               index < (int) (*this->groups_)[gi].cards.size()) {
             Card &c = (*this->groups_)[gi].cards[index];
-            if (c.sw != nullptr) {
-              c.sw->toggle();
-              ESP_LOGD(TAG, "toggle '%s' (HA entity)", c.name.c_str());
-            } else {
-              c.on = !c.on;
-            }
+            this->primary_action_(c);
           }
           break;
         }
@@ -167,6 +154,37 @@ void Controller::tick(uint32_t now_ms) {
     this->state_ = NavState::IDLE;
     this->render_();
   }
+}
+
+void Controller::primary_action_(Card &c) {
+  switch (c.type) {
+    case CardType::COVER:
+      if (c.cover != nullptr) {
+        auto call = c.cover->make_call();
+        if (c.cover->position > 0.5f)
+          call.set_command_close();
+        else
+          call.set_command_open();
+        call.perform();
+      }
+      break;
+    case CardType::MEDIA_PLAYER:
+      if (c.media != nullptr)
+        c.media->play_pause();
+      break;
+    case CardType::CLIMATE:
+      // No on/off toggle for climate; adjusted via detail/encoder (later).
+      break;
+    case CardType::SWITCH:
+    case CardType::LIGHT:
+    default:
+      if (c.sw != nullptr)
+        c.sw->toggle();
+      else
+        c.on = !c.on;
+      break;
+  }
+  ESP_LOGD(TAG, "primary action on '%s'", c.name.c_str());
 }
 
 void Controller::render_() {

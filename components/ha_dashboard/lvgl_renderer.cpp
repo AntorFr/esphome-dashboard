@@ -1,4 +1,5 @@
 #include "lvgl_renderer.h"
+#include <cmath>
 #include <cstdio>
 #include <vector>
 #include "esphome/core/log.h"
@@ -167,10 +168,32 @@ static uint32_t accent_for(const Card &c) {
   return c.type == CardType::SWITCH ? 0x3DD68C : 0xFFB020;
 }
 
-static const char *state_label(const Card &c) {
-  if (!c.available())
-    return "indisponible";
-  return c.is_on() ? "Allumé" : "Éteint";
+static void format_state(const Card &c, char *buf, size_t n) {
+  if (!c.available()) {
+    std::snprintf(buf, n, "indispo");
+    return;
+  }
+  switch (c.type) {
+    case CardType::COVER:
+      std::snprintf(buf, n, "%d%%", (int) lroundf(c.value() * 100));
+      break;
+    case CardType::MEDIA_PLAYER:
+      std::snprintf(buf, n, "%s", c.is_on() ? "Lecture" : "Pause");
+      break;
+    case CardType::CLIMATE:
+      std::snprintf(buf, n, "%.1f°", c.climate != nullptr ? c.climate->target_temperature : 0.0f);
+      break;
+    case CardType::LIGHT:
+      if (c.is_on())
+        std::snprintf(buf, n, "%d%%", (int) lroundf(c.value() * 100));
+      else
+        std::snprintf(buf, n, "Éteint");
+      break;
+    case CardType::SWITCH:
+    default:
+      std::snprintf(buf, n, "%s", c.is_on() ? "Allumé" : "Éteint");
+      break;
+  }
 }
 
 // LVGL built-in symbol per card type (real domain icons need an icon font — TODO).
@@ -178,6 +201,12 @@ static const char *icon_for(const Card &c) {
   switch (c.type) {
     case CardType::SWITCH:
       return LV_SYMBOL_POWER;
+    case CardType::COVER:
+      return LV_SYMBOL_UP;
+    case CardType::MEDIA_PLAYER:
+      return LV_SYMBOL_AUDIO;
+    case CardType::CLIMATE:
+      return LV_SYMBOL_GPS;
     case CardType::LIGHT:
     default:
       return LV_SYMBOL_CHARGE;
@@ -320,13 +349,27 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_48, 0);  // LVGL symbol font
 
       t.state = lv_label_create(toprow);
-      lv_label_set_text(t.state, state_label(card));
+      char sbuf[24];
+      format_state(card, sbuf, sizeof(sbuf));
+      lv_label_set_text(t.state, sbuf);
       this->set_text_font_(t.state, this->font_small_, &lv_font_montserrat_20);
 
       lv_obj_t *name = lv_label_create(tile);
       lv_label_set_text(name, card.name.c_str());
       lv_obj_set_style_text_color(name, lv_color_hex(COL_TEXT), 0);
       this->set_text_font_(name, this->font_medium_, &lv_font_montserrat_28);
+
+      // Value bar for cards that expose a value (cover/media/climate/light).
+      if (card.has_value()) {
+        t.bar = lv_bar_create(tile);
+        lv_obj_set_width(t.bar, lv_pct(100));
+        lv_obj_set_height(t.bar, 6);
+        lv_obj_set_style_radius(t.bar, 3, 0);
+        lv_obj_set_style_bg_color(t.bar, lv_color_hex(0x26262F), LV_PART_MAIN);
+        lv_obj_set_style_bg_color(t.bar, lv_color_hex(COL_ACCENT), LV_PART_INDICATOR);
+        lv_bar_set_range(t.bar, 0, 100);
+        lv_bar_set_value(t.bar, 0, LV_ANIM_OFF);
+      }
 
       auto *d = new CbData{this, InputEvent::TOGGLE, (int) ci};
       g_cbdata.push_back(d);
@@ -361,8 +404,14 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
         const Tile &t = this->group_tiles_[gi][ci];
         uint32_t col = c.is_on() ? accent_for(c) : COL_MUTED;
         lv_obj_set_style_text_color(t.icon, lv_color_hex(col), 0);
-        lv_label_set_text(t.state, state_label(c));
+        char sbuf[24];
+        format_state(c, sbuf, sizeof(sbuf));
+        lv_label_set_text(t.state, sbuf);
         lv_obj_set_style_text_color(t.state, lv_color_hex(col), 0);
+        if (t.bar != nullptr) {
+          lv_bar_set_value(t.bar, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
+          lv_obj_set_style_bg_color(t.bar, lv_color_hex(c.is_on() ? accent_for(c) : COL_MUTED), LV_PART_INDICATOR);
+        }
       }
     } else {
       lv_obj_add_flag(this->group_grids_[gi], LV_OBJ_FLAG_HIDDEN);
@@ -416,17 +465,8 @@ void LvglRenderer::render(const ViewModel &vm) {
       const Card *c = this->current_card_(vm);
       if (c != nullptr && this->card_title_ != nullptr && this->card_value_ != nullptr) {
         lv_label_set_text(this->card_title_, c->name.c_str());
-        char buf[32];
-        if (!c->available()) {
-          std::snprintf(buf, sizeof(buf), "indisponible");
-        } else if (c->type == CardType::SWITCH) {
-          std::snprintf(buf, sizeof(buf), "%s", c->is_on() ? "Allumé" : "Éteint");
-        } else {  // light
-          if (c->is_on())
-            std::snprintf(buf, sizeof(buf), "%d%%", (int) (c->value * 100));
-          else
-            std::snprintf(buf, sizeof(buf), "Éteint");
-        }
+        char buf[24];
+        format_state(*c, buf, sizeof(buf));
         lv_label_set_text(this->card_value_, buf);
       }
       if (this->card_scr_ != nullptr)

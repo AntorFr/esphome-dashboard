@@ -5,7 +5,8 @@ Voir docs/config-reference.md et docs/architecture.md.
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import binary_sensor, sensor, switch, time as time_comp
+from esphome.components import binary_sensor, climate, cover, sensor, switch, time as time_comp
+from esphome.components.homeassistant_addon import HomeassistantMediaPlayer
 from esphome.components.lvgl import lv_validation as lvalid
 from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
 
@@ -13,7 +14,15 @@ CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
 # sensor / binary_sensor / switch sont toujours référencés par le C++ (encodeur/bouton du
 # Dial, binding switch), même si le board courant ne les utilise pas -> AUTO_LOAD.
-AUTO_LOAD = ["sensor", "binary_sensor", "switch", "time", "font"]
+AUTO_LOAD = [
+    "sensor",
+    "binary_sensor",
+    "switch",
+    "time",
+    "cover",
+    "climate",
+    "homeassistant_addon",
+]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
@@ -29,6 +38,9 @@ CONF_CARDS = "cards"
 CONF_ENTITY = "entity"
 CONF_COLOR = "color"
 CONF_SWITCH_ID = "switch_id"
+CONF_COVER_ID = "cover_id"
+CONF_CLIMATE_ID = "climate_id"
+CONF_MEDIA_PLAYER_ID = "media_player_id"
 CONF_FONT_SMALL = "font_small"
 CONF_FONT_MEDIUM = "font_medium"
 CONF_FONT_LARGE = "font_large"
@@ -36,7 +48,7 @@ CONF_FONT_LARGE = "font_large"
 PROFILES = ["dial", "reterminal_d1001"]
 
 # Valeurs alignées sur l'enum C++ CardType (model.h).
-CARD_TYPES = {"light": 0, "switch": 1}
+CARD_TYPES = {"light": 0, "switch": 1, "cover": 2, "media_player": 3, "climate": 4}
 
 
 def _hex_color(value):
@@ -50,13 +62,21 @@ def _hex_color(value):
     return f"#{value}"
 
 
+# Required binding id per card type (cv.enum yields the string key). switch -> esphome
+# switch ; cover/climate/media -> homeassistant_addon objects ; light -> entity (stub).
+_REQUIRED_ID = {
+    "switch": CONF_SWITCH_ID,
+    "cover": CONF_COVER_ID,
+    "climate": CONF_CLIMATE_ID,
+    "media_player": CONF_MEDIA_PLAYER_ID,
+    "light": CONF_ENTITY,
+}
+
+
 def _validate_card(card):
-    # type switch -> switch_id requis (binding HA réel via un esphome switch).
-    # type light  -> entity requis (stub pour l'instant, binding réel = jalon suivant).
-    if card[CONF_TYPE] == CARD_TYPES["switch"] and CONF_SWITCH_ID not in card:
-        raise cv.Invalid("Une card 'switch' requiert 'switch_id'")
-    if card[CONF_TYPE] == CARD_TYPES["light"] and CONF_ENTITY not in card:
-        raise cv.Invalid("Une card 'light' requiert 'entity'")
+    needed = _REQUIRED_ID[str(card[CONF_TYPE])]
+    if needed not in card:
+        raise cv.Invalid(f"Une card '{card[CONF_TYPE]}' requiert '{needed}'")
     return card
 
 
@@ -65,6 +85,9 @@ CARD_SCHEMA = cv.All(
         {
             cv.Required(CONF_TYPE): cv.enum(CARD_TYPES, lower=True),
             cv.Optional(CONF_SWITCH_ID): cv.use_id(switch.Switch),
+            cv.Optional(CONF_COVER_ID): cv.use_id(cover.Cover),
+            cv.Optional(CONF_CLIMATE_ID): cv.use_id(climate.Climate),
+            cv.Optional(CONF_MEDIA_PLAYER_ID): cv.use_id(HomeassistantMediaPlayer),
             cv.Optional(CONF_ENTITY): cv.entity_id,
             cv.Optional(CONF_NAME): cv.string,
             cv.Optional(CONF_COLOR): _hex_color,
@@ -107,6 +130,11 @@ async def to_code(config):
     # NB: the Montserrat font sizes used by the C++ renderer are enabled via
     # board build flags (-DLV_FONT_MONTSERRAT_xx), because this component is coded
     # after lvgl and add_define would be too late for lv_conf.h generation.
+    # homeassistant_addon is AUTO_LOADed (all its .cpp compiled), and its HA state/service
+    # API calls are guarded by these defines -> enable them unconditionally.
+    cg.add_define("USE_API_HOMEASSISTANT_STATES")
+    cg.add_define("USE_API_HOMEASSISTANT_SERVICES")
+
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
@@ -139,20 +167,26 @@ async def to_code(config):
             if CONF_COLOR in card:
                 color = int(card[CONF_COLOR].lstrip("#"), 16)
                 has_color = True
+            name = card.get(CONF_NAME, "")
             if CONF_SWITCH_ID in card:
-                sw = await cg.get_variable(card[CONF_SWITCH_ID])
-                cg.add(
-                    var.add_switch_card(
-                        group_index, sw, card.get(CONF_NAME, ""), color, has_color
-                    )
-                )
+                obj = await cg.get_variable(card[CONF_SWITCH_ID])
+                cg.add(var.add_switch_card(group_index, obj, name, color, has_color))
+            elif CONF_COVER_ID in card:
+                obj = await cg.get_variable(card[CONF_COVER_ID])
+                cg.add(var.add_cover_card(group_index, obj, name, color, has_color))
+            elif CONF_CLIMATE_ID in card:
+                obj = await cg.get_variable(card[CONF_CLIMATE_ID])
+                cg.add(var.add_climate_card(group_index, obj, name, color, has_color))
+            elif CONF_MEDIA_PLAYER_ID in card:
+                obj = await cg.get_variable(card[CONF_MEDIA_PLAYER_ID])
+                cg.add(var.add_media_card(group_index, obj, name, color, has_color))
             else:  # light (stub)
                 cg.add(
                     var.add_card(
                         group_index,
-                        card[CONF_TYPE],
+                        CARD_TYPES[str(card[CONF_TYPE])],
                         card.get(CONF_ENTITY, ""),
-                        card.get(CONF_NAME, ""),
+                        name,
                         color,
                         has_color,
                     )

@@ -3,19 +3,25 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "esphome/components/climate/climate.h"
+#include "esphome/components/cover/cover.h"
+#include "esphome/components/homeassistant_addon/homeassistant_media_player.h"
 #include "esphome/components/switch/switch.h"
 
 namespace esphome {
 namespace ha_dashboard {
 
-// v1 démarre avec light + switch (cf. docs/roadmap.md). Ordre = valeurs passées par le codegen.
 enum class CardType : uint8_t {
   LIGHT = 0,
   SWITCH = 1,
+  COVER = 2,
+  MEDIA_PLAYER = 3,
+  CLIMATE = 4,
 };
 
-// Définition logique d'une card. L'état runtime est stubbé pour ce premier prototype
-// (binding HA réel = jalon suivant).
+// Définition logique d'une card. Le binding HA se fait via des objets ESPHome :
+// switch (plateforme homeassistant) / cover+climate (homeassistant_addon) /
+// media_player (homeassistant_addon, classe custom).
 struct Card {
   CardType type{CardType::LIGHT};
   std::string entity;
@@ -23,17 +29,64 @@ struct Card {
   uint32_t color{0};       // override couleur (0xRRGGBB) ; sinon défaut par domaine
   bool has_color{false};
 
-  // Binding HA : pour une card switch, pointe sur un esphome switch (souvent une
-  // plateforme `homeassistant`) -> état live via ->state, action via ->toggle().
   switch_::Switch *sw{nullptr};
+  cover::Cover *cover{nullptr};
+  climate::Climate *climate{nullptr};
+  homeassistant_addon::HomeassistantMediaPlayer *media{nullptr};
 
-  // État runtime local (utilisé tant qu'il n'y a pas de binding, ex. light stub).
+  // État runtime local (utilisé pour les types sans binding, ex. light stub).
   bool on{false};
-  float value{0.0f};       // 0..1 (luminosité / position / volume)
+  float value_local{0.0f};
 
-  // État on/off effectif : binding si présent, sinon état local.
-  bool is_on() const { return this->sw != nullptr ? this->sw->state : this->on; }
   bool available() const { return true; }  // disponibilité HA fine = jalon suivant
+
+  // État on/off "actif" effectif selon le type.
+  bool is_on() const {
+    switch (this->type) {
+      case CardType::SWITCH:
+        return this->sw != nullptr ? this->sw->state : this->on;
+      case CardType::COVER:
+        return this->cover != nullptr ? this->cover->position > 0.0f : this->on;
+      case CardType::MEDIA_PLAYER:
+        return this->media != nullptr
+                   ? this->media->get_state() == homeassistant_addon::MediaPlayerState::PLAYING
+                   : this->on;
+      case CardType::CLIMATE:
+        return this->climate != nullptr ? this->climate->mode != climate::CLIMATE_MODE_OFF : this->on;
+      case CardType::LIGHT:
+      default:
+        return this->on;
+    }
+  }
+
+  // Valeur normalisée 0..1 pour l'arc / la barre de progression.
+  float value() const {
+    switch (this->type) {
+      case CardType::COVER:
+        return this->cover != nullptr ? this->cover->position : 0.0f;
+      case CardType::MEDIA_PLAYER:
+        return this->media != nullptr ? this->media->get_volume() : 0.0f;
+      case CardType::CLIMATE: {
+        if (this->climate == nullptr)
+          return 0.0f;
+        auto traits = this->climate->get_traits();
+        float lo = traits.get_visual_min_temperature();
+        float hi = traits.get_visual_max_temperature();
+        if (hi <= lo)
+          return 0.0f;
+        float t = (this->climate->target_temperature - lo) / (hi - lo);
+        return t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+      }
+      case CardType::LIGHT:
+        return this->is_on() ? this->value_local : 0.0f;
+      case CardType::SWITCH:
+      default:
+        return this->is_on() ? 1.0f : 0.0f;
+    }
+  }
+
+  // La card affiche-t-elle une valeur réglable (barre / arc) ? (switch = non)
+  bool has_value() const { return this->type != CardType::SWITCH; }
 };
 
 struct Group {

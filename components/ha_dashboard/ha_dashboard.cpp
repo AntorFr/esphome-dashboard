@@ -48,6 +48,44 @@ void HaDashboard::add_switch_card(int group_index, switch_::Switch *sw, const st
   this->groups_[group_index].cards.push_back(c);
 }
 
+static Card &push_card_(std::vector<Group> &groups, int gi, CardType type, const std::string &name, uint32_t color,
+                        bool has_color) {
+  Card c;
+  c.type = type;
+  c.name = name;
+  c.color = color;
+  c.has_color = has_color;
+  groups[gi].cards.push_back(c);
+  return groups[gi].cards.back();
+}
+
+void HaDashboard::add_cover_card(int group_index, cover::Cover *cover, const std::string &name, uint32_t color,
+                                 bool has_color) {
+  if (group_index < 0 || group_index >= (int) this->groups_.size())
+    return;
+  Card &c = push_card_(this->groups_, group_index, CardType::COVER,
+                       !name.empty() ? name : std::string("Cover"), color, has_color);
+  c.cover = cover;
+}
+
+void HaDashboard::add_climate_card(int group_index, climate::Climate *climate, const std::string &name, uint32_t color,
+                                   bool has_color) {
+  if (group_index < 0 || group_index >= (int) this->groups_.size())
+    return;
+  Card &c = push_card_(this->groups_, group_index, CardType::CLIMATE,
+                       !name.empty() ? name : std::string("Climate"), color, has_color);
+  c.climate = climate;
+}
+
+void HaDashboard::add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media,
+                                 const std::string &name, uint32_t color, bool has_color) {
+  if (group_index < 0 || group_index >= (int) this->groups_.size())
+    return;
+  Card &c = push_card_(this->groups_, group_index, CardType::MEDIA_PLAYER,
+                       !name.empty() ? name : std::string("Media"), color, has_color);
+  c.media = media;
+}
+
 void HaDashboard::setup() {
   this->renderer_.set_profile(this->profile_);
   this->controller_.set_inactivity_timeout(this->timeout_ms_);
@@ -68,11 +106,17 @@ void HaDashboard::build_if_ready_() {
   this->controller_.set_model(&this->groups_);
   this->controller_.set_dashboard_mode(this->profile_ == "reterminal_d1001");
 
-  // Re-render quand l'état HA d'une card switch change (binding live).
+  // Re-render quand l'état HA d'une card change (binding live).
   for (auto &g : this->groups_) {
     for (auto &c : g.cards) {
       if (c.sw != nullptr)
         c.sw->add_on_state_callback([this](bool) { this->controller_.refresh(); });
+      if (c.cover != nullptr)
+        c.cover->add_on_state_callback([this]() { this->controller_.refresh(); });
+      if (c.climate != nullptr)
+        c.climate->add_on_state_callback([this](climate::Climate & /*unused*/) { this->controller_.refresh(); });
+      if (c.media != nullptr)
+        c.media->add_on_state_callback([this]() { this->controller_.refresh(); });
     }
   }
 

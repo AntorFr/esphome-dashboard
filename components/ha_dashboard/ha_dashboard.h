@@ -40,6 +40,11 @@ class HaDashboard : public Component {
   // Card switch liée à un esphome switch (binding HA réel).
   void add_switch_card(int group_index, switch_::Switch *sw, const std::string &name, uint32_t color,
                        bool has_color);
+  void add_cover_card(int group_index, cover::Cover *cover, const std::string &name, uint32_t color, bool has_color);
+  void add_climate_card(int group_index, climate::Climate *climate, const std::string &name, uint32_t color,
+                        bool has_color);
+  void add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media, const std::string &name,
+                      uint32_t color, bool has_color);
 
  protected:
   void build_if_ready_();

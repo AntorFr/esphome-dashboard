@@ -50,6 +50,7 @@ class LvglRenderer : public Renderer {
     lv_obj_t *root{nullptr};
     lv_obj_t *icon{nullptr};
     lv_obj_t *state{nullptr};
+    lv_obj_t *bar{nullptr};  // value bar for non-switch cards (null for switch)
   };
 
   EventHandler handler_;

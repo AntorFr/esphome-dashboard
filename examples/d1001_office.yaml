@@ -72,6 +72,27 @@ switch:
     name: "Core One"
     internal: true
 
+# Entités non-switch via homeassistant_addon (cover/climate/media_player).
+cover:
+  - platform: homeassistant_addon
+    id: cover_portail
+    entity_id: cover.portail_2
+    name: "Portail"
+    internal: true
+
+climate:
+  - platform: homeassistant_addon
+    id: climate_chauffage
+    entity_id: climate.mobile_heater_plug_thermostat
+    name: "Chauffage"
+    internal: true
+
+homeassistant_addon:
+  media_players:
+    - id: media_bureau
+      entity_id: media_player.ma_bureau
+      volume_step: 0.05
+
 ha_dashboard:
   profile: reterminal_d1001
   language: fr
@@ -92,8 +113,15 @@ ha_dashboard:
       cards:
         - { type: switch, switch_id: iron,     name: "Fer à souder", color: "#D32F2F" }
         - { type: switch, switch_id: core_one, name: "Core One",      color: "#0097A7" }
-
-    # === À venir en M5 (cartes dédiées) ===
-    # - name: "Musique"   # media_player.ma_bureau
-    # - name: "Chauffage" # climate.mobile_heater_plug_thermostat
-    # - name: "Portail"   # cover.portail_2
+    - name: "Musique"
+      icon: speaker
+      cards:
+        - { type: media_player, media_player_id: media_bureau, name: "Enceinte", color: "#A06CFF" }
+    - name: "Chauffage"
+      icon: thermostat
+      cards:
+        - { type: climate, climate_id: climate_chauffage, name: "Chauffage", color: "#03A964" }
+    - name: "Portail"
+      icon: gate
+      cards:
+        - { type: cover, cover_id: cover_portail, name: "Portail", color: "#577EFF" }

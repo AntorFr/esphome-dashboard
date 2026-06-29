@@ -10,11 +10,16 @@ external_components:
 
 packages:
   board: !include ../packages/boards/m5stack_dial.yaml
+  fonts: !include ../packages/fonts/montserrat_fr.yaml
 
 logger:
 
-# Switches template (validation sans réseau). Le binding `homeassistant` réel est
-# illustré dans examples/dial_office.yaml.
+# api (+ network) requis : ha_dashboard tire homeassistant_addon (cover/climate/media).
+wifi:
+  ssid: "test-ssid"
+  password: "test-password"
+api:
+
 switch:
   - platform: template
     id: sw_salon_prise
@@ -27,6 +32,9 @@ ha_dashboard:
   profile: dial
   encoder: dial_encoder
   encoder_button: dial_button
+  font_small: ha_font_small
+  font_medium: ha_font_medium
+  font_large: ha_font_large
   groups:
     - name: Salon
       icon: sofa
