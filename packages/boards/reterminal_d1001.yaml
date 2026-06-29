@@ -6,6 +6,17 @@
 #    (aucune plateforme touchscreen gsl/silead). L'écran + le WiFi fonctionnent, mais
 #    la navigation tactile nécessitera un composant externe GSL3670 (TODO).
 #    Voir docs/lessons-learned.md.
+# Enable the Montserrat font sizes used by the LVGL renderer (built in C++, so the lvgl
+# component can't auto-detect them). Build flags are read by lvgl's lv_conf.h generator.
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DLV_FONT_MONTSERRAT_16=1"
+      - "-DLV_FONT_MONTSERRAT_20=1"
+      - "-DLV_FONT_MONTSERRAT_28=1"
+      - "-DLV_FONT_MONTSERRAT_40=1"
+      - "-DLV_FONT_MONTSERRAT_48=1"
+
 esp32:
   board: esp32-p4-evboard
   cpu_frequency: 360MHz

@@ -64,6 +64,7 @@ class LvglRenderer : public Renderer {
   lv_obj_t *time_lbl_{nullptr};
   lv_obj_t *date_lbl_{nullptr};
   std::vector<lv_obj_t *> tab_btns_;
+  std::vector<lv_obj_t *> tab_lbls_;
   std::vector<lv_obj_t *> group_grids_;
   std::vector<std::vector<Tile>> group_tiles_;
 };

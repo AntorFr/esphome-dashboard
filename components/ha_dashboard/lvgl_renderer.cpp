@@ -163,58 +163,97 @@ static const char *state_label(const Card &c) {
   return c.is_on() ? "Allumé" : "Éteint";
 }
 
+// LVGL built-in symbol per card type (real domain icons need an icon font — TODO).
+static const char *icon_for(const Card &c) {
+  switch (c.type) {
+    case CardType::SWITCH:
+      return LV_SYMBOL_POWER;
+    case CardType::LIGHT:
+    default:
+      return LV_SYMBOL_CHARGE;
+  }
+}
+
 void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   this->dashboard_scr_ = this->make_screen_();
   lv_obj_t *root = lv_obj_create(this->dashboard_scr_);
   lv_obj_set_size(root, lv_pct(100), lv_pct(100));
   lv_obj_set_style_bg_opa(root, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(root, 0, 0);
-  lv_obj_set_style_pad_all(root, 16, 0);
-  lv_obj_set_style_pad_row(root, 14, 0);
+  lv_obj_set_style_pad_hor(root, 20, 0);
+  lv_obj_set_style_pad_top(root, 22, 0);
+  lv_obj_set_style_pad_bottom(root, 0, 0);
+  lv_obj_set_style_pad_row(root, 16, 0);
   lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
   lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Header: time (big) + date (muted). Weather to come.
+  // --- Header: [time / date]  ........  [weather] ---
   this->dash_header_ = lv_obj_create(root);
   lv_obj_set_width(this->dash_header_, lv_pct(100));
   lv_obj_set_height(this->dash_header_, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(this->dash_header_, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(this->dash_header_, 0, 0);
   lv_obj_set_style_pad_all(this->dash_header_, 0, 0);
-  lv_obj_set_flex_flow(this->dash_header_, LV_FLEX_FLOW_COLUMN);
-  this->time_lbl_ = lv_label_create(this->dash_header_);
+  lv_obj_set_flex_flow(this->dash_header_, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(this->dash_header_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+
+  lv_obj_t *left = lv_obj_create(this->dash_header_);
+  lv_obj_set_size(left, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(left, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(left, 0, 0);
+  lv_obj_set_style_pad_all(left, 0, 0);
+  lv_obj_set_style_pad_row(left, 4, 0);
+  lv_obj_set_flex_flow(left, LV_FLEX_FLOW_COLUMN);
+  this->time_lbl_ = lv_label_create(left);
   lv_label_set_text(this->time_lbl_, "--:--");
   lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(COL_TEXT), 0);
-  lv_obj_set_style_text_font(this->time_lbl_, &lv_font_montserrat_20, 0);
-  this->date_lbl_ = lv_label_create(this->dash_header_);
+  lv_obj_set_style_text_font(this->time_lbl_, &lv_font_montserrat_40, 0);
+  this->date_lbl_ = lv_label_create(left);
   lv_label_set_text(this->date_lbl_, "");
   lv_obj_set_style_text_color(this->date_lbl_, lv_color_hex(COL_MUTED), 0);
+  lv_obj_set_style_text_font(this->date_lbl_, &lv_font_montserrat_16, 0);
 
-  // Tabs row (one button per group).
+  lv_obj_t *weather = lv_label_create(this->dash_header_);
+  lv_label_set_text(weather, "");  // TODO: bind a HA weather entity
+  lv_obj_set_style_text_color(weather, lv_color_hex(COL_MUTED), 0);
+  lv_obj_set_style_text_font(weather, &lv_font_montserrat_16, 0);
+
+  // --- Tabs (underline style, bottom rule like the mockup) ---
   lv_obj_t *tabs = lv_obj_create(root);
   lv_obj_set_width(tabs, lv_pct(100));
   lv_obj_set_height(tabs, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(tabs, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(tabs, 0, 0);
   lv_obj_set_style_pad_all(tabs, 0, 0);
-  lv_obj_set_style_pad_column(tabs, 8, 0);
+  lv_obj_set_style_pad_column(tabs, 20, 0);
+  lv_obj_set_style_border_width(tabs, 1, 0);
+  lv_obj_set_style_border_side(tabs, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_border_color(tabs, lv_color_hex(0x232330), 0);
   lv_obj_set_flex_flow(tabs, LV_FLEX_FLOW_ROW);
   lv_obj_set_scroll_dir(tabs, LV_DIR_HOR);
   this->tab_btns_.clear();
+  this->tab_lbls_.clear();
   for (size_t gi = 0; gi < groups.size(); gi++) {
-    lv_obj_t *btn = lv_button_create(tabs);
-    lv_obj_set_height(btn, LV_SIZE_CONTENT);
-    lv_obj_set_style_radius(btn, 10, 0);
-    lv_obj_t *lbl = lv_label_create(btn);
+    lv_obj_t *tab = lv_obj_create(tabs);
+    lv_obj_set_size(tab, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(tab, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_radius(tab, 0, 0);
+    lv_obj_set_style_pad_hor(tab, 2, 0);
+    lv_obj_set_style_pad_ver(tab, 8, 0);
+    lv_obj_set_style_border_color(tab, lv_color_hex(COL_ACCENT), 0);
+    lv_obj_set_style_border_side(tab, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_width(tab, 0, 0);
+    lv_obj_add_flag(tab, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t *lbl = lv_label_create(tab);
     lv_label_set_text(lbl, groups[gi].name.c_str());
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
     auto *d = new CbData{this, InputEvent::SELECT_GROUP, (int) gi};
     g_cbdata.push_back(d);
-    lv_obj_add_event_cb(btn, btn_event_cb, LV_EVENT_CLICKED, d);
-    this->tab_btns_.push_back(btn);
+    lv_obj_add_event_cb(tab, btn_event_cb, LV_EVENT_CLICKED, d);
+    this->tab_btns_.push_back(tab);
+    this->tab_lbls_.push_back(lbl);
   }
 
-  // Content area : one grid container per group (only the active one is shown).
+  // --- Content: one tile grid per group (only the active one shown) ---
   lv_obj_t *content = lv_obj_create(root);
   lv_obj_set_width(content, lv_pct(100));
   lv_obj_set_flex_grow(content, 1);
@@ -230,6 +269,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     lv_obj_set_style_bg_opa(grid, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(grid, 0, 0);
     lv_obj_set_style_pad_all(grid, 0, 0);
+    lv_obj_set_style_pad_top(grid, 16, 0);
     lv_obj_set_style_pad_row(grid, 12, 0);
     lv_obj_set_style_pad_column(grid, 12, 0);
     lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
@@ -239,8 +279,9 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     for (size_t ci = 0; ci < groups[gi].cards.size(); ci++) {
       const Card &card = groups[gi].cards[ci];
       lv_obj_t *tile = lv_button_create(grid);
-      lv_obj_set_size(tile, lv_pct(48), 130);
+      lv_obj_set_size(tile, lv_pct(48), 120);
       lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
+      lv_obj_set_style_shadow_width(tile, 0, 0);
       lv_obj_set_style_radius(tile, 16, 0);
       lv_obj_set_style_pad_all(tile, 16, 0);
       lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
@@ -249,7 +290,6 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       Tile t;
       t.root = tile;
 
-      // Top row: icon (left) + state label (right), like the mockup.
       lv_obj_t *toprow = lv_obj_create(tile);
       lv_obj_set_width(toprow, lv_pct(100));
       lv_obj_set_height(toprow, LV_SIZE_CONTENT);
@@ -260,16 +300,17 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       lv_obj_set_flex_align(toprow, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
       t.icon = lv_label_create(toprow);
-      lv_label_set_text(t.icon, LV_SYMBOL_POWER);
-      lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_20, 0);
+      lv_label_set_text(t.icon, icon_for(card));
+      lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_28, 0);
 
       t.state = lv_label_create(toprow);
       lv_label_set_text(t.state, state_label(card));
+      lv_obj_set_style_text_font(t.state, &lv_font_montserrat_16, 0);
 
       lv_obj_t *name = lv_label_create(tile);
       lv_label_set_text(name, card.name.c_str());
       lv_obj_set_style_text_color(name, lv_color_hex(COL_TEXT), 0);
-      lv_obj_set_style_text_font(name, &lv_font_montserrat_20, 0);
+      lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
 
       auto *d = new CbData{this, InputEvent::TOGGLE, (int) ci};
       g_cbdata.push_back(d);
@@ -286,12 +327,12 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
     return;
   int active = vm.group_index;
 
-  // Tabs: highlight the active group.
+  // Tabs: active = white label + accent underline; others muted, no underline.
   for (size_t i = 0; i < this->tab_btns_.size(); i++) {
     bool on = (int) i == active;
-    lv_obj_set_style_bg_color(this->tab_btns_[i], lv_color_hex(on ? 0x2A2A33 : COL_TILE), 0);
     lv_obj_set_style_border_width(this->tab_btns_[i], on ? 2 : 0, 0);
-    lv_obj_set_style_border_color(this->tab_btns_[i], lv_color_hex(COL_ACCENT), 0);
+    if (i < this->tab_lbls_.size())
+      lv_obj_set_style_text_color(this->tab_lbls_[i], lv_color_hex(on ? COL_TEXT : COL_MUTED), 0);
   }
 
   // Grids: show only the active group's tiles, refresh their state in place.
