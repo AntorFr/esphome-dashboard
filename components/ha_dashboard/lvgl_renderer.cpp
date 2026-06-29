@@ -10,7 +10,7 @@ static const char *const TAG = "ha_dashboard.lvgl";
 
 // Palette (cf. docs/color-system.md). Tokens HA à brancher plus tard.
 static constexpr uint32_t COL_BG = 0x0E0E12;
-static constexpr uint32_t COL_TILE = 0x17171E;
+static constexpr uint32_t COL_TILE = 0x2C2C38;  // lighter than the mockup so tiles stand out from the bg
 static constexpr uint32_t COL_TEXT = 0xFFFFFF;
 static constexpr uint32_t COL_MUTED = 0x8A8A92;
 static constexpr uint32_t COL_ACCENT = 0xFFB020;
