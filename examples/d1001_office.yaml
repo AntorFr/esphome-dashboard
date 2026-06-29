@@ -98,6 +98,8 @@ ha_dashboard:
   language: fr
   inactivity_timeout: 30s
   time_id: sntp_time
+  weather:
+    entity: weather.home   # ajuster à ton entité weather HA
   font_small: ha_font_small
   font_medium: ha_font_medium
   font_large: ha_font_large

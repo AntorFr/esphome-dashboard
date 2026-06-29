@@ -29,6 +29,7 @@ class HaDashboard : public Component {
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
+  void set_weather_entity(const char *entity) { this->weather_entity_ = entity; }
   void set_font_small(font::Font *f) { this->renderer_.set_font_small(f); }
   void set_font_medium(font::Font *f) { this->renderer_.set_font_medium(f); }
   void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
@@ -51,6 +52,8 @@ class HaDashboard : public Component {
   void poll_encoder_();
   void poll_button_();
   void update_clock_();
+  void subscribe_weather_();
+  void push_weather_();
 
   std::vector<Group> groups_;
   Controller controller_;
@@ -60,6 +63,10 @@ class HaDashboard : public Component {
   binary_sensor::BinarySensor *button_{nullptr};
   time::RealTimeClock *time_{nullptr};
   uint32_t last_clock_ms_{0};
+  const char *weather_entity_{nullptr};
+  std::string weather_temp_;
+  std::string weather_cond_;
+  bool weather_subscribed_{false};
 
   std::string profile_{"dial"};
   std::string language_{"en"};

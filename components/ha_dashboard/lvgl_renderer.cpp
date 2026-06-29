@@ -47,6 +47,13 @@ void LvglRenderer::set_clock(const char *time_str, const char *date_str) {
     lv_label_set_text(this->idle_date_lbl_, date_str);
 }
 
+void LvglRenderer::set_weather(const char *temp_str, const char *cond_str) {
+  if (this->weather_temp_lbl_ != nullptr)
+    lv_label_set_text(this->weather_temp_lbl_, temp_str);
+  if (this->weather_cond_lbl_ != nullptr)
+    lv_label_set_text(this->weather_cond_lbl_, cond_str);
+}
+
 void LvglRenderer::set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback) {
   if (f != nullptr)
     lv_obj_set_style_text_font(obj, f->get_lv_font(), 0);
@@ -274,10 +281,24 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_text_color(this->date_lbl_, lv_color_hex(COL_MUTED), 0);
   this->set_text_font_(this->date_lbl_, this->font_small_, &lv_font_montserrat_20);
 
-  lv_obj_t *weather = lv_label_create(this->dash_header_);
-  lv_label_set_text(weather, "");  // TODO: bind a HA weather entity
-  lv_obj_set_style_text_color(weather, lv_color_hex(COL_MUTED), 0);
-  this->set_text_font_(weather, this->font_small_, &lv_font_montserrat_20);
+  // Right: weather (temperature + condition), bound to a HA weather entity.
+  lv_obj_t *weather = lv_obj_create(this->dash_header_);
+  lv_obj_set_size(weather, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(weather, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(weather, 0, 0);
+  lv_obj_set_style_pad_all(weather, 0, 0);
+  lv_obj_set_style_pad_row(weather, 2, 0);
+  lv_obj_set_flex_flow(weather, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(weather, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
+  lv_obj_clear_flag(weather, LV_OBJ_FLAG_SCROLLABLE);
+  this->weather_temp_lbl_ = lv_label_create(weather);
+  lv_label_set_text(this->weather_temp_lbl_, "");
+  lv_obj_set_style_text_color(this->weather_temp_lbl_, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(this->weather_temp_lbl_, this->font_medium_, &lv_font_montserrat_28);
+  this->weather_cond_lbl_ = lv_label_create(weather);
+  lv_label_set_text(this->weather_cond_lbl_, "");
+  lv_obj_set_style_text_color(this->weather_cond_lbl_, lv_color_hex(COL_MUTED), 0);
+  this->set_text_font_(this->weather_cond_lbl_, this->font_small_, &lv_font_montserrat_20);
 
   // --- Tabs (underline style, bottom rule like the mockup) ---
   lv_obj_t *tabs = lv_obj_create(root);

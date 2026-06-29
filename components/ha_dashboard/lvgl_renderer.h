@@ -26,6 +26,8 @@ class LvglRenderer : public Renderer {
 
   // Update the dashboard header clock (called by the component from a time source).
   void set_clock(const char *time_str, const char *date_str);
+  // Update the header weather slot (temperature + condition text).
+  void set_weather(const char *temp_str, const char *cond_str);
 
   void set_font_small(font::Font *f) { this->font_small_ = f; }
   void set_font_medium(font::Font *f) { this->font_medium_ = f; }
@@ -78,6 +80,8 @@ class LvglRenderer : public Renderer {
   lv_obj_t *dash_header_{nullptr};
   lv_obj_t *time_lbl_{nullptr};
   lv_obj_t *date_lbl_{nullptr};
+  lv_obj_t *weather_temp_lbl_{nullptr};
+  lv_obj_t *weather_cond_lbl_{nullptr};
   std::vector<lv_obj_t *> tab_btns_;
   std::vector<lv_obj_t *> tab_lbls_;
   std::vector<lv_obj_t *> group_grids_;

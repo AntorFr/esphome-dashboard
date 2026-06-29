@@ -29,6 +29,7 @@ HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
 
 CONF_PROFILE = "profile"
 CONF_LANGUAGE = "language"
+CONF_WEATHER = "weather"
 CONF_INACTIVITY_TIMEOUT = "inactivity_timeout"
 CONF_ENCODER = "encoder"
 CONF_ENCODER_BUTTON = "encoder_button"
@@ -115,6 +116,10 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_ENCODER): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_ENCODER_BUTTON): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_TIME_ID): cv.use_id(time_comp.RealTimeClock),
+        # Weather module: bind a HA weather entity (header shows temperature + condition).
+        cv.Optional(CONF_WEATHER): cv.Schema(
+            {cv.Required(CONF_ENTITY): cv.entity_id}
+        ),
         # Text fonts (with accented glyphs). Validated via lvgl's lv_font so they get
         # converted to lv_font_t (get_lv_font available). Optional: falls back to the
         # built-in lv_font_montserrat_* (ASCII only) if not provided.
@@ -151,6 +156,8 @@ async def to_code(config):
     if CONF_TIME_ID in config:
         rtc = await cg.get_variable(config[CONF_TIME_ID])
         cg.add(var.set_time(rtc))
+    if CONF_WEATHER in config:
+        cg.add(var.set_weather_entity(config[CONF_WEATHER][CONF_ENTITY]))
     for conf, setter in (
         (CONF_FONT_SMALL, var.set_font_small),
         (CONF_FONT_MEDIUM, var.set_font_medium),

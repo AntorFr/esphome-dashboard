@@ -1,6 +1,8 @@
 #include "ha_dashboard.h"
 #include <cstdio>
+#include <cstdlib>
 #include <lvgl.h>
+#include "esphome/components/api/api_server.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
@@ -92,6 +94,7 @@ void HaDashboard::setup() {
   this->controller_.set_inactivity_timeout(this->timeout_ms_);
   ESP_LOGCONFIG(TAG, "ha_dashboard setup (profile=%s, %d groupes)", this->profile_.c_str(),
                 (int) this->groups_.size());
+  this->subscribe_weather_();
   // La construction LVGL est différée jusqu'à ce que LVGL soit initialisé (cf. loop).
 }
 
@@ -126,6 +129,7 @@ void HaDashboard::build_if_ready_() {
   if (this->encoder_ != nullptr)
     this->last_encoder_ = this->encoder_->get_state();
   this->built_ = true;
+  this->push_weather_();  // reflect any weather state received before the UI was built
   ESP_LOGI(TAG, "vues LVGL construites");
 }
 
@@ -162,6 +166,58 @@ void HaDashboard::poll_button_() {
     // Maintien = retour (jauge de retour à venir) ; appui court = valider.
     this->controller_.handle(dur >= LONG_PRESS_MS ? InputEvent::BACK : InputEvent::SELECT, -1);
   }
+}
+
+// Map a Home Assistant weather condition to a short French label.
+static const char *condition_fr(const std::string &c) {
+  if (c == "sunny")
+    return "Ensoleillé";
+  if (c == "clear-night")
+    return "Nuit claire";
+  if (c == "partlycloudy")
+    return "Éclaircies";
+  if (c == "cloudy")
+    return "Nuageux";
+  if (c == "fog")
+    return "Brouillard";
+  if (c == "rainy")
+    return "Pluie";
+  if (c == "pouring")
+    return "Averses";
+  if (c == "lightning" || c == "lightning-rainy")
+    return "Orage";
+  if (c == "snowy" || c == "snowy-rainy")
+    return "Neige";
+  if (c == "hail")
+    return "Grêle";
+  if (c == "windy" || c == "windy-variant")
+    return "Venteux";
+  if (c == "exceptional")
+    return "Exceptionnel";
+  return c.c_str();  // fallback: raw condition
+}
+
+void HaDashboard::subscribe_weather_() {
+  if (this->weather_entity_ == nullptr || this->weather_subscribed_ || api::global_api_server == nullptr)
+    return;
+  this->weather_subscribed_ = true;
+  // State = weather condition.
+  api::global_api_server->subscribe_home_assistant_state(this->weather_entity_, nullptr, [this](StringRef s) {
+    this->weather_cond_ = condition_fr(std::string(s.c_str()));
+    this->push_weather_();
+  });
+  // Temperature attribute.
+  api::global_api_server->subscribe_home_assistant_state(this->weather_entity_, "temperature", [this](StringRef s) {
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%.0f°", atof(s.c_str()));
+    this->weather_temp_ = buf;
+    this->push_weather_();
+  });
+}
+
+void HaDashboard::push_weather_() {
+  if (this->built_)
+    this->renderer_.set_weather(this->weather_temp_.c_str(), this->weather_cond_.c_str());
 }
 
 void HaDashboard::update_clock_() {
