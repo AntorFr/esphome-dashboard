@@ -6,6 +6,7 @@
 #include <vector>
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/component.h"
 #include "controller.h"
 #include "lvgl_renderer.h"
@@ -26,6 +27,7 @@ class HaDashboard : public Component {
   void set_inactivity_timeout(uint32_t ms) { this->timeout_ms_ = ms; }
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
+  void set_time(time::RealTimeClock *t) { this->time_ = t; }
 
   // Appelés par le codegen (to_code) pour peupler le modèle.
   void add_group(const std::string &name, const std::string &icon);
@@ -39,6 +41,7 @@ class HaDashboard : public Component {
   void build_if_ready_();
   void poll_encoder_();
   void poll_button_();
+  void update_clock_();
 
   std::vector<Group> groups_;
   Controller controller_;
@@ -46,6 +49,8 @@ class HaDashboard : public Component {
 
   sensor::Sensor *encoder_{nullptr};
   binary_sensor::BinarySensor *button_{nullptr};
+  time::RealTimeClock *time_{nullptr};
+  uint32_t last_clock_ms_{0};
 
   std::string profile_{"dial"};
   std::string language_{"en"};

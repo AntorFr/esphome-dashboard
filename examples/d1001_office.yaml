@@ -75,6 +75,7 @@ ha_dashboard:
   profile: reterminal_d1001
   language: fr
   inactivity_timeout: 30s
+  time_id: sntp_time
   # Pas d'encodeur/bouton : navigation tactile seule sur le D1001.
   groups:
     - name: "Focus"

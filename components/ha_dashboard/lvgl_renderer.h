@@ -23,6 +23,9 @@ class LvglRenderer : public Renderer {
       this->handler_(event, index);
   }
 
+  // Update the dashboard header clock (called by the component from a time source).
+  void set_clock(const char *time_str, const char *date_str);
+
  protected:
   lv_obj_t *make_screen_();
   lv_obj_t *make_flex_container_(lv_obj_t *parent);
@@ -58,6 +61,8 @@ class LvglRenderer : public Renderer {
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};
+  lv_obj_t *time_lbl_{nullptr};
+  lv_obj_t *date_lbl_{nullptr};
   std::vector<lv_obj_t *> tab_btns_;
   std::vector<lv_obj_t *> group_grids_;
   std::vector<std::vector<Tile>> group_tiles_;

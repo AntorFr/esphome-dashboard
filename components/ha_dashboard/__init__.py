@@ -5,14 +5,14 @@ Voir docs/config-reference.md et docs/architecture.md.
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import binary_sensor, sensor, switch
-from esphome.const import CONF_ID, CONF_NAME, CONF_TYPE
+from esphome.components import binary_sensor, sensor, switch, time as time_comp
+from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
 
 CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
 # sensor / binary_sensor / switch sont toujours référencés par le C++ (encodeur/bouton du
 # Dial, binding switch), même si le board courant ne les utilise pas -> AUTO_LOAD.
-AUTO_LOAD = ["sensor", "binary_sensor", "switch"]
+AUTO_LOAD = ["sensor", "binary_sensor", "switch", "time"]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
@@ -87,6 +87,7 @@ CONFIG_SCHEMA = cv.Schema(
         ): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_ENCODER): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_ENCODER_BUTTON): cv.use_id(binary_sensor.BinarySensor),
+        cv.Optional(CONF_TIME_ID): cv.use_id(time_comp.RealTimeClock),
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -112,6 +113,9 @@ async def to_code(config):
     if CONF_ENCODER_BUTTON in config:
         btn = await cg.get_variable(config[CONF_ENCODER_BUTTON])
         cg.add(var.set_button(btn))
+    if CONF_TIME_ID in config:
+        rtc = await cg.get_variable(config[CONF_TIME_ID])
+        cg.add(var.set_time(rtc))
 
     for group_index, group in enumerate(config[CONF_GROUPS]):
         cg.add(var.add_group(group[CONF_NAME], group[CONF_ICON]))

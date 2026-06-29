@@ -119,12 +119,30 @@ void HaDashboard::poll_button_() {
   }
 }
 
+void HaDashboard::update_clock_() {
+  if (this->time_ == nullptr)
+    return;
+  uint32_t now = millis();
+  if (now - this->last_clock_ms_ < 1000)
+    return;
+  this->last_clock_ms_ = now;
+  ESPTime t = this->time_->now();
+  if (!t.is_valid())
+    return;
+  char time_buf[8];
+  char date_buf[32];
+  t.strftime(time_buf, sizeof(time_buf), "%H:%M");
+  t.strftime(date_buf, sizeof(date_buf), "%a %d %b");
+  this->renderer_.set_clock(time_buf, date_buf);
+}
+
 void HaDashboard::loop() {
   this->build_if_ready_();
   if (!this->built_)
     return;
   this->poll_encoder_();
   this->poll_button_();
+  this->update_clock_();
   this->controller_.tick(millis());
 }
 

@@ -32,6 +32,13 @@ void LvglRenderer::set_profile(const std::string &profile) {
   this->round_ = (profile != "reterminal_d1001");
 }
 
+void LvglRenderer::set_clock(const char *time_str, const char *date_str) {
+  if (this->time_lbl_ != nullptr)
+    lv_label_set_text(this->time_lbl_, time_str);
+  if (this->date_lbl_ != nullptr)
+    lv_label_set_text(this->date_lbl_, date_str);
+}
+
 lv_obj_t *LvglRenderer::make_screen_() {
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_set_style_bg_color(scr, lv_color_hex(COL_BG), 0);
@@ -167,11 +174,21 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
   lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
 
-  // Header (clock/weather to come — placeholder title for now).
-  this->dash_header_ = lv_label_create(root);
-  lv_label_set_text(this->dash_header_, "Dashboard");
-  lv_obj_set_style_text_color(this->dash_header_, lv_color_hex(COL_TEXT), 0);
-  lv_obj_set_style_text_font(this->dash_header_, &lv_font_montserrat_20, 0);
+  // Header: time (big) + date (muted). Weather to come.
+  this->dash_header_ = lv_obj_create(root);
+  lv_obj_set_width(this->dash_header_, lv_pct(100));
+  lv_obj_set_height(this->dash_header_, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(this->dash_header_, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(this->dash_header_, 0, 0);
+  lv_obj_set_style_pad_all(this->dash_header_, 0, 0);
+  lv_obj_set_flex_flow(this->dash_header_, LV_FLEX_FLOW_COLUMN);
+  this->time_lbl_ = lv_label_create(this->dash_header_);
+  lv_label_set_text(this->time_lbl_, "--:--");
+  lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(COL_TEXT), 0);
+  lv_obj_set_style_text_font(this->time_lbl_, &lv_font_montserrat_20, 0);
+  this->date_lbl_ = lv_label_create(this->dash_header_);
+  lv_label_set_text(this->date_lbl_, "");
+  lv_obj_set_style_text_color(this->date_lbl_, lv_color_hex(COL_MUTED), 0);
 
   // Tabs row (one button per group).
   lv_obj_t *tabs = lv_obj_create(root);
