@@ -80,13 +80,12 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [ ] `cover`, puis `media_player` (volume + play/pause), puis `climate`
 - [ ] `homeassistant_addon` porté/nettoyé (domaines non-natifs)
 
-### Composant tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL
-- [x] `components/gsl3670` : plateforme `touchscreen` native ESPHome (I2C direct)
-- [x] Firmware SiLead vendorisé verbatim depuis le BSP Seeed (`gsl3670_firmware.h`)
-- [x] Séquence init (clear/reset/upload/startup) + lecture 44o @0x80 (points bruts, Y masqué 12 bits)
-- [x] `App.feed_wdt()` pendant l'upload (sinon reset watchdog)
-- [x] Câblé board D1001 (i2c_panel, INT GPIO16, RST XL9535 EXP_GPO12) + swap_xy + mirror_x/y + calibration
-- [x] **Validé sur D1001 réel** : init `0xb0=5a5a5a5a`, tactile précis, navigation OK
+### Tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL (composant officiel)
+- [x] Composant officiel `github://clydebarrow/esphome@gsl3670` (modèle `seeed-reterminal-d1001`,
+      firmware binaire dédié + calibration/INT par défaut). Notre vendorisation abandonnée
+      (firmware générique non fiable, 0xb0=00).
+- [x] **Clé** : reset tactile = **XL9535 pin 14** (pas 12 !) — sinon init bancale + INT muet.
+- [x] **Validé sur D1001 réel** : init OK, taps onglets/tuiles fonctionnels.
 
 ### Bring-up D1001 ✅ VALIDÉ MATÉRIEL
 - [x] Écran MIPI-DSI (modèle SEEED-RETERMINAL-D1001) — **PSRAM 200MHz** (sinon underrun→noir)

@@ -106,22 +106,11 @@ touchscreen:
     id: d1001_touch
     model: seeed-reterminal-d1001
     i2c_id: i2c_panel
-    # interrupt_pin omis volontairement : avec lui, le composant passe en mode
-    # interruption seule et stoppe le polling ; si l'INT ne se déclenche pas, aucune
-    # touche n'est lue. En polling (update_interval), les touches sont lues en continu.
+    # Use the official model defaults (interrupt 16, calibration, transform, firmware).
+    # Only the reset needs our XL9535 hub id; the correct reset line is pin 14 (not 12).
     reset_pin:
       xl9535: d1001_expander
-      number: 12
-    # Touch monté tourné vs l'écran portrait : swap + mirrors, bornes mesurées aux coins.
-    transform:
-      swap_xy: true
-      mirror_x: true
-      mirror_y: true
-    calibration:
-      x_min: 25
-      x_max: 870
-      y_min: 26
-      y_max: 1632
+      number: 14
 
 external_components:
   # gsl3670 needs the touchscreen base changes from the same PR (option_with_default).

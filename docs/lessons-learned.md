@@ -88,11 +88,19 @@ Espressif `esp_lcd_touch`) dans le BSP `Seeed-Studio/reTerminal-D1001/components
 - ⚠️ `gsl_point_id.c` = **firmware/coefficients à uploader à l'init** (spécifique SiLead).
 - Bus : I2C0 (SDA GPIO37 / SCL GPIO38), INT GPIO16, RST via XL9535 EXP_GPO12.
 
-→ **FAIT** : composant `components/gsl3670` (plateforme `touchscreen` native ESPHome, I2C
-direct) — firmware SiLead vendorisé, séquence d'init portée, lecture brute des points (algo
-`gsl_alg_id_main` non porté). **Validé sur matériel** : `status 0xb0 = 5a 5a 5a 5a`, init
-confirmée. ⚠️ L'upload firmware (~4356 écritures I2C) déclenchait un **reset watchdog** en
-`setup()` → corrigé via `App.feed_wdt()` périodique dans la boucle d'upload (voir §9).
+→ **SOLUTION RETENUE (validée matériel)** : utiliser le **composant officiel** de clydebarrow
+(`github://clydebarrow/esphome@gsl3670`, + base `touchscreen` de la PR), `model:
+seeed-reterminal-d1001` (qui télécharge le **firmware binaire dédié** `seeed-d1001-fw.bin` et
+fournit calibration/transform/INT par défaut). Notre composant vendorisé a été abandonné : son
+firmware générique (GSLX670_FW) ne s'initialisait pas de façon fiable sur ce panneau (0xb0=00).
+
+⚠️ **PIÈGE CRITIQUE — le reset tactile est sur XL9535 pin 14, PAS 12.** Le schéma laissait
+penser EXP_GPO12, mais le bon défaut (modèle officiel) est **`reset_pin: {xl9535: <hub>,
+number: 14}`**. Avec le pin 12, le GSL n'était jamais vraiment reset → init bancale et
+**interruption INT (GPIO16) qui ne se déclenche jamais → aucune touche lue** (le driver est
+piloté par interruption, pas par polling). Corrigé en pin 14 → tactile pleinement fonctionnel.
+Config minimale : `platform: gsl3670, model: seeed-reterminal-d1001, i2c_id: <panel>,
+reset_pin: {xl9535: <hub>, number: 14}` (le reste vient des défauts du modèle).
 
 ## 8. Brochage D1001 — source de vérité = schéma officiel Seeed
 
