@@ -10,22 +10,24 @@ namespace ha_dashboard {
 
 // Niveaux de navigation communs aux deux écrans (cf. docs/ux-interaction.md).
 enum class NavState : uint8_t {
-  IDLE = 0,   // veille
-  MENU,       // choix du groupe
-  GROUP,      // choix de la card dans le groupe
-  CARD,       // réglage/détail d'une card
+  IDLE = 0,   // idle / standby
+  MENU,       // group picker (Dial radial launcher)
+  GROUP,      // card picker within a group (Dial)
+  CARD,       // card detail / adjust
+  DASHBOARD,  // merged tabs + tile grid (D1001)
 };
 
 // Events sémantiques émis par la couche Input (et par les widgets natifs LVGL)
 // vers le Controller. `index` = item ciblé pour une sélection directe (sinon -1).
 enum class InputEvent : uint8_t {
-  WAKE = 0,     // sortir de veille
-  FOCUS_NEXT,   // focus suivant (encodeur / swipe)
-  FOCUS_PREV,   // focus précédent
-  SELECT,       // valider le focus (ou index si fourni)
-  BACK,         // remonter d'un niveau
-  TOGGLE,       // action principale de la card (on/off)
-  SLEEP,        // retour veille (timeout)
+  WAKE = 0,      // leave idle
+  FOCUS_NEXT,    // next focus (encoder / swipe)
+  FOCUS_PREV,    // previous focus
+  SELECT,        // confirm focus (or index if provided)
+  BACK,          // go up one level
+  TOGGLE,        // card primary action (on/off), index = card
+  SLEEP,         // back to idle (timeout)
+  SELECT_GROUP,  // pick a group directly (D1001 tabs), index = group
 };
 
 // Instantané de l'état de navigation passé au renderer.

@@ -30,6 +30,17 @@ class LvglRenderer : public Renderer {
   void set_focus_(std::vector<lv_obj_t *> &buttons, int focused);
   const Card *current_card_(const ViewModel &vm) const;
 
+  // D1001 dashboard (tabs + tile grid).
+  void build_dashboard_(const std::vector<Group> &groups);
+  void render_dashboard_(const ViewModel &vm);
+
+  // Per-tile widgets we update in place on state change.
+  struct Tile {
+    lv_obj_t *root{nullptr};
+    lv_obj_t *icon{nullptr};
+    lv_obj_t *state{nullptr};
+  };
+
   EventHandler handler_;
   std::string profile_{"dial"};
   bool round_{true};
@@ -44,6 +55,12 @@ class LvglRenderer : public Renderer {
 
   lv_obj_t *card_title_{nullptr};
   lv_obj_t *card_value_{nullptr};
+
+  lv_obj_t *dashboard_scr_{nullptr};
+  lv_obj_t *dash_header_{nullptr};
+  std::vector<lv_obj_t *> tab_btns_;
+  std::vector<lv_obj_t *> group_grids_;
+  std::vector<std::vector<Tile>> group_tiles_;
 };
 
 }  // namespace ha_dashboard

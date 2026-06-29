@@ -93,6 +93,12 @@ CONFIG_SCHEMA = cv.Schema(
 
 
 async def to_code(config):
+    # Enable the Montserrat font sizes our LVGL renderer uses (built in C++, so the
+    # lvgl component can't auto-detect them). add_define feeds lvgl's lv_conf.h generation.
+    from esphome.components.lvgl import defines as lv_defines
+
+    lv_defines.add_define("LV_FONT_MONTSERRAT_20")
+
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 

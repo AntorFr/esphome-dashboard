@@ -16,7 +16,8 @@ int Controller::card_count_(int group_index) const {
 }
 
 void Controller::start() {
-  this->state_ = NavState::IDLE;
+  // D1001 starts straight on the merged dashboard; Dial starts idle.
+  this->state_ = this->dashboard_mode_ ? NavState::DASHBOARD : NavState::IDLE;
   this->last_event_ms_ = millis();
   this->render_();
 }
@@ -126,14 +127,41 @@ void Controller::handle(InputEvent event, int index) {
           break;
       }
       break;
+
+    case NavState::DASHBOARD: {
+      int n = this->group_count_();
+      switch (event) {
+        case InputEvent::SELECT_GROUP:
+          if (index >= 0 && index < n)
+            this->group_index_ = index;
+          break;
+        case InputEvent::TOGGLE: {
+          int gi = this->group_index_;
+          if (this->groups_ && gi < (int) this->groups_->size() && index >= 0 &&
+              index < (int) (*this->groups_)[gi].cards.size()) {
+            Card &c = (*this->groups_)[gi].cards[index];
+            if (c.sw != nullptr) {
+              c.sw->toggle();
+              ESP_LOGI(TAG, "toggle '%s' (entité liée)", c.name.c_str());
+            } else {
+              c.on = !c.on;
+            }
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      break;
+    }
   }
 
   this->render_();
 }
 
 void Controller::tick(uint32_t now_ms) {
-  if (this->state_ == NavState::IDLE)
-    return;
+  if (this->dashboard_mode_ || this->state_ == NavState::IDLE)
+    return;  // no inactivity timeout on the D1001 dashboard
   if (now_ms - this->last_event_ms_ >= this->timeout_ms_) {
     ESP_LOGD(TAG, "inactivity timeout -> idle");
     this->state_ = NavState::IDLE;

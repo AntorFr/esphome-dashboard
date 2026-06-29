@@ -14,6 +14,8 @@ class Controller {
   void set_renderer(Renderer *renderer) { this->renderer_ = renderer; }
   void set_model(std::vector<Group> *groups) { this->groups_ = groups; }
   void set_inactivity_timeout(uint32_t ms) { this->timeout_ms_ = ms; }
+  // Dashboard mode (D1001): merged tabs + tile grid, no idle/menu/group levels.
+  void set_dashboard_mode(bool enabled) { this->dashboard_mode_ = enabled; }
 
   // Premier rendu (état IDLE) une fois le renderer prêt.
   void start();
@@ -41,7 +43,8 @@ class Controller {
   NavState state_{NavState::IDLE};
   int group_index_{0};
   int card_index_{0};
-  bool group_skipped_{false};  // groupe mono-card sauté -> BACK depuis CARD remonte au MENU
+  bool group_skipped_{false};  // single-card group skipped -> BACK from CARD goes to MENU
+  bool dashboard_mode_{false};
 
   uint32_t timeout_ms_{30000};
   uint32_t last_event_ms_{0};

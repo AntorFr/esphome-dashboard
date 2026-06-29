@@ -66,6 +66,7 @@ void HaDashboard::build_if_ready_() {
   this->renderer_.set_event_handler([this](InputEvent e, int idx) { this->controller_.handle(e, idx); });
   this->controller_.set_renderer(&this->renderer_);
   this->controller_.set_model(&this->groups_);
+  this->controller_.set_dashboard_mode(this->profile_ == "reterminal_d1001");
 
   // Re-render quand l'état HA d'une card switch change (binding live).
   for (auto &g : this->groups_) {

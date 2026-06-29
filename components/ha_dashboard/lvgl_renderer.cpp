@@ -137,6 +137,166 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     this->make_button_(cont, "Toggle", InputEvent::TOGGLE, -1);
     this->make_button_(cont, "< Retour", InputEvent::BACK, -1);
   }
+
+  // D1001 merged dashboard (tabs + tile grid).
+  if (!this->round_)
+    this->build_dashboard_(groups);
+}
+
+// Accent color for a card: explicit override, else per-type default (cf. color-system.md).
+static uint32_t accent_for(const Card &c) {
+  if (c.has_color)
+    return c.color;
+  return c.type == CardType::SWITCH ? 0x3DD68C : 0xFFB020;
+}
+
+static const char *state_label(const Card &c) {
+  if (!c.available())
+    return "indisponible";
+  return c.is_on() ? "Allumé" : "Éteint";
+}
+
+void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
+  this->dashboard_scr_ = this->make_screen_();
+  lv_obj_t *root = lv_obj_create(this->dashboard_scr_);
+  lv_obj_set_size(root, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_opa(root, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(root, 0, 0);
+  lv_obj_set_style_pad_all(root, 16, 0);
+  lv_obj_set_style_pad_row(root, 14, 0);
+  lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Header (clock/weather to come — placeholder title for now).
+  this->dash_header_ = lv_label_create(root);
+  lv_label_set_text(this->dash_header_, "Dashboard");
+  lv_obj_set_style_text_color(this->dash_header_, lv_color_hex(COL_TEXT), 0);
+  lv_obj_set_style_text_font(this->dash_header_, &lv_font_montserrat_20, 0);
+
+  // Tabs row (one button per group).
+  lv_obj_t *tabs = lv_obj_create(root);
+  lv_obj_set_width(tabs, lv_pct(100));
+  lv_obj_set_height(tabs, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(tabs, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(tabs, 0, 0);
+  lv_obj_set_style_pad_all(tabs, 0, 0);
+  lv_obj_set_style_pad_column(tabs, 8, 0);
+  lv_obj_set_flex_flow(tabs, LV_FLEX_FLOW_ROW);
+  lv_obj_set_scroll_dir(tabs, LV_DIR_HOR);
+  this->tab_btns_.clear();
+  for (size_t gi = 0; gi < groups.size(); gi++) {
+    lv_obj_t *btn = lv_button_create(tabs);
+    lv_obj_set_height(btn, LV_SIZE_CONTENT);
+    lv_obj_set_style_radius(btn, 10, 0);
+    lv_obj_t *lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, groups[gi].name.c_str());
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+    auto *d = new CbData{this, InputEvent::SELECT_GROUP, (int) gi};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(btn, btn_event_cb, LV_EVENT_CLICKED, d);
+    this->tab_btns_.push_back(btn);
+  }
+
+  // Content area : one grid container per group (only the active one is shown).
+  lv_obj_t *content = lv_obj_create(root);
+  lv_obj_set_width(content, lv_pct(100));
+  lv_obj_set_flex_grow(content, 1);
+  lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(content, 0, 0);
+  lv_obj_set_style_pad_all(content, 0, 0);
+
+  this->group_grids_.clear();
+  this->group_tiles_.clear();
+  for (size_t gi = 0; gi < groups.size(); gi++) {
+    lv_obj_t *grid = lv_obj_create(content);
+    lv_obj_set_size(grid, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_opa(grid, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(grid, 0, 0);
+    lv_obj_set_style_pad_all(grid, 0, 0);
+    lv_obj_set_style_pad_row(grid, 12, 0);
+    lv_obj_set_style_pad_column(grid, 12, 0);
+    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_add_flag(grid, LV_OBJ_FLAG_HIDDEN);
+
+    std::vector<Tile> tiles;
+    for (size_t ci = 0; ci < groups[gi].cards.size(); ci++) {
+      const Card &card = groups[gi].cards[ci];
+      lv_obj_t *tile = lv_button_create(grid);
+      lv_obj_set_size(tile, lv_pct(48), 130);
+      lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
+      lv_obj_set_style_radius(tile, 16, 0);
+      lv_obj_set_style_pad_all(tile, 16, 0);
+      lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
+      lv_obj_set_flex_align(tile, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+
+      Tile t;
+      t.root = tile;
+
+      // Top row: icon (left) + state label (right), like the mockup.
+      lv_obj_t *toprow = lv_obj_create(tile);
+      lv_obj_set_width(toprow, lv_pct(100));
+      lv_obj_set_height(toprow, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_opa(toprow, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(toprow, 0, 0);
+      lv_obj_set_style_pad_all(toprow, 0, 0);
+      lv_obj_set_flex_flow(toprow, LV_FLEX_FLOW_ROW);
+      lv_obj_set_flex_align(toprow, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+      t.icon = lv_label_create(toprow);
+      lv_label_set_text(t.icon, LV_SYMBOL_POWER);
+      lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_20, 0);
+
+      t.state = lv_label_create(toprow);
+      lv_label_set_text(t.state, state_label(card));
+
+      lv_obj_t *name = lv_label_create(tile);
+      lv_label_set_text(name, card.name.c_str());
+      lv_obj_set_style_text_color(name, lv_color_hex(COL_TEXT), 0);
+      lv_obj_set_style_text_font(name, &lv_font_montserrat_20, 0);
+
+      auto *d = new CbData{this, InputEvent::TOGGLE, (int) ci};
+      g_cbdata.push_back(d);
+      lv_obj_add_event_cb(tile, btn_event_cb, LV_EVENT_CLICKED, d);
+      tiles.push_back(t);
+    }
+    this->group_grids_.push_back(grid);
+    this->group_tiles_.push_back(tiles);
+  }
+}
+
+void LvglRenderer::render_dashboard_(const ViewModel &vm) {
+  if (vm.groups == nullptr)
+    return;
+  int active = vm.group_index;
+
+  // Tabs: highlight the active group.
+  for (size_t i = 0; i < this->tab_btns_.size(); i++) {
+    bool on = (int) i == active;
+    lv_obj_set_style_bg_color(this->tab_btns_[i], lv_color_hex(on ? 0x2A2A33 : COL_TILE), 0);
+    lv_obj_set_style_border_width(this->tab_btns_[i], on ? 2 : 0, 0);
+    lv_obj_set_style_border_color(this->tab_btns_[i], lv_color_hex(COL_ACCENT), 0);
+  }
+
+  // Grids: show only the active group's tiles, refresh their state in place.
+  for (size_t gi = 0; gi < this->group_grids_.size(); gi++) {
+    if ((int) gi == active) {
+      lv_obj_clear_flag(this->group_grids_[gi], LV_OBJ_FLAG_HIDDEN);
+      const Group &g = (*vm.groups)[gi];
+      for (size_t ci = 0; ci < this->group_tiles_[gi].size() && ci < g.cards.size(); ci++) {
+        const Card &c = g.cards[ci];
+        const Tile &t = this->group_tiles_[gi][ci];
+        uint32_t col = c.is_on() ? accent_for(c) : COL_MUTED;
+        lv_obj_set_style_text_color(t.icon, lv_color_hex(col), 0);
+        lv_label_set_text(t.state, state_label(c));
+        lv_obj_set_style_text_color(t.state, lv_color_hex(col), 0);
+      }
+    } else {
+      lv_obj_add_flag(this->group_grids_[gi], LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  if (this->dashboard_scr_ != nullptr)
+    lv_screen_load(this->dashboard_scr_);
 }
 
 void LvglRenderer::set_focus_(std::vector<lv_obj_t *> &buttons, int focused) {
@@ -159,6 +319,10 @@ void LvglRenderer::render(const ViewModel &vm) {
     case NavState::IDLE:
       if (this->idle_scr_ != nullptr)
         lv_screen_load(this->idle_scr_);
+      break;
+
+    case NavState::DASHBOARD:
+      this->render_dashboard_(vm);
       break;
 
     case NavState::MENU:
