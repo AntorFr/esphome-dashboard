@@ -203,6 +203,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_pad_all(this->dash_header_, 0, 0);
   lv_obj_set_flex_flow(this->dash_header_, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(this->dash_header_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+  lv_obj_clear_flag(this->dash_header_, LV_OBJ_FLAG_SCROLLABLE);
 
   lv_obj_t *left = lv_obj_create(this->dash_header_);
   lv_obj_set_size(left, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -211,6 +212,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_pad_all(left, 0, 0);
   lv_obj_set_style_pad_row(left, 4, 0);
   lv_obj_set_flex_flow(left, LV_FLEX_FLOW_COLUMN);
+  lv_obj_clear_flag(left, LV_OBJ_FLAG_SCROLLABLE);
   this->time_lbl_ = lv_label_create(left);
   lv_label_set_text(this->time_lbl_, "--:--");
   lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(COL_TEXT), 0);
@@ -236,7 +238,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_border_side(tabs, LV_BORDER_SIDE_BOTTOM, 0);
   lv_obj_set_style_border_color(tabs, lv_color_hex(0x232330), 0);
   lv_obj_set_flex_flow(tabs, LV_FLEX_FLOW_ROW);
-  lv_obj_set_scroll_dir(tabs, LV_DIR_HOR);
+  lv_obj_clear_flag(tabs, LV_OBJ_FLAG_SCROLLABLE);  // avoid taps being eaten as scroll
   this->tab_btns_.clear();
   this->tab_lbls_.clear();
   for (size_t gi = 0; gi < groups.size(); gi++) {
@@ -267,6 +269,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(content, 0, 0);
   lv_obj_set_style_pad_all(content, 0, 0);
+  lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
 
   this->group_grids_.clear();
   this->group_tiles_.clear();
@@ -280,6 +283,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     lv_obj_set_style_pad_row(grid, 12, 0);
     lv_obj_set_style_pad_column(grid, 12, 0);
     lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_clear_flag(grid, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(grid, LV_OBJ_FLAG_HIDDEN);
 
     std::vector<Tile> tiles;
@@ -305,6 +309,8 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       lv_obj_set_style_pad_all(toprow, 0, 0);
       lv_obj_set_flex_flow(toprow, LV_FLEX_FLOW_ROW);
       lv_obj_set_flex_align(toprow, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      lv_obj_clear_flag(toprow, LV_OBJ_FLAG_SCROLLABLE);
+      lv_obj_add_flag(toprow, LV_OBJ_FLAG_EVENT_BUBBLE);  // let taps reach the tile button
 
       t.icon = lv_label_create(toprow);
       lv_label_set_text(t.icon, icon_for(card));
