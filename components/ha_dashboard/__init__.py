@@ -139,7 +139,7 @@ async def to_code(config):
             if CONF_COLOR in card:
                 color = int(card[CONF_COLOR].lstrip("#"), 16)
                 has_color = True
-            if card[CONF_TYPE] == CARD_TYPES["switch"]:
+            if CONF_SWITCH_ID in card:
                 sw = await cg.get_variable(card[CONF_SWITCH_ID])
                 cg.add(
                     var.add_switch_card(

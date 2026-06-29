@@ -142,7 +142,7 @@ void Controller::handle(InputEvent event, int index) {
             Card &c = (*this->groups_)[gi].cards[index];
             if (c.sw != nullptr) {
               c.sw->toggle();
-              ESP_LOGI(TAG, "toggle '%s' (entité liée)", c.name.c_str());
+              ESP_LOGD(TAG, "toggle '%s' (HA entity)", c.name.c_str());
             } else {
               c.on = !c.on;
             }
