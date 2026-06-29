@@ -1,4 +1,5 @@
 #include "ha_dashboard.h"
+#include <cstdio>
 #include <lvgl.h>
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
@@ -173,10 +174,29 @@ void HaDashboard::update_clock_() {
   ESPTime t = this->time_->now();
   if (!t.is_valid())
     return;
+
+  // Day/month names (strftime uses the C locale = English on embedded, so format here).
+  static const char *const DAYS_FR[] = {"",        "dimanche", "lundi", "mardi",
+                                        "mercredi", "jeudi",    "vendredi", "samedi"};
+  static const char *const MONTHS_FR[] = {"",       "janvier", "février",  "mars",     "avril",   "mai",     "juin",
+                                          "juillet", "août",    "septembre", "octobre", "novembre", "décembre"};
+  static const char *const DAYS_EN[] = {"",     "Sunday",   "Monday", "Tuesday",
+                                        "Wednesday", "Thursday", "Friday", "Saturday"};
+  static const char *const MONTHS_EN[] = {"",       "January", "February", "March",     "April",    "May",      "June",
+                                          "July",    "August",  "September", "October", "November", "December"};
+  bool fr = this->language_ == "fr";
+  const char *const *days = fr ? DAYS_FR : DAYS_EN;
+  const char *const *months = fr ? MONTHS_FR : MONTHS_EN;
+
   char time_buf[8];
-  char date_buf[32];
+  char date_buf[40];
   t.strftime(time_buf, sizeof(time_buf), "%H:%M");
-  t.strftime(date_buf, sizeof(date_buf), "%a %d %b");
+  uint8_t dow = (t.day_of_week >= 1 && t.day_of_week <= 7) ? t.day_of_week : 0;
+  uint8_t mon = (t.month >= 1 && t.month <= 12) ? t.month : 0;
+  if (fr)
+    snprintf(date_buf, sizeof(date_buf), "%s %d %s", days[dow], t.day_of_month, months[mon]);
+  else
+    snprintf(date_buf, sizeof(date_buf), "%s %s %d", days[dow], months[mon], t.day_of_month);
   this->renderer_.set_clock(time_buf, date_buf);
 }
 
