@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/font/font.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/component.h"
@@ -28,6 +29,9 @@ class HaDashboard : public Component {
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
+  void set_font_small(font::Font *f) { this->renderer_.set_font_small(f); }
+  void set_font_medium(font::Font *f) { this->renderer_.set_font_medium(f); }
+  void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
 
   // Appelés par le codegen (to_code) pour peupler le modèle.
   void add_group(const std::string &name, const std::string &icon);

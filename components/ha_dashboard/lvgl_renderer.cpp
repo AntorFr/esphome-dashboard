@@ -39,6 +39,13 @@ void LvglRenderer::set_clock(const char *time_str, const char *date_str) {
     lv_label_set_text(this->date_lbl_, date_str);
 }
 
+void LvglRenderer::set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback) {
+  if (f != nullptr)
+    lv_obj_set_style_text_font(obj, f->get_lv_font(), 0);
+  else if (fallback != nullptr)
+    lv_obj_set_style_text_font(obj, fallback, 0);
+}
+
 lv_obj_t *LvglRenderer::make_screen_() {
   lv_obj_t *scr = lv_obj_create(nullptr);
   lv_obj_set_style_bg_color(scr, lv_color_hex(COL_BG), 0);
@@ -207,16 +214,16 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   this->time_lbl_ = lv_label_create(left);
   lv_label_set_text(this->time_lbl_, "--:--");
   lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(COL_TEXT), 0);
-  lv_obj_set_style_text_font(this->time_lbl_, &lv_font_montserrat_40, 0);
+  this->set_text_font_(this->time_lbl_, this->font_large_, &lv_font_montserrat_48);
   this->date_lbl_ = lv_label_create(left);
   lv_label_set_text(this->date_lbl_, "");
   lv_obj_set_style_text_color(this->date_lbl_, lv_color_hex(COL_MUTED), 0);
-  lv_obj_set_style_text_font(this->date_lbl_, &lv_font_montserrat_16, 0);
+  this->set_text_font_(this->date_lbl_, this->font_small_, &lv_font_montserrat_20);
 
   lv_obj_t *weather = lv_label_create(this->dash_header_);
   lv_label_set_text(weather, "");  // TODO: bind a HA weather entity
   lv_obj_set_style_text_color(weather, lv_color_hex(COL_MUTED), 0);
-  lv_obj_set_style_text_font(weather, &lv_font_montserrat_16, 0);
+  this->set_text_font_(weather, this->font_small_, &lv_font_montserrat_20);
 
   // --- Tabs (underline style, bottom rule like the mockup) ---
   lv_obj_t *tabs = lv_obj_create(root);
@@ -245,7 +252,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     lv_obj_add_flag(tab, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_t *lbl = lv_label_create(tab);
     lv_label_set_text(lbl, groups[gi].name.c_str());
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
+    this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
     auto *d = new CbData{this, InputEvent::SELECT_GROUP, (int) gi};
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(tab, btn_event_cb, LV_EVENT_CLICKED, d);
@@ -279,7 +286,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     for (size_t ci = 0; ci < groups[gi].cards.size(); ci++) {
       const Card &card = groups[gi].cards[ci];
       lv_obj_t *tile = lv_button_create(grid);
-      lv_obj_set_size(tile, lv_pct(48), 120);
+      lv_obj_set_size(tile, lv_pct(48), 170);
       lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
       lv_obj_set_style_shadow_width(tile, 0, 0);
       lv_obj_set_style_radius(tile, 16, 0);
@@ -301,16 +308,16 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
 
       t.icon = lv_label_create(toprow);
       lv_label_set_text(t.icon, icon_for(card));
-      lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_28, 0);
+      lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_48, 0);  // LVGL symbol font
 
       t.state = lv_label_create(toprow);
       lv_label_set_text(t.state, state_label(card));
-      lv_obj_set_style_text_font(t.state, &lv_font_montserrat_16, 0);
+      this->set_text_font_(t.state, this->font_small_, &lv_font_montserrat_20);
 
       lv_obj_t *name = lv_label_create(tile);
       lv_label_set_text(name, card.name.c_str());
       lv_obj_set_style_text_color(name, lv_color_hex(COL_TEXT), 0);
-      lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
+      this->set_text_font_(name, this->font_medium_, &lv_font_montserrat_28);
 
       auto *d = new CbData{this, InputEvent::TOGGLE, (int) ci};
       g_cbdata.push_back(d);

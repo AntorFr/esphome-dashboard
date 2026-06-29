@@ -42,6 +42,7 @@ external_components:
 
 packages:
   board: !include ../packages/boards/reterminal_d1001.yaml
+  fonts: !include ../packages/fonts/montserrat_fr.yaml
 
 time:
   - platform: sntp
@@ -76,6 +77,9 @@ ha_dashboard:
   language: fr
   inactivity_timeout: 30s
   time_id: sntp_time
+  font_small: ha_font_small
+  font_medium: ha_font_medium
+  font_large: ha_font_large
   # Pas d'encodeur/bouton : navigation tactile seule sur le D1001.
   groups:
     - name: "Focus"

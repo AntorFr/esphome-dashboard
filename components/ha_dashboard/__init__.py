@@ -6,13 +6,14 @@ Voir docs/config-reference.md et docs/architecture.md.
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import binary_sensor, sensor, switch, time as time_comp
+from esphome.components.lvgl import lv_validation as lvalid
 from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
 
 CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
 # sensor / binary_sensor / switch sont toujours référencés par le C++ (encodeur/bouton du
 # Dial, binding switch), même si le board courant ne les utilise pas -> AUTO_LOAD.
-AUTO_LOAD = ["sensor", "binary_sensor", "switch", "time"]
+AUTO_LOAD = ["sensor", "binary_sensor", "switch", "time", "font"]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
@@ -28,6 +29,9 @@ CONF_CARDS = "cards"
 CONF_ENTITY = "entity"
 CONF_COLOR = "color"
 CONF_SWITCH_ID = "switch_id"
+CONF_FONT_SMALL = "font_small"
+CONF_FONT_MEDIUM = "font_medium"
+CONF_FONT_LARGE = "font_large"
 
 PROFILES = ["dial", "reterminal_d1001"]
 
@@ -88,6 +92,12 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_ENCODER): cv.use_id(sensor.Sensor),
         cv.Optional(CONF_ENCODER_BUTTON): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_TIME_ID): cv.use_id(time_comp.RealTimeClock),
+        # Text fonts (with accented glyphs). Validated via lvgl's lv_font so they get
+        # converted to lv_font_t (get_lv_font available). Optional: falls back to the
+        # built-in lv_font_montserrat_* (ASCII only) if not provided.
+        cv.Optional(CONF_FONT_SMALL): lvalid.lv_font,
+        cv.Optional(CONF_FONT_MEDIUM): lvalid.lv_font,
+        cv.Optional(CONF_FONT_LARGE): lvalid.lv_font,
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -113,6 +123,13 @@ async def to_code(config):
     if CONF_TIME_ID in config:
         rtc = await cg.get_variable(config[CONF_TIME_ID])
         cg.add(var.set_time(rtc))
+    for conf, setter in (
+        (CONF_FONT_SMALL, var.set_font_small),
+        (CONF_FONT_MEDIUM, var.set_font_medium),
+        (CONF_FONT_LARGE, var.set_font_large),
+    ):
+        if conf in config:
+            cg.add(setter(await cg.get_variable(config[conf])))
 
     for group_index, group in enumerate(config[CONF_GROUPS]):
         cg.add(var.add_group(group[CONF_NAME], group[CONF_ICON]))

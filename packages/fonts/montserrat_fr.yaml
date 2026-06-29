@@ -1,0 +1,19 @@
+# Montserrat fonts with Latin (accented) glyphs for the dashboard text.
+# LVGL's built-in lv_font_montserrat_* only cover ASCII, so French accents break.
+# Sizes are tuned for the 800x1280 panel (roughly 2x the mockup's mock-canvas sizes).
+font:
+  - file: "gfonts://Montserrat"
+    id: ha_font_small
+    size: 22
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  - file: "gfonts://Montserrat@500"
+    id: ha_font_medium
+    size: 30
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  - file: "gfonts://Montserrat@600"
+    id: ha_font_large
+    size: 56
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
