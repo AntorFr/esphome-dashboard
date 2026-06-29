@@ -55,12 +55,13 @@ i2c:
   - id: i2c_sys
     sda: GPIO20
     scl: GPIO21
+    frequency: 400kHz
     scan: false
   # I2C "écran/caméra" (I2C0 du schéma) : touch GSL3670 (0x40) + caméra.
-  # Déclaré pour le futur driver tactile ; pas de périphérique ESPHome dessus pour l'instant.
   - id: i2c_panel
     sda: GPIO37
     scl: GPIO38
+    frequency: 400kHz
     scan: false
 
 # IO expander XL9535 @ 0x20 (sur I2C système) : pilote enable/reset de l'écran
@@ -98,29 +99,34 @@ display:
       xl9535: d1001_expander
       number: 2            # LCD_RST (EXP_GPO2)
 
-# Tactile GSL3670 (composant externe gsl3670) : I2C0 (GPIO37/38), addr 0x40,
-# INT GPIO16, RST via l'expander XL9535 (EXP_GPO12). Firmware uploadé à l'init.
+# Tactile GSL3670 via le composant officiel (clydebarrow, modèle seeed-reterminal-d1001 :
+# firmware binaire dédié + reset/init corrects). Cf. external_components ci-dessous.
 touchscreen:
   - platform: gsl3670
     id: d1001_touch
+    model: seeed-reterminal-d1001
     i2c_id: i2c_panel
-    address: 0x40
-    interrupt_pin: GPIO16
+    # interrupt_pin omis volontairement : avec lui, le composant passe en mode
+    # interruption seule et stoppe le polling ; si l'INT ne se déclenche pas, aucune
+    # touche n'est lue. En polling (update_interval), les touches sont lues en continu.
     reset_pin:
       xl9535: d1001_expander
       number: 12
-    # Touch is mounted rotated vs the portrait display. Measured at the screen corners
-    # (the touch surface extends beyond the visible screen):
-    #   displayX <- rawY (inverted), displayY <- rawX (inverted)  => swap + both mirrors.
+    # Touch monté tourné vs l'écran portrait : swap + mirrors, bornes mesurées aux coins.
     transform:
       swap_xy: true
       mirror_x: true
       mirror_y: true
     calibration:
-      x_min: 25     # rawY at right edge .. x_max: rawY at left edge
+      x_min: 25
       x_max: 870
-      y_min: 26     # rawX at bottom edge .. y_max: rawX at top edge
+      y_min: 26
       y_max: 1632
+
+external_components:
+  # gsl3670 needs the touchscreen base changes from the same PR (option_with_default).
+  - source: github://clydebarrow/esphome@gsl3670
+    components: [gsl3670, touchscreen]
 
 lvgl:
   displays:

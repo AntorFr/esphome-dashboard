@@ -1,9 +1,12 @@
 #include "lvgl_renderer.h"
 #include <cstdio>
 #include <vector>
+#include "esphome/core/log.h"
 
 namespace esphome {
 namespace ha_dashboard {
+
+static const char *const TAG = "ha_dashboard.lvgl";
 
 // Palette (cf. docs/color-system.md). Tokens HA à brancher plus tard.
 static constexpr uint32_t COL_BG = 0x0E0E12;
