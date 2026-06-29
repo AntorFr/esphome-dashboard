@@ -71,14 +71,14 @@ lv_obj_t *LvglRenderer::make_button_(lv_obj_t *parent, const char *text, InputEv
 }
 
 void LvglRenderer::build(const std::vector<Group> &groups) {
-  // --- Écran de veille ---
+  // --- Idle screen ---
   this->idle_scr_ = this->make_screen_();
   lv_obj_add_flag(this->idle_scr_, LV_OBJ_FLAG_CLICKABLE);
   {
     lv_obj_t *lbl = lv_label_create(this->idle_scr_);
-    lv_label_set_text(lbl, "Veille\ntouchez pour réveiller");
+    lv_label_set_text(lbl, "tap to wake");
     lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_TEXT), 0);
     lv_obj_center(lbl);
     auto *d = new CbData{this, InputEvent::WAKE, -1};
     g_cbdata.push_back(d);

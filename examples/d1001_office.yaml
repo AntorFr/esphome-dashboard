@@ -2,13 +2,9 @@
 # Cartes BINAIRES uniquement (card switch = binding HA réel).
 # Musique / Chauffage / Portail (media_player / climate / cover) = M5.
 #
-# ⚠️ TACTILE INDISPONIBLE pour l'instant : le D1001 a un contrôleur GSL3670 non supporté
-#    par ESPHome (cf. docs/lessons-learned.md §7). L'écran s'affiche et le WiFi fonctionne,
-#    mais la navigation tactile nécessite un composant externe GSL3670 (TODO). Cette config
-#    sert donc surtout à valider l'affichage + le binding HA sur P4.
-#
-# Le board fournit display MIPI-DSI, lvgl, psram, esp_ldo ET esp32_hosted (WiFi via C6).
-# Brochage extrait du schéma officiel Seeed.
+# Le board fournit display MIPI-DSI, tactile GSL3670 (composant gsl3670), lvgl, psram,
+# esp_ldo ET esp32_hosted (WiFi via C6). Brochage extrait du schéma officiel Seeed.
+# Navigation tactile (tap sur les tuiles). À valider sur matériel.
 # En prod : remplacer external_components par { source: github://AntorFR/esphome-dashboard }.
 substitutions:
   device_name: d1001-office

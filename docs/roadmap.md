@@ -80,7 +80,28 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [ ] `cover`, puis `media_player` (volume + play/pause), puis `climate`
 - [ ] `homeassistant_addon` porté/nettoyé (domaines non-natifs)
 
+### Composant tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL
+- [x] `components/gsl3670` : plateforme `touchscreen` native ESPHome (I2C direct)
+- [x] Firmware SiLead vendorisé verbatim depuis le BSP Seeed (`gsl3670_firmware.h`)
+- [x] Séquence init (clear/reset/upload/startup) + lecture 44o @0x80 (points bruts, Y masqué 12 bits)
+- [x] `App.feed_wdt()` pendant l'upload (sinon reset watchdog)
+- [x] Câblé board D1001 (i2c_panel, INT GPIO16, RST XL9535 EXP_GPO12) + swap_xy + mirror_x/y + calibration
+- [x] **Validé sur D1001 réel** : init `0xb0=5a5a5a5a`, tactile précis, navigation OK
+
+### Bring-up D1001 ✅ VALIDÉ MATÉRIEL
+- [x] Écran MIPI-DSI (modèle SEEED-RETERMINAL-D1001) — **PSRAM 200MHz** (sinon underrun→noir)
+- [x] **Rétroéclairage** : `light: monochromatic` sur `LCD_PWM` (GPIO14), ALWAYS_ON
+- [x] WiFi via C6 (`esp32_hosted` SDIO, brochage schéma) — connecté, IP obtenue
+- [x] `ha_dashboard` + 4 switches HA — boot stable, 0 reset
+
 ## Backlog / plus tard
+- **Fidélité visuelle aux mockups** (PRIORITÉ) : remplacer le rendu placeholder par le design
+  néon — D1001 : header (heure/date/météo) + onglets de groupes + grille de tuiles + vue détail
+  (arc ouvert + slider + toggle) ; Dial : carrousel de cards (arc ouvert), menu radial, jauge
+  de retour. Cf. `docs/interaction-*.md` et les prototypes HTML.
+- **Mode calibration tactile** : assistant à l'écran (tap des coins) qui mesure et stocke les
+  bornes en `preferences`, au lieu de hardcoder `calibration:` par board.
+- Underrun DSI résiduel : vérifier qu'il reste à 0 en charge (sinon tuner pclk/bounce).
 - v2 : renderer **Nextion** (Sonoff NSPanel) réutilisant modèle de cards + langage visuel.
 - Auto-rotation IMU (D1001).
 - Contrôle couleur/température des lumières.

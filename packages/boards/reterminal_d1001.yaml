@@ -12,7 +12,10 @@ esp32:
   framework:
     type: esp-idf
 
+# PSRAM à pleine vitesse (200 MHz) : indispensable pour alimenter le scanout MIPI-DSI
+# 800x1280 sans underrun (sinon écran noir / corrompu). Vitesses P4 : 20/100/200 MHz.
 psram:
+  speed: 200MHZ
 
 # LDO interne alimentant le PHY MIPI-DSI du P4 (canal 3, 2.5V).
 esp_ldo:
@@ -56,6 +59,20 @@ xl9535:
     i2c_id: i2c_sys
     address: 0x20
 
+# LCD backlight boost driver (EN/PWM = net LCD_PWM = GPIO14). Without driving it the
+# panel power/scanout can be on yet the screen stays black. ALWAYS_ON at full brightness.
+output:
+  - platform: ledc
+    id: d1001_bl_pwm
+    pin: GPIO14
+    frequency: 2000Hz
+light:
+  - platform: monochromatic
+    id: d1001_backlight
+    output: d1001_bl_pwm
+    restore_mode: ALWAYS_ON
+    internal: true
+
 display:
   - platform: mipi_dsi
     id: d1001_display
@@ -70,9 +87,32 @@ display:
       xl9535: d1001_expander
       number: 2            # LCD_RST (EXP_GPO2)
 
-# Tactile GSL3670 : à implémenter en composant externe (I2C0 GPIO37/38, addr 0x40,
-# INT GPIO16, RST via expander EXP_GPO12). Une fois dispo, l'ajouter à lvgl.touchscreens.
+# Tactile GSL3670 (composant externe gsl3670) : I2C0 (GPIO37/38), addr 0x40,
+# INT GPIO16, RST via l'expander XL9535 (EXP_GPO12). Firmware uploadé à l'init.
+touchscreen:
+  - platform: gsl3670
+    id: d1001_touch
+    i2c_id: i2c_panel
+    address: 0x40
+    interrupt_pin: GPIO16
+    reset_pin:
+      xl9535: d1001_expander
+      number: 12
+    # Touch is mounted rotated vs the portrait display. Measured at the screen corners
+    # (the touch surface extends beyond the visible screen):
+    #   displayX <- rawY (inverted), displayY <- rawX (inverted)  => swap + both mirrors.
+    transform:
+      swap_xy: true
+      mirror_x: true
+      mirror_y: true
+    calibration:
+      x_min: 25     # rawY at right edge .. x_max: rawY at left edge
+      x_max: 870
+      y_min: 26     # rawX at bottom edge .. y_max: rawX at top edge
+      y_max: 1632
 
 lvgl:
   displays:
     - d1001_display
+  touchscreens:
+    - d1001_touch

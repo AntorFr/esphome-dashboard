@@ -88,10 +88,11 @@ Espressif `esp_lcd_touch`) dans le BSP `Seeed-Studio/reTerminal-D1001/components
 - ⚠️ `gsl_point_id.c` = **firmware/coefficients à uploader à l'init** (spécifique SiLead).
 - Bus : I2C0 (SDA GPIO37 / SCL GPIO38), INT GPIO16, RST via XL9535 EXP_GPO12.
 
-→ **TODO (jalon dédié)** : écrire un composant externe ESPHome `touchscreen` GSL3670 qui
-**enveloppe `esp_lcd_touch_gsl3670`** (vendoriser le composant esp-idf + firmware, créer un
-`esp_lcd_panel_io_i2c` sur le bus, exposer les points à la base `Touchscreen` d'ESPHome),
-puis l'ajouter à `lvgl.touchscreens`. En attendant, le D1001 est « display + WiFi only ».
+→ **FAIT** : composant `components/gsl3670` (plateforme `touchscreen` native ESPHome, I2C
+direct) — firmware SiLead vendorisé, séquence d'init portée, lecture brute des points (algo
+`gsl_alg_id_main` non porté). **Validé sur matériel** : `status 0xb0 = 5a 5a 5a 5a`, init
+confirmée. ⚠️ L'upload firmware (~4356 écritures I2C) déclenchait un **reset watchdog** en
+`setup()` → corrigé via `App.feed_wdt()` périodique dans la boucle d'upload (voir §9).
 
 ## 8. Brochage D1001 — source de vérité = schéma officiel Seeed
 
@@ -103,3 +104,23 @@ l'esp-bsp Espressif via dépendance). La source fiable est le **schéma PDF offi
 - **I2C0 (écran/cam)** : SDA=GPIO37, SCL=GPIO38 → touch 0x40, caméra 0x26.
 - **Écran** : LCD_PWR_EN=EXP_GPO0, LCD_RST=EXP_GPO2, backlight/alim EXP_GPO7 (via XL9535).
 - **MicroSD** : CMD=GPIO44, CLK=GPIO43, D0..D3=GPIO39/40/41/42.
+
+## 9. Long blocking work in setup() trips the task watchdog
+
+**Symptom**: the GSL3670 firmware upload (~4356 sequential I2C writes) ran inside `setup()`
+and took ~5s, tripping the ESP-IDF task watchdog → `rst:0xc (SW_CPU_RESET)` boot loop on the
+ESP32-P4.
+
+**Fix**: feed the watchdog periodically during long synchronous loops —
+`App.feed_wdt()` every 64 iterations (`#include "esphome/core/application.h"`). Confirmed on
+hardware: device boots cleanly, no resets.
+
+## 10. ESP32-P4 MIPI-DSI framebuffer underrun at 800x1280
+
+**Symptom**: on-device logs spam `lcd.dsi: can't fetch data from external memory fast enough,
+underrun happens` (~hundreds of occurrences) at 800×1280 — PSRAM bandwidth can't keep up with
+the DSI scanout, causing visual glitches/tearing.
+
+**Mitigations to try (TODO)**: lower `pclk_frequency` in the display model/override, tune
+PSRAM speed/mode (octal/120MHz if supported), reduce LVGL draw-buffer pressure, or enable a
+bounce buffer for the DSI. Not blocking for bring-up; affects display quality only.
