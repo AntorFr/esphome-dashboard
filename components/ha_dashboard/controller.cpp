@@ -40,9 +40,10 @@ void Controller::handle(InputEvent event, int index) {
 
   switch (this->state_) {
     case NavState::IDLE:
-      // N'importe quelle interaction réveille.
-      this->state_ = NavState::MENU;
-      this->group_index_ = 0;
+      // N'importe quelle interaction réveille : dashboard (D1001) ou menu (Dial).
+      this->state_ = this->dashboard_mode_ ? NavState::DASHBOARD : NavState::MENU;
+      if (!this->dashboard_mode_)
+        this->group_index_ = 0;
       break;
 
     case NavState::MENU: {
@@ -147,8 +148,8 @@ void Controller::handle(InputEvent event, int index) {
 }
 
 void Controller::tick(uint32_t now_ms) {
-  if (this->dashboard_mode_ || this->state_ == NavState::IDLE)
-    return;  // no inactivity timeout on the D1001 dashboard
+  if (this->state_ == NavState::IDLE)
+    return;  // already in standby
   if (now_ms - this->last_event_ms_ >= this->timeout_ms_) {
     ESP_LOGD(TAG, "inactivity timeout -> idle");
     this->state_ = NavState::IDLE;

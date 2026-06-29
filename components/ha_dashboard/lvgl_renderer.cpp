@@ -41,6 +41,10 @@ void LvglRenderer::set_clock(const char *time_str, const char *date_str) {
     lv_label_set_text(this->time_lbl_, time_str);
   if (this->date_lbl_ != nullptr)
     lv_label_set_text(this->date_lbl_, date_str);
+  if (this->idle_time_lbl_ != nullptr)
+    lv_label_set_text(this->idle_time_lbl_, time_str);
+  if (this->idle_date_lbl_ != nullptr)
+    lv_label_set_text(this->idle_date_lbl_, date_str);
 }
 
 void LvglRenderer::set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback) {
@@ -89,15 +93,31 @@ lv_obj_t *LvglRenderer::make_button_(lv_obj_t *parent, const char *text, InputEv
 }
 
 void LvglRenderer::build(const std::vector<Group> &groups) {
-  // --- Idle screen ---
+  // --- Idle / standby screen: centered clock (time + date). Tap to wake. ---
   this->idle_scr_ = this->make_screen_();
   lv_obj_add_flag(this->idle_scr_, LV_OBJ_FLAG_CLICKABLE);
   {
-    lv_obj_t *lbl = lv_label_create(this->idle_scr_);
-    lv_label_set_text(lbl, "tap to wake");
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_TEXT), 0);
-    lv_obj_center(lbl);
+    lv_obj_t *col = lv_obj_create(this->idle_scr_);
+    lv_obj_set_size(col, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(col, 0, 0);
+    lv_obj_set_style_pad_all(col, 0, 0);
+    lv_obj_set_style_pad_row(col, 6, 0);
+    lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(col, LV_OBJ_FLAG_CLICKABLE);  // let the tap reach the screen
+    lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+
+    this->idle_time_lbl_ = lv_label_create(col);
+    lv_label_set_text(this->idle_time_lbl_, "--:--");
+    lv_obj_set_style_text_color(this->idle_time_lbl_, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(this->idle_time_lbl_, this->font_large_, &lv_font_montserrat_48);
+
+    this->idle_date_lbl_ = lv_label_create(col);
+    lv_label_set_text(this->idle_date_lbl_, "");
+    lv_obj_set_style_text_color(this->idle_date_lbl_, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(this->idle_date_lbl_, this->font_medium_, &lv_font_montserrat_28);
+
     auto *d = new CbData{this, InputEvent::WAKE, -1};
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(this->idle_scr_, btn_event_cb, LV_EVENT_CLICKED, d);
