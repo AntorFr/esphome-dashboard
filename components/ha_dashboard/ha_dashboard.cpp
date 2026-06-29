@@ -197,13 +197,46 @@ static const char *condition_fr(const std::string &c) {
   return c.c_str();  // fallback: raw condition
 }
 
+// Material Design Icons glyph (UTF-8) for a HA weather condition. Needs the MDI font.
+static const char *condition_icon(const std::string &c) {
+  if (c == "sunny")
+    return "\U000F0599";  // weather-sunny
+  if (c == "clear-night")
+    return "\U000F0594";  // weather-night
+  if (c == "partlycloudy")
+    return "\U000F0595";  // weather-partly-cloudy
+  if (c == "cloudy")
+    return "\U000F0590";  // weather-cloudy
+  if (c == "fog")
+    return "\U000F0591";  // weather-fog
+  if (c == "rainy")
+    return "\U000F0597";  // weather-rainy
+  if (c == "pouring")
+    return "\U000F0596";  // weather-pouring
+  if (c == "lightning")
+    return "\U000F0593";  // weather-lightning
+  if (c == "lightning-rainy")
+    return "\U000F067E";  // weather-lightning-rainy
+  if (c == "snowy")
+    return "\U000F0598";  // weather-snowy
+  if (c == "snowy-rainy")
+    return "\U000F067F";  // weather-snowy-rainy
+  if (c == "hail")
+    return "\U000F0592";  // weather-hail
+  if (c == "windy" || c == "windy-variant")
+    return "\U000F059D";  // weather-windy
+  return "\U000F0026";  // alert (exceptional / fallback)
+}
+
 void HaDashboard::subscribe_weather_() {
   if (this->weather_entity_ == nullptr || this->weather_subscribed_ || api::global_api_server == nullptr)
     return;
   this->weather_subscribed_ = true;
   // State = weather condition.
   api::global_api_server->subscribe_home_assistant_state(this->weather_entity_, nullptr, [this](StringRef s) {
-    this->weather_cond_ = condition_fr(std::string(s.c_str()));
+    std::string raw(s.c_str());
+    this->weather_cond_ = condition_fr(raw);
+    this->weather_icon_ = condition_icon(raw);
     this->push_weather_();
   });
   // Temperature attribute.
@@ -217,7 +250,8 @@ void HaDashboard::subscribe_weather_() {
 
 void HaDashboard::push_weather_() {
   if (this->built_)
-    this->renderer_.set_weather(this->weather_temp_.c_str(), this->weather_cond_.c_str());
+    this->renderer_.set_weather(this->weather_icon_.c_str(), this->weather_temp_.c_str(),
+                                this->weather_cond_.c_str());
 }
 
 void HaDashboard::update_clock_() {

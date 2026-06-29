@@ -90,7 +90,7 @@ climate:
 homeassistant_addon:
   media_players:
     - id: media_bureau
-      entity_id: media_player.ma_bureau
+      entity_id: media_player.bureau_2
       volume_step: 0.05
 
 ha_dashboard:
@@ -103,6 +103,7 @@ ha_dashboard:
   font_small: ha_font_small
   font_medium: ha_font_medium
   font_large: ha_font_large
+  font_weather: ha_font_weather
   # Pas d'encodeur/bouton : navigation tactile seule sur le D1001.
   groups:
     - name: "Focus"

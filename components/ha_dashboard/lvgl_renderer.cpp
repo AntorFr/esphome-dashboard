@@ -47,7 +47,9 @@ void LvglRenderer::set_clock(const char *time_str, const char *date_str) {
     lv_label_set_text(this->idle_date_lbl_, date_str);
 }
 
-void LvglRenderer::set_weather(const char *temp_str, const char *cond_str) {
+void LvglRenderer::set_weather(const char *icon_glyph, const char *temp_str, const char *cond_str) {
+  if (this->weather_icon_lbl_ != nullptr && icon_glyph != nullptr)
+    lv_label_set_text(this->weather_icon_lbl_, icon_glyph);
   if (this->weather_temp_lbl_ != nullptr)
     lv_label_set_text(this->weather_temp_lbl_, temp_str);
   if (this->weather_cond_lbl_ != nullptr)
@@ -291,6 +293,11 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_flex_flow(weather, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(weather, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
   lv_obj_clear_flag(weather, LV_OBJ_FLAG_SCROLLABLE);
+  this->weather_icon_lbl_ = lv_label_create(weather);
+  lv_label_set_text(this->weather_icon_lbl_, "");
+  lv_obj_set_style_text_color(this->weather_icon_lbl_, lv_color_hex(COL_TEXT), 0);
+  if (this->font_weather_ != nullptr)
+    lv_obj_set_style_text_font(this->weather_icon_lbl_, this->font_weather_->get_lv_font(), 0);
   this->weather_temp_lbl_ = lv_label_create(weather);
   lv_label_set_text(this->weather_temp_lbl_, "");
   lv_obj_set_style_text_color(this->weather_temp_lbl_, lv_color_hex(COL_TEXT), 0);

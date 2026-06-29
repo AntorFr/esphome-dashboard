@@ -33,6 +33,7 @@ class HaDashboard : public Component {
   void set_font_small(font::Font *f) { this->renderer_.set_font_small(f); }
   void set_font_medium(font::Font *f) { this->renderer_.set_font_medium(f); }
   void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
+  void set_font_weather(font::Font *f) { this->renderer_.set_font_weather(f); }
 
   // Appelés par le codegen (to_code) pour peupler le modèle.
   void add_group(const std::string &name, const std::string &icon);
@@ -66,6 +67,7 @@ class HaDashboard : public Component {
   const char *weather_entity_{nullptr};
   std::string weather_temp_;
   std::string weather_cond_;
+  std::string weather_icon_;
   bool weather_subscribed_{false};
 
   std::string profile_{"dial"};

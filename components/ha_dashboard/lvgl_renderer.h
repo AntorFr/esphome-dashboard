@@ -26,12 +26,13 @@ class LvglRenderer : public Renderer {
 
   // Update the dashboard header clock (called by the component from a time source).
   void set_clock(const char *time_str, const char *date_str);
-  // Update the header weather slot (temperature + condition text).
-  void set_weather(const char *temp_str, const char *cond_str);
+  // Update the header weather slot (icon glyph + temperature + condition text).
+  void set_weather(const char *icon_glyph, const char *temp_str, const char *cond_str);
 
   void set_font_small(font::Font *f) { this->font_small_ = f; }
   void set_font_medium(font::Font *f) { this->font_medium_ = f; }
   void set_font_large(font::Font *f) { this->font_large_ = f; }
+  void set_font_weather(font::Font *f) { this->font_weather_ = f; }
 
  protected:
   lv_obj_t *make_screen_();
@@ -75,11 +76,13 @@ class LvglRenderer : public Renderer {
   font::Font *font_small_{nullptr};
   font::Font *font_medium_{nullptr};
   font::Font *font_large_{nullptr};
+  font::Font *font_weather_{nullptr};
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};
   lv_obj_t *time_lbl_{nullptr};
   lv_obj_t *date_lbl_{nullptr};
+  lv_obj_t *weather_icon_lbl_{nullptr};
   lv_obj_t *weather_temp_lbl_{nullptr};
   lv_obj_t *weather_cond_lbl_{nullptr};
   std::vector<lv_obj_t *> tab_btns_;
