@@ -1107,7 +1107,8 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
         if (this->cover_slot_list_[s] == slot)
           this->cover_widget_list_[s] = img;
-      slot->set_url(item.cover_url);
+      // Fetch the cover already at the display size (server resizes; no on-device scaling).
+      slot->set_url(item.cover_url + "?size=" + std::to_string(COVER_PX));
       this->cover_queue_.push_back(slot);  // downloaded serially after the grid is built
     }
 #endif
@@ -1214,6 +1215,26 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     auto *db = new CbData{this, InputEvent::LAUNCHER_BACK, -1};
     g_cbdata.push_back(db);
     lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, db);
+
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+    // Parent cover at native 64px: reuse the parent's grid slot, reloaded at ?size=64 (the
+    // slot has no forced resize, so it decodes the server's 64px variant -> no scaling).
+    int ci = L->detail_index();
+    if (ci >= 0 && ci < (int) g.cover_slots.size() && g.cover_slots[ci] != nullptr &&
+        !L->detail_cover_url().empty()) {
+      online_image::OnlineImage *slot = g.cover_slots[ci];
+      lv_obj_t *hc = lv_image_create(head);
+      lv_obj_set_size(hc, 64, 64);  // clip until the 64px variant arrives (avoids a huge flash)
+      lv_obj_set_style_clip_corner(hc, true, 0);
+      lv_obj_set_style_radius(hc, 8, 0);
+      lv_image_set_src(hc, slot->get_lv_image_dsc());
+      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+        if (this->cover_slot_list_[s] == slot)
+          this->cover_widget_list_[s] = hc;
+      slot->set_url(L->detail_cover_url() + "?size=64");
+      slot->update();
+    }
+#endif
 
     lv_obj_t *ht = lv_label_create(head);
     lv_obj_set_flex_grow(ht, 1);

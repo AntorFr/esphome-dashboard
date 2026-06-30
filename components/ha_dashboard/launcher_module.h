@@ -70,6 +70,13 @@ class LauncherModule {
   const std::string &detail_title() const { return this->detail_title_; }
   // Favourite index of the drilled-in item (to reuse its cover in the detail header), or -1.
   int detail_index() const { return this->detail_index_; }
+  // Cover URL of the drilled-in favourite (for the detail header), or empty.
+  const std::string &detail_cover_url() const {
+    static const std::string EMPTY;
+    if (this->detail_index_ >= 0 && this->detail_index_ < static_cast<int>(this->favorites_.size()))
+      return this->favorites_[this->detail_index_].cover_url;
+    return EMPTY;
+  }
   const std::string &owner() const { return this->owner_; }
 
   // DETAIL paging state (for the renderer's "load on scroll" + spinner row).
