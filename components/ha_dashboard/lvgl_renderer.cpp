@@ -932,6 +932,17 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   this->cover_load_idx_ = 0;
 #endif
 
+  // Grid level = wrapping cover grid (2 columns); detail level = vertical list.
+  if (detail) {
+    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+  } else {
+    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_row(grid, 16, 0);
+    lv_obj_set_style_pad_column(grid, 12, 0);
+  }
+
   auto add_button = [this, grid](const char *text, const lv_font_t *fb, uint32_t color, InputEvent ev,
                                  int idx) -> lv_obj_t * {
     lv_obj_t *b = lv_button_create(grid);
@@ -951,27 +962,34 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return b;
   };
 
-  // A favourite tile: [ cover | title ], whole tile taps -> play. Binds a cover slot when one
-  // is available for this index (covers download async; on_cover_ready_ refreshes the image).
-  auto make_fav_button = [&](lv_obj_t *parent, const QuickItem &item, int idx, bool grow) -> lv_obj_t * {
-    lv_obj_t *b = lv_button_create(parent);
-    if (grow)
-      lv_obj_set_flex_grow(b, 1);
-    else
-      lv_obj_set_width(b, lv_pct(100));
-    lv_obj_set_height(b, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
-    lv_obj_set_style_shadow_width(b, 0, 0);
-    lv_obj_set_style_radius(b, 14, 0);
-    lv_obj_set_style_pad_all(b, 12, 0);
-    lv_obj_set_style_pad_column(b, 12, 0);
-    lv_obj_set_flex_flow(b, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(b, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  // A favourite cover tile: cover square on top (tap = play), title under, and for
+  // podcasts/audiobooks a small "Épisodes/Chapitres" button to drill in. Cover downloads
+  // async (queued); on_cover_ready_ refreshes the image.
+  const int COVER_PX = 256;  // matches the online_image resize -> 1:1, two per row
+  auto make_cover_tile = [&](const QuickItem &item, int idx) {
+    lv_obj_t *tile = lv_obj_create(grid);
+    lv_obj_set_size(tile, COVER_PX, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(tile, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(tile, 0, 0);
+    lv_obj_set_style_pad_all(tile, 0, 0);
+    lv_obj_set_style_pad_row(tile, 6, 0);
+    lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(tile, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *cover = lv_button_create(tile);
+    lv_obj_set_size(cover, COVER_PX, COVER_PX);
+    lv_obj_set_style_bg_color(cover, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(cover, 0, 0);
+    lv_obj_set_style_radius(cover, 16, 0);
+    lv_obj_set_style_pad_all(cover, 0, 0);
+    lv_obj_set_style_clip_corner(cover, true, 0);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
     if (idx >= 0 && idx < (int) g.cover_slots.size() && g.cover_slots[idx] != nullptr &&
         !item.cover_url.empty()) {
       online_image::OnlineImage *slot = g.cover_slots[idx];
-      lv_obj_t *img = lv_image_create(b);
+      lv_obj_t *img = lv_image_create(cover);
+      lv_obj_center(img);
       lv_image_set_src(img, slot->get_lv_image_dsc());
       for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
         if (this->cover_slot_list_[s] == slot)
@@ -980,15 +998,35 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       this->cover_queue_.push_back(slot);  // downloaded serially after the grid is built
     }
 #endif
-    lv_obj_t *l = lv_label_create(b);
-    lv_obj_set_flex_grow(l, 1);
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(cover, btn_event_cb, LV_EVENT_CLICKED, d);
+
+    lv_obj_t *l = lv_label_create(tile);
+    lv_obj_set_width(l, COVER_PX);
+    lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(l, item.title.c_str());
     lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
-    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
-    return b;
+
+    if (item.has_children) {
+      lv_obj_t *lb = lv_button_create(tile);
+      lv_obj_set_width(lb, COVER_PX);
+      lv_obj_set_height(lb, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_color(lb, lv_color_hex(0x262234), 0);
+      lv_obj_set_style_shadow_width(lb, 0, 0);
+      lv_obj_set_style_radius(lb, 12, 0);
+      lv_obj_set_style_pad_ver(lb, 8, 0);
+      lv_obj_t *lbl = lv_label_create(lb);
+      lv_obj_center(lbl);
+      lv_label_set_text(lbl, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
+      lv_obj_set_style_text_color(lbl, lv_color_hex(COL_ACCENT), 0);
+      this->set_text_font_(lbl, this->font_small_, &lv_font_montserrat_20);
+      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
+      g_cbdata.push_back(dc);
+      lv_obj_add_event_cb(lb, btn_event_cb, LV_EVENT_CLICKED, dc);
+    }
   };
 
   // Detail level: a back row above the episode/chapter list.
@@ -1022,42 +1060,11 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
 
   const std::vector<QuickItem> &items = L->items();
   for (size_t i = 0; i < items.size(); i++) {
-    // Grid + drillable (podcast/audiobook): a row with [ title (play) | list button (drill) ].
-    if (!detail && items[i].has_children) {
-      lv_obj_t *row = lv_obj_create(grid);
-      lv_obj_set_width(row, lv_pct(100));
-      lv_obj_set_height(row, LV_SIZE_CONTENT);
-      lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-      lv_obj_set_style_border_width(row, 0, 0);
-      lv_obj_set_style_pad_all(row, 0, 0);
-      lv_obj_set_style_pad_column(row, 8, 0);
-      lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-      lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-
-      make_fav_button(row, items[i], (int) i, /*grow=*/true);
-
-      lv_obj_t *list_btn = lv_button_create(row);
-      lv_obj_set_height(list_btn, LV_SIZE_CONTENT);
-      lv_obj_set_style_bg_color(list_btn, lv_color_hex(COL_TILE), 0);
-      lv_obj_set_style_shadow_width(list_btn, 0, 0);
-      lv_obj_set_style_radius(list_btn, 14, 0);
-      lv_obj_set_style_pad_all(list_btn, 16, 0);
-      lv_obj_t *ll = lv_label_create(list_btn);
-      lv_label_set_text(ll, items[i].media_type == "audiobook" ? "Chapitres" : "Épisodes");
-      lv_obj_set_style_text_color(ll, lv_color_hex(COL_ACCENT), 0);
-      this->set_text_font_(ll, this->font_small_, &lv_font_montserrat_20);
-      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, (int) i};
-      g_cbdata.push_back(dc);
-      lv_obj_add_event_cb(list_btn, btn_event_cb, LV_EVENT_CLICKED, dc);
-      continue;
-    }
-
-    // Leaf favourite (grid) gets a cover; an episode/chapter row in detail is title-only.
     if (!detail) {
-      make_fav_button(grid, items[i], (int) i, /*grow=*/false);
+      make_cover_tile(items[i], (int) i);  // cover grid tile (play + optional drill button)
     } else {
       add_button(items[i].title.c_str(), &lv_font_montserrat_28, COL_TEXT,
-                 InputEvent::LAUNCHER_ACTIVATE, (int) i);
+                 InputEvent::LAUNCHER_ACTIVATE, (int) i);  // episode/chapter row (title only)
     }
   }
 

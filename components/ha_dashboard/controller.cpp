@@ -194,7 +194,12 @@ void Controller::handle(InputEvent event, int index) {
         case InputEvent::SELECT_GROUP:
           if (index >= 0 && index < n) {
             this->group_index_ = index;
-            this->maybe_load_launcher_(index);  // fetch favourites when entering a launcher tab
+            // Tapping a launcher tab always returns to its home grid (leaves any open detail
+            // list), then (re)loads the favourites.
+            Group &g = (*this->groups_)[index];
+            if (g.is_launcher && g.launcher != nullptr)
+              g.launcher->back();  // DETAIL -> GRID (no-op if already on the grid)
+            this->maybe_load_launcher_(index);
           }
           break;
         case InputEvent::TOGGLE: {
