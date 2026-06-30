@@ -89,6 +89,9 @@ class LvglRenderer : public Renderer {
   lv_obj_t *idle_scr_{nullptr};
   lv_obj_t *idle_time_lbl_{nullptr};
   lv_obj_t *idle_date_lbl_{nullptr};
+  lv_obj_t *idle_wx_icon_{nullptr};
+  lv_obj_t *idle_wx_temp_{nullptr};
+  lv_obj_t *idle_wx_cond_{nullptr};
   lv_obj_t *menu_scr_{nullptr};
   lv_obj_t *card_scr_{nullptr};
 

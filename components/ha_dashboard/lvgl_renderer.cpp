@@ -65,6 +65,13 @@ void LvglRenderer::set_weather(const char *icon_glyph, const char *temp_str, con
     lv_label_set_text(this->weather_temp_lbl_, temp_str);
   if (this->weather_cond_lbl_ != nullptr)
     lv_label_set_text(this->weather_cond_lbl_, cond_str);
+  // Same on the standby screen.
+  if (this->idle_wx_icon_ != nullptr && icon_glyph != nullptr)
+    lv_label_set_text(this->idle_wx_icon_, icon_glyph);
+  if (this->idle_wx_temp_ != nullptr)
+    lv_label_set_text(this->idle_wx_temp_, temp_str);
+  if (this->idle_wx_cond_ != nullptr)
+    lv_label_set_text(this->idle_wx_cond_, cond_str);
 }
 
 void LvglRenderer::set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback) {
@@ -145,6 +152,32 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     lv_label_set_text(this->idle_date_lbl_, "");
     lv_obj_set_style_text_color(this->idle_date_lbl_, lv_color_hex(COL_MUTED), 0);
     this->set_text_font_(this->idle_date_lbl_, this->font_medium_, &lv_font_montserrat_28);
+
+    // Weather on the standby screen: [icon  temp] on one line, condition below.
+    lv_obj_t *iwrow = lv_obj_create(col);
+    lv_obj_set_size(iwrow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(iwrow, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(iwrow, 0, 0);
+    lv_obj_set_style_pad_all(iwrow, 0, 0);
+    lv_obj_set_style_pad_column(iwrow, 8, 0);
+    lv_obj_set_style_margin_top(iwrow, 12, 0);
+    lv_obj_set_flex_flow(iwrow, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(iwrow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(iwrow, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(iwrow, LV_OBJ_FLAG_SCROLLABLE);
+    this->idle_wx_icon_ = lv_label_create(iwrow);
+    lv_label_set_text(this->idle_wx_icon_, "");
+    lv_obj_set_style_text_color(this->idle_wx_icon_, lv_color_hex(COL_TEXT), 0);
+    if (this->font_weather_ != nullptr)
+      lv_obj_set_style_text_font(this->idle_wx_icon_, this->font_weather_->get_lv_font(), 0);
+    this->idle_wx_temp_ = lv_label_create(iwrow);
+    lv_label_set_text(this->idle_wx_temp_, "");
+    lv_obj_set_style_text_color(this->idle_wx_temp_, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(this->idle_wx_temp_, this->font_medium_, &lv_font_montserrat_28);
+    this->idle_wx_cond_ = lv_label_create(col);
+    lv_label_set_text(this->idle_wx_cond_, "");
+    lv_obj_set_style_text_color(this->idle_wx_cond_, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(this->idle_wx_cond_, this->font_small_, &lv_font_montserrat_20);
 
     auto *d = new CbData{this, InputEvent::WAKE, -1};
     g_cbdata.push_back(d);
@@ -616,7 +649,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_text_color(this->date_lbl_, lv_color_hex(COL_MUTED), 0);
   this->set_text_font_(this->date_lbl_, this->font_small_, &lv_font_montserrat_20);
 
-  // Right: weather (temperature + condition), bound to a HA weather entity.
+  // Right: weather (icon + temperature on one line, condition below), bound to a HA entity.
   lv_obj_t *weather = lv_obj_create(this->dash_header_);
   lv_obj_set_size(weather, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(weather, LV_OPA_TRANSP, 0);
@@ -626,16 +659,27 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_flex_flow(weather, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(weather, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
   lv_obj_clear_flag(weather, LV_OBJ_FLAG_SCROLLABLE);
-  this->weather_icon_lbl_ = lv_label_create(weather);
+
+  lv_obj_t *wrow = lv_obj_create(weather);  // icon + temperature, same line
+  lv_obj_set_size(wrow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(wrow, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(wrow, 0, 0);
+  lv_obj_set_style_pad_all(wrow, 0, 0);
+  lv_obj_set_style_pad_column(wrow, 8, 0);
+  lv_obj_set_flex_flow(wrow, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(wrow, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(wrow, LV_OBJ_FLAG_SCROLLABLE);
+  this->weather_icon_lbl_ = lv_label_create(wrow);
   lv_label_set_text(this->weather_icon_lbl_, "");
   lv_obj_set_style_text_color(this->weather_icon_lbl_, lv_color_hex(COL_TEXT), 0);
   if (this->font_weather_ != nullptr)
     lv_obj_set_style_text_font(this->weather_icon_lbl_, this->font_weather_->get_lv_font(), 0);
-  this->weather_temp_lbl_ = lv_label_create(weather);
+  this->weather_temp_lbl_ = lv_label_create(wrow);
   lv_label_set_text(this->weather_temp_lbl_, "");
   lv_obj_set_style_text_color(this->weather_temp_lbl_, lv_color_hex(COL_TEXT), 0);
   this->set_text_font_(this->weather_temp_lbl_, this->font_medium_, &lv_font_montserrat_28);
-  this->weather_cond_lbl_ = lv_label_create(weather);
+
+  this->weather_cond_lbl_ = lv_label_create(weather);  // condition, below
   lv_label_set_text(this->weather_cond_lbl_, "");
   lv_obj_set_style_text_color(this->weather_cond_lbl_, lv_color_hex(COL_MUTED), 0);
   this->set_text_font_(this->weather_cond_lbl_, this->font_small_, &lv_font_montserrat_20);
@@ -965,7 +1009,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   // A favourite tile: a grey card (entity-tile language) holding the cover (tap = play, with
   // a play badge bottom-right and, for podcasts/audiobooks, an "Épisodes/Chapitres" button
   // overlaid at the top), then title + type. Cover downloads async; on_cover_ready_ refreshes.
-  const int COVER_PX = 256;  // matches the online_image resize -> 1:1, two per row
+  const int COVER_PX = 350;  // matches the online_image resize; two tiles fill the 800px width
   auto make_cover_tile = [&](const QuickItem &item, int idx) {
     lv_obj_t *tile = lv_obj_create(grid);
     lv_obj_set_size(tile, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -1004,20 +1048,21 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(cover, btn_event_cb, LV_EVENT_CLICKED, d);
 
-    // Play badge (visual only -> taps fall through to the cover button).
+    // Play badge bottom-right (visual only -> taps fall through to the cover button).
     lv_obj_t *badge = lv_obj_create(cover);
-    lv_obj_set_size(badge, 40, 40);
-    lv_obj_set_style_radius(badge, 20, 0);
+    lv_obj_set_size(badge, 60, 60);
+    lv_obj_set_style_radius(badge, 30, 0);
     lv_obj_set_style_bg_color(badge, lv_color_hex(0x0A0A0C), 0);
     lv_obj_set_style_bg_opa(badge, LV_OPA_60, 0);
     lv_obj_set_style_border_width(badge, 0, 0);
     lv_obj_set_style_pad_all(badge, 0, 0);
     lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -8, -8);
+    lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
     lv_obj_t *play = lv_label_create(badge);
     lv_label_set_text(play, LV_SYMBOL_PLAY);
     lv_obj_center(play);
     lv_obj_set_style_text_color(play, lv_color_hex(COL_TEXT), 0);
+    lv_obj_set_style_text_font(play, &lv_font_montserrat_28, 0);
 
     // Drill button overlaid at the top (podcasts/audiobooks).
     if (item.has_children) {
@@ -1030,8 +1075,16 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_style_shadow_width(drill, 0, 0);
       lv_obj_set_style_radius(drill, 10, 0);
       lv_obj_set_style_pad_ver(drill, 6, 0);
+      lv_obj_set_style_pad_column(drill, 6, 0);
+      lv_obj_set_flex_flow(drill, LV_FLEX_FLOW_ROW);
+      lv_obj_set_flex_align(drill, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      // Icon uses the built-in Montserrat (has LV_SYMBOL glyphs); the text uses the accented
+      // font (which lacks the symbol range) — keep them in separate labels.
+      lv_obj_t *di = lv_label_create(drill);
+      lv_label_set_text(di, LV_SYMBOL_LIST);
+      lv_obj_set_style_text_color(di, lv_color_hex(COL_TEXT), 0);
+      lv_obj_set_style_text_font(di, &lv_font_montserrat_20, 0);
       lv_obj_t *dl = lv_label_create(drill);
-      lv_obj_center(dl);
       lv_label_set_text(dl, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
       lv_obj_set_style_text_color(dl, lv_color_hex(COL_TEXT), 0);
       this->set_text_font_(dl, this->font_small_, &lv_font_montserrat_20);
