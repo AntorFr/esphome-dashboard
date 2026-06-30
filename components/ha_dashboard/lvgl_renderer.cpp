@@ -77,6 +77,18 @@ static std::string clean_title(const std::string &s) {
   return i != 0 ? s.substr(i) : s;
 }
 
+// Ask the image proxy for a smaller thumbnail (weserv `w/h` or MA imageproxy `size`),
+// instead of the default 300px — for episode rows. Unknown URL shapes are left untouched.
+static std::string resize_thumb_url(std::string u, int n) {
+  const std::string s = std::to_string(n);
+  size_t p;
+  if ((p = u.find("w=300&h=300")) != std::string::npos)
+    u.replace(p, 11, "w=" + s + "&h=" + s);
+  else if ((p = u.find("size=300")) != std::string::npos)
+    u.replace(p, 8, "size=" + s);
+  return u;
+}
+
 void LvglRenderer::set_profile(const std::string &profile) {
   this->profile_ = profile;
   this->round_ = (profile != "reterminal_d1001");
@@ -1045,6 +1057,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   }
   this->cover_queue_.clear();
   this->cover_load_idx_ = 0;
+  this->np_last_cover_.clear();  // slot 0 may be reused here -> force now-playing to reload it
 #endif
 
   // Grid level = wrapping cover grid (2 columns); detail level = vertical list.
@@ -1193,6 +1206,48 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     this->set_text_font_(ty, this->font_small_, &lv_font_montserrat_20);
   };
 
+  // An episode/chapter row: [ thumbnail | title ], whole row taps -> play. Reuses a grid
+  // cover slot (skipping the one used by the header) for the thumbnail.
+  auto make_episode_row = [&](const QuickItem &item, int idx) {
+    lv_obj_t *row = lv_button_create(grid);
+    lv_obj_set_width(row, lv_pct(100));
+    lv_obj_set_height(row, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(row, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(row, 0, 0);
+    lv_obj_set_style_radius(row, 12, 0);
+    lv_obj_set_style_pad_all(row, 12, 0);
+    lv_obj_set_style_pad_column(row, 12, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+    int hdr = L->detail_index();
+    int sidx = (idx < hdr) ? idx : idx + 1;  // skip the slot used by the header cover
+    if (!item.cover_url.empty() && sidx >= 0 && sidx < (int) g.cover_slots.size() &&
+        g.cover_slots[sidx] != nullptr) {
+      online_image::OnlineImage *slot = g.cover_slots[sidx];
+      lv_obj_t *img = lv_image_create(row);
+      lv_obj_set_size(img, 56, 56);
+      lv_obj_set_style_radius(img, 8, 0);
+      lv_obj_set_style_clip_corner(img, true, 0);
+      lv_image_set_src(img, slot->get_lv_image_dsc());
+      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+        if (this->cover_slot_list_[s] == slot)
+          this->cover_widget_list_[s] = img;
+      slot->set_url(resize_thumb_url(item.cover_url, 96));
+      this->cover_queue_.push_back(slot);
+    }
+#endif
+    lv_obj_t *l = lv_label_create(row);
+    lv_obj_set_flex_grow(l, 1);
+    lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+    lv_label_set_text(l, clean_title(item.title).c_str());
+    lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(row, btn_event_cb, LV_EVENT_CLICKED, d);
+  };
+
   // Detail level: a header row [ back chevron | parent cover | big title ].
   if (detail) {
     lv_obj_t *head = lv_obj_create(grid);
@@ -1239,7 +1294,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
         if (this->cover_slot_list_[s] == slot)
           this->cover_widget_list_[s] = hc;
       slot->set_url(L->detail_cover_url() + "?size=64");
-      slot->update();
+      this->cover_queue_.push_back(slot);  // serial download with the episode thumbs
     }
 #endif
 
@@ -1252,25 +1307,31 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   }
 
   if (L->status() != LauncherStatus::READY) {
-    const char *msg = "";
-    switch (L->status()) {
-      case LauncherStatus::LOADING:
-        msg = "Chargement…";
-        break;
-      case LauncherStatus::EMPTY:
-        msg = detail ? "Aucun épisode" : "Rien ici pour le moment";
-        break;
-      case LauncherStatus::ERROR:
-        msg = "Musique indisponible";
-        break;
-      default:
-        msg = "";
-        break;
+    if (L->status() == LauncherStatus::EMPTY) {
+      lv_obj_t *lbl = lv_label_create(grid);
+      lv_label_set_text(lbl, detail ? "Aucun épisode" : "Rien ici pour le moment");
+      lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
+      this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
+    } else {
+      // LOADING or ERROR (we auto-retry) -> loading indicator, never "indisponible".
+      lv_obj_t *box = lv_obj_create(grid);
+      lv_obj_set_size(box, lv_pct(100), LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_opa(box, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(box, 0, 0);
+      lv_obj_set_style_pad_all(box, 30, 0);
+      lv_obj_set_style_pad_row(box, 12, 0);
+      lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
+      lv_obj_set_flex_align(box, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+      lv_obj_t *ic = lv_label_create(box);
+      lv_label_set_text(ic, LV_SYMBOL_REFRESH);
+      lv_obj_set_style_text_font(ic, &lv_font_montserrat_48, 0);
+      lv_obj_set_style_text_color(ic, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_t *lbl = lv_label_create(box);
+      lv_label_set_text(lbl, "Chargement…");
+      lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
+      this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
     }
-    lv_obj_t *lbl = lv_label_create(grid);
-    lv_label_set_text(lbl, msg);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
-    this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
     return;
   }
 
@@ -1279,8 +1340,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     if (!detail) {
       make_cover_tile(items[i], (int) i);  // cover grid tile (play + optional drill button)
     } else {
-      add_button(clean_title(items[i].title).c_str(), &lv_font_montserrat_28, COL_TEXT,
-                 InputEvent::LAUNCHER_ACTIVATE, (int) i);  // episode/chapter row (title only)
+      make_episode_row(items[i], (int) i);  // episode/chapter row (thumbnail + title)
     }
   }
 

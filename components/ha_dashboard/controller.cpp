@@ -307,7 +307,7 @@ void Controller::tick(uint32_t now_ms) {
     if (gi >= 0 && gi < (int) this->groups_->size()) {
       Group &g = (*this->groups_)[gi];
       if (g.is_launcher && g.launcher != nullptr && g.launcher->status() == LauncherStatus::ERROR &&
-          now_ms - this->launcher_retry_ms_ >= 4000) {
+          now_ms - this->launcher_retry_ms_ >= 2000) {
         this->launcher_retry_ms_ = now_ms;
         g.launcher->load();
       }
