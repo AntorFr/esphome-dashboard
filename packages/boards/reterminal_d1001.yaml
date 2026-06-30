@@ -20,14 +20,15 @@ esphome:
 esp32:
   board: esp32-p4-evboard
   cpu_frequency: 360MHz
-  # reTerminal D1001 has 32 MB onboard QSPI flash (+ 32 MB PSRAM). We declare 16 MB (a safe
-  # under-statement) on purpose: it already yields a ~7.75 MB app partition — the firmware
-  # exceeds the default 4 MB assumption (~1.84 MB app) once the Music Library launcher
-  # (http_request + TLS) is included — and avoids the experimental-features flag that 32 MB
-  # OTA requires. The upper 16 MB of flash is left unused.
-  flash_size: 16MB
+  # reTerminal D1001 has 32 MB onboard QSPI flash (+ 32 MB PSRAM), per Seeed specs. Declaring
+  # the real size gives a large app partition (the default 4 MB assumption caps the app at
+  # ~1.84 MB, which the firmware exceeds once the Music Library launcher / http_request + TLS
+  # is included). 32 MB OTA requires enabling IDF experimental features (below).
+  flash_size: 32MB
   framework:
     type: esp-idf
+    advanced:
+      enable_idf_experimental_features: true
 
 # PSRAM à pleine vitesse (200 MHz) : indispensable pour alimenter le scanout MIPI-DSI
 # 800x1280 sans underrun (sinon écran noir / corrompu). Vitesses P4 : 20/100/200 MHz.
