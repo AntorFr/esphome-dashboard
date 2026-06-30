@@ -112,8 +112,14 @@ struct Group {
   // driven by `launcher`. See ADR-0007. `launcher` is owned by HaDashboard.
   bool is_launcher{false};
   LauncherModule *launcher{nullptr};
-  // Pool of online_image slots (one per favourite index) for covers; declared in YAML.
+  // Grid cover slots: one per favourite index (350px), declared in YAML. Dedicated to the
+  // grid so they are never repurposed by the detail view — returning to the grid is instant
+  // (the covers are still loaded, no re-download, no resize flash).
   std::vector<online_image::OnlineImage *> cover_slots;
+  // Detail slots: a separate pool (declared in YAML) for the detail view — slot 0 = the
+  // header cover (64px) / now-playing artwork, slots 1.. = episode thumbnails (96px). Kept
+  // apart from the grid pool so drilling in/out doesn't disturb the grid covers.
+  std::vector<online_image::OnlineImage *> thumb_slots;
 };
 
 }  // namespace ha_dashboard

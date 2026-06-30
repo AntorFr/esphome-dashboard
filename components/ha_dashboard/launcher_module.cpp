@@ -141,11 +141,31 @@ void LauncherModule::volume_step(const std::string &direction) {
   this->fetch_now_playing();
 }
 
+void LauncherModule::set_volume(int level) {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->set_volume(level);
+  this->fetch_now_playing();
+}
+
+// mute / shuffle / repeat update the local state OPTIMISTICALLY and do NOT re-fetch: Music
+// Assistant's now_playing snapshot lags a command by a beat, so an immediate refetch reads
+// back the *previous* value and makes the icon trail one tap behind. The device is the only
+// mutator here, so the optimistic value is authoritative.
+void LauncherModule::toggle_mute() {
+  if (this->backend_ == nullptr)
+    return;
+  this->now_playing_.muted = !this->now_playing_.muted;
+  this->backend_->set_mute(this->now_playing_.muted);
+  this->notify_();
+}
+
 void LauncherModule::toggle_shuffle() {
   if (this->backend_ == nullptr)
     return;
-  this->backend_->set_shuffle(!this->now_playing_.shuffle);
-  this->fetch_now_playing();
+  this->now_playing_.shuffle = !this->now_playing_.shuffle;
+  this->backend_->set_shuffle(this->now_playing_.shuffle);
+  this->notify_();
 }
 
 void LauncherModule::cycle_repeat() {
@@ -153,8 +173,9 @@ void LauncherModule::cycle_repeat() {
     return;
   const std::string &r = this->now_playing_.repeat;
   const char *next = (r == "off") ? "all" : (r == "all") ? "one" : "off";
+  this->now_playing_.repeat = next;
   this->backend_->set_repeat(next);
-  this->fetch_now_playing();
+  this->notify_();
 }
 
 bool LauncherModule::back() {

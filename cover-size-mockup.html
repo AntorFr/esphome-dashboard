@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — taille des pochettes (grille « Histoires », D1001)</title>
+<style>
+  :root{
+    --bg:#0A0A0C; --screen:#0E0E12; --tile:#2C2C38; --cover:#15151C;
+    --text:#fff; --muted:#8A8A92; --accent:#FFB020;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:26px}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);max-width:980px;margin:0 0 6px;line-height:1.5}
+  .note{color:var(--muted);max-width:980px;margin:6px 0 0;font-size:13px;line-height:1.5}
+  .note b{color:var(--accent)}
+  .row{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start;margin-top:26px}
+  .device{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .lbl{text-align:center;font-size:14px;font-weight:600}
+  .lbl span{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:3px}
+  .lbl .fast{color:#3DD68C}
+  .frame{background:#1B1B22;border-radius:24px;padding:8px}
+  /* 800px-wide device screen, scaled down */
+  .screenwrap{width:272px;height:421px;overflow:hidden;border-radius:16px}
+  .screen{width:800px;height:1240px;transform:scale(.34);transform-origin:top left;
+          background:var(--screen);display:flex;flex-direction:column;padding:0 18px}
+  /* header */
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:20px 6px 6px}
+  .hdr .clk{font-size:46px;font-weight:600;line-height:1}
+  .hdr .dt{color:var(--muted);font-size:20px;margin-top:6px}
+  .hdr .wx{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .hdr .wx .l1{display:flex;align-items:center;gap:8px;font-size:30px}
+  .hdr .wx .l2{color:var(--muted);font-size:18px}
+  /* tabs */
+  .tabs{display:flex;gap:10px;padding:10px 4px 18px}
+  .tab{flex:1;text-align:center;padding:14px 0;border-radius:12px;background:#1A1A22;
+       color:var(--muted);font-size:22px}
+  .tab.on{background:var(--tile);color:#fff}
+  .tab.on .bar{display:block;height:4px;width:46px;background:var(--accent);border-radius:3px;margin:8px auto 0}
+  .tab .bar{display:none}
+  /* grid */
+  .grid{display:flex;flex-wrap:wrap;justify-content:space-evenly;align-content:flex-start;
+        row-gap:16px;column-gap:12px;padding:4px 0 20px}
+  .tile{background:var(--tile);border-radius:16px;padding:10px;display:flex;flex-direction:column;
+        align-items:center;gap:6px}
+  .cov{position:relative;background:var(--cover);border-radius:12px;overflow:hidden}
+  .cov img{width:100%;height:100%;object-fit:cover;display:block}
+  .play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+        width:120px;height:120px;border-radius:60px;background:rgba(10,10,12,.5);
+        display:flex;align-items:center;justify-content:center;color:#fff;font-size:52px}
+  .drill{position:absolute;top:8px;left:8px;right:8px;height:54px;border-radius:10px;
+         background:rgba(10,10,12,.72);display:flex;align-items:center;justify-content:center;
+         gap:10px;color:#fff;font-size:24px}
+  .title{width:100%;text-align:center;font-size:28px;font-weight:500;color:#fff;
+         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .type{font-size:20px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <h1>Taille des pochettes — grille « Histoires » (D1001, 800&nbsp;px de large)</h1>
+  <p class="lead">Le chargement à froid est limité par le <b>décodage JPEG sur l'ESP</b> (~0,5&nbsp;s pour une pochette
+  350×350, ×10 en série ≈ 5&nbsp;s). Le temps de décodage est proportionnel au <b>nombre de pixels</b> — réduire la
+  taille des pochettes le réduit d'autant. Pochettes réelles de ton serveur, chargées à la taille indiquée.</p>
+  <p class="note"><b>Rappel</b> : grâce aux slots dédiés, revenir sur l'onglet est déjà <b>instantané</b> ;
+  cette lenteur ne concerne que le tout premier affichage (boot). Le badge ▶ est de taille fixe (120&nbsp;px) dans le
+  code : sur les petites pochettes il prend proportionnellement plus de place (visible ci-dessous).</p>
+
+  <div class="row" id="row"></div>
+
+<script>
+const FAVS = [
+  {id:"eb222baf-9529-4928-8afa-50e2eed28769", title:"Full Minecraft Soundtrack", type:"playlist",  kids:false},
+  {id:"c785d3ff-f7e5-4131-b09e-93a6735b08c5", title:"Frigiel et Fluffy 4",       type:"audiobook", kids:true},
+  {id:"08897204-048a-47a0-a902-0dab2e724c90", title:"Frigiel et Fluffy 3",       type:"audiobook", kids:true},
+  {id:"6dd378c5-6b7a-4be8-b1fb-989382afb301", title:"Frigiel et Fluffy 2",       type:"audiobook", kids:true},
+  {id:"2d9882cc-2773-433e-8632-6374602d2637", title:"Frigiel et Fluffy 1",       type:"audiobook", kids:true},
+  {id:"9fd61e1e-f0f3-446c-9d7a-cb3890228556", title:"Harry Potter 2",            type:"audiobook", kids:true},
+  {id:"8bb294b2-397a-4581-bbb7-77de68c2c9dc", title:"Harry Potter 1",            type:"audiobook", kids:true},
+  {id:"a52820f9-189e-4e2d-953b-d1199f459ebb", title:"Robot sauvage",            type:"audiobook", kids:true},
+  {id:"9ed68718-714e-4cf3-b32e-b9762b01996e", title:"Ghibli for Sleep",          type:"playlist",  kids:false},
+  {id:"49336451-6c8b-4440-8394-3a5123ec44b0", title:"Le monde des Pokémon",      type:"podcast",   kids:true},
+];
+const TYPE_LBL = {playlist:"Playlist", album:"Album", radio:"Radio", podcast:"Podcast", audiobook:"Livre audio", track:"Titre"};
+const BASE = "http://music-library.berard.me";
+
+function tile(it, cov){
+  const drill = it.kids
+    ? `<div class="drill">≣ ${it.type==="audiobook"?"Chapitres":"Épisodes"}</div>` : "";
+  return `<div class="tile" style="width:${cov+20}px">
+    <div class="cov" style="width:${cov}px;height:${cov}px">
+      <img src="${BASE}/covers/${it.id}.jpg?size=${cov}" loading="lazy"
+           onerror="this.style.display='none'">
+      ${drill}
+      <div class="play">▶</div>
+    </div>
+    <div class="title" style="width:${cov}px">${it.title}</div>
+    <div class="type">${TYPE_LBL[it.type]||it.type}</div>
+  </div>`;
+}
+
+function frame(cov, cols, label, sub, fast){
+  const grid = FAVS.map(it=>tile(it, cov)).join("");
+  return `<div class="device">
+    <div class="lbl">${label}<span class="${fast?'fast':''}">${sub}</span></div>
+    <div class="frame"><div class="screenwrap"><div class="screen">
+      <div class="hdr">
+        <div><div class="clk">9:41</div><div class="dt">mercredi 1 juillet</div></div>
+        <div class="wx"><div class="l1">☀️ 24°</div><div class="l2">Ensoleillé</div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab">⚙</div><div class="tab">⏻</div><div class="tab">⌂</div>
+        <div class="tab on">♪<span class="bar"></span></div>
+      </div>
+      <div class="grid" style="max-width:${cols*(cov+20)+(cols-1)*12+8}px;margin:0 auto">${grid}</div>
+    </div></div></div>
+  </div>`;
+}
+
+document.getElementById("row").innerHTML = [
+  frame(350, 2, "350 px · 2 col", "Actuel · ~5,0 s à froid · netteté max", false),
+  frame(300, 2, "300 px · 2 col", "~3,7 s · netteté quasi identique", false),
+  frame(256, 2, "256 px · 2 col", "~2,7 s · un peu plus petites", true),
+  frame(230, 3, "230 px · 3 col", "~2,2 s · denses, 3 par ligne", true),
+].join("");
+</script>
+</body>
+</html>

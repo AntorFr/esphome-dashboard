@@ -74,6 +74,10 @@ class LvglRenderer : public Renderer {
   void on_cover_error_(online_image::OnlineImage *slot);
   // Covers download one at a time (serialized) to avoid exhausting TLS/socket memory.
   void advance_cover_(online_image::OnlineImage *finished_slot);
+  // Bind an LVGL image to a slot for `url`, (re)downloading (serially) only if the slot isn't
+  // already holding that exact URL. While a download is pending the image is hidden so a
+  // stale, wrong-size frame is never shown. Returns the slot's index in cover_slot_list_.
+  int bind_cover_(lv_obj_t *img, online_image::OnlineImage *slot, const std::string &url);
 
   // Apply an esphome font if provided, else the built-in LVGL fallback.
   void set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback);
@@ -157,8 +161,8 @@ class LvglRenderer : public Renderer {
   lv_obj_t *np_shuffle_lbl_{nullptr};
   lv_obj_t *np_repeat_lbl_{nullptr};
   lv_obj_t *np_vol_lbl_{nullptr};
+  lv_obj_t *np_vol_slider_{nullptr};  // absolute volume slider (0..100)
   online_image::OnlineImage *np_cover_slot_{nullptr};  // dedicated slot for the now-playing art
-  std::string np_last_cover_;  // dedup: only (re)download when the cover URL changes
   std::vector<lv_obj_t *> tab_btns_;
   std::vector<lv_obj_t *> tab_lbls_;
   std::vector<lv_obj_t *> group_grids_;
@@ -167,9 +171,15 @@ class LvglRenderer : public Renderer {
   // groups), with a render signature to skip rebuilds when nothing changed.
   std::vector<lv_obj_t *> launcher_grids_;
   std::vector<long> launcher_sig_;
-  // Cover slots (flattened across launcher groups) -> currently bound LVGL image (or null).
+  // Cover/thumbnail slots (flattened across launcher groups, both pools) -> currently bound
+  // LVGL image (or null). cover_url_list_ = the URL a slot has actually FINISHED loading
+  // (committed in on_cover_ready_); cover_pending_url_ = the URL last requested. A reload is
+  // skipped only when the *loaded* URL matches — so a rebuild during an in-flight download
+  // re-queues it instead of wrongly assuming it's already there.
   std::vector<online_image::OnlineImage *> cover_slot_list_;
   std::vector<lv_obj_t *> cover_widget_list_;
+  std::vector<std::string> cover_url_list_;
+  std::vector<std::string> cover_pending_url_;
   // Serialized cover download queue (current grid), advanced as each finishes/errors.
   std::vector<online_image::OnlineImage *> cover_queue_;
   size_t cover_load_idx_{0};

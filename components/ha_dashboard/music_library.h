@@ -77,6 +77,10 @@ class MusicLibraryBackend {
 
   // POST /api/v1/ma/volume_step?queue_id=&direction=up|down
   virtual void volume_step(const std::string &direction) = 0;
+  // POST /api/v1/ma/volume?queue_id=&level= (absolute, 0..100)
+  virtual void set_volume(int level) = 0;
+  // POST /api/v1/ma/mute?queue_id=&muted=
+  virtual void set_mute(bool muted) = 0;
   // POST /api/v1/ma/shuffle?queue_id=&enabled=
   virtual void set_shuffle(bool enabled) = 0;
   // POST /api/v1/ma/repeat?queue_id=&mode=off|one|all

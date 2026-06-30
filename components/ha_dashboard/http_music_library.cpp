@@ -195,6 +195,20 @@ void HttpMusicLibrary::volume_step(const std::string &direction) {
                    "&direction=" + direction);
 }
 
+void HttpMusicLibrary::set_volume(int level) {
+  if (level < 0)
+    level = 0;
+  if (level > 100)
+    level = 100;
+  this->http_post_(this->base_url_ + "/api/v1/ma/volume?queue_id=" + url_encode(this->queue_id_) +
+                   "&level=" + std::to_string(level));
+}
+
+void HttpMusicLibrary::set_mute(bool muted) {
+  this->http_post_(this->base_url_ + "/api/v1/ma/mute?queue_id=" + url_encode(this->queue_id_) +
+                   "&muted=" + (muted ? "true" : "false"));
+}
+
 void HttpMusicLibrary::set_shuffle(bool enabled) {
   this->http_post_(this->base_url_ + "/api/v1/ma/shuffle?queue_id=" + url_encode(this->queue_id_) +
                    "&enabled=" + (enabled ? "true" : "false"));

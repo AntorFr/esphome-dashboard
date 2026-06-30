@@ -94,10 +94,32 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [x] Entrée de menu dédiée : `groups[].type: music_library` (position = ordre YAML) dans `__init__.py` (codegen)
 - [x] **VALIDÉ MATÉRIEL D1001** : onglet « Histoires » → 10 favoris réels de Timothée, tap = lecture
       sur sa Sonos. Bout-en-bout ESP→music-library→MA OK (flash série, cf. lessons-learned 11/12).
-- [ ] Renderer D1001 — itérations suivantes : pochettes via `online_image` (grille), vue détail paginée
-      (`render_launcher_detail`, vignette épisode / numéro chapitre), widget média header + `render_now_playing()`
-- [ ] Fetch **non bloquant** (actuellement ~2,5 s de gel pendant le GET HTTPS) : tâche async / spinner réel
-- [ ] Hand-off transport (pause/next/volume/shuffle/repeat) via les endpoints `/api/v1/ma/*`
+- [x] Renderer D1001 : grille de pochettes via `online_image`, vue détail paginée (vignettes
+      d'épisodes / chapitres), widget média header + écran `render_now_playing_` (transport,
+      shuffle/repeat, volume ±). **VALIDÉ MATÉRIEL.**
+- [x] Hand-off transport (play/pause/next/prev/volume/shuffle/repeat) via `/api/v1/ma/*`
+- [x] **music-library v0.16.0** : proxy+cache de vignettes signé HMAC (`/api/v1/quick/thumb`,
+      redimensionnement maison, plus de weserv), 2e port ESP-only (HTTP 80). Vignettes d'épisodes
+      réactivées côté ESP **sans WDT** (leçon : fetch d'hôte tiers = handshake TLS qui ne nourrit
+      pas le watchdog → reset au scroll ; fix = passer par notre serveur + cache).
+- [x] **Slots dédiés** grille vs détail (`cover_slots` / `thumb_slots`) + `bind_cover_` (skip
+      re-download si déjà chargé, masque jusqu'au décodage) → retour de détail instantané, plus de
+      flash « petit → grand ».
+- [ ] Fetch **non bloquant** (gel pendant le GET HTTP) : tâche async / spinner réel
+- [x] **DA grille « Histoires »** (2026-07-01) : cartes horizontales pleine largeur (pochette
+      200px + titre + chip de type + CTA « ▶ Lecture » vert / « ≣ Épisodes/Chapitres » ambré).
+      Chargement à froid ~2,2 s (vs ~5 s) — limité par le **décodage JPEG on-device** (∝ pixels),
+      pas le réseau (serveur ~20 ms depuis un client rapide). Lignes épisodes/chapitres : ▶ rond
+      dédié (la ligne n'est plus cliquable → glisser scrolle).
+- [x] **Widget now-playing** : slider de volume absolu (`/api/v1/ma/volume`, event `NP_SET_VOLUME`),
+      play/pause plus gros et vert.
+- [ ] Now-playing : barre de **progression** lecture (différée par design)
+- [ ] **Pull-to-refresh** (demandé 2026-07-01) : glisser vers le bas en haut de la liste
+      « Histoires » → recharger les favoris (`LauncherModule::load`)
+- [ ] **Toast de confirmation de lancement** (mockup « B · Lecture one-tap ») : au tap « ▶ Lecture »,
+      pop-up éphémère « 🎵 <titre> — lecture sur <enceinte> »
+- [ ] **Recyclage des vignettes au scroll** : seuls les ~9 premiers épisodes ont une miniature
+      (limité par le pool `thumb_slots`) ; recycler les slots selon la position de scroll
 
 ### Tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL (composant officiel)
 - [x] Composant officiel `github://clydebarrow/esphome@gsl3670` (modèle `seeed-reterminal-d1001`,

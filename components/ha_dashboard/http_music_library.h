@@ -32,6 +32,8 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   void fetch_now_playing(NowPlayingCallback cb) override;
   void transport(const std::string &cmd) override;
   void volume_step(const std::string &direction) override;
+  void set_volume(int level) override;
+  void set_mute(bool muted) override;
   void set_shuffle(bool enabled) override;
   void set_repeat(const std::string &mode) override;
 

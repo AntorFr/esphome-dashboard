@@ -275,6 +275,14 @@ void Controller::handle(InputEvent event, int index) {
           if (L != nullptr)
             L->volume_step("down");
           break;
+        case InputEvent::NP_SET_VOLUME:
+          if (L != nullptr)
+            L->set_volume(index);  // index = slider value 0..100
+          break;
+        case InputEvent::NP_MUTE:
+          if (L != nullptr)
+            L->toggle_mute();
+          break;
         case InputEvent::NP_SHUFFLE:
           if (L != nullptr)
             L->toggle_shuffle();

@@ -27,6 +27,11 @@ static constexpr uint32_t COL_TEXT = 0xFFFFFF;
 static constexpr uint32_t COL_MUTED = 0x8A8A92;
 static constexpr uint32_t COL_ACCENT = 0xFFB020;
 
+// MDI glyphs (embedded in ha_font_icons) for the now-playing volume button. The built-in
+// LVGL symbol set has no slashed speaker, so we use Material Design Icons here.
+static const char *const ICON_VOL_ON = "\U000F057E";   // mdi volume-high
+static const char *const ICON_VOL_OFF = "\U000F0E08";  // mdi volume-variant-off (slashed)
+
 // Donnée transportée par chaque widget natif vers son event sémantique.
 struct CbData {
   LvglRenderer *renderer;
@@ -40,6 +45,15 @@ static void btn_event_cb(lv_event_t *e) {
   auto *d = static_cast<CbData *>(lv_event_get_user_data(e));
   if (d != nullptr && d->renderer != nullptr)
     d->renderer->emit(d->event, d->index);
+}
+
+// Volume slider: emit the absolute value once the finger lifts (RELEASED only fires on user
+// interaction, not on programmatic lv_slider_set_value -> no feedback loop with render).
+static void np_vol_slider_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  auto *slider = static_cast<lv_obj_t *>(lv_event_get_target(e));
+  if (self != nullptr && slider != nullptr)
+    self->emit(InputEvent::NP_SET_VOLUME, (int) lv_slider_get_value(slider));
 }
 
 // Drop leading symbol/emoji codepoints (>= U+2000) the accented text font can't render
@@ -226,10 +240,11 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
   } else {
     this->build_dashboard_(groups);
     this->build_now_playing_();
-    // Reuse the first launcher's slot 0 for the now-playing artwork (grid isn't shown then).
+    // Now-playing artwork reuses the detail pool's slot 0 (detail and now-playing screens are
+    // never shown at the same time); keeps the grid covers untouched.
     for (const auto &g : groups) {
-      if (g.is_launcher && !g.cover_slots.empty()) {
-        this->np_cover_slot_ = g.cover_slots[0];
+      if (g.is_launcher && !g.thumb_slots.empty()) {
+        this->np_cover_slot_ = g.thumb_slots[0];
         break;
       }
     }
@@ -902,27 +917,69 @@ void LvglRenderer::register_cover_slots_(const std::vector<Group> &groups) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   this->cover_slot_list_.clear();
   this->cover_widget_list_.clear();
-  for (const auto &g : groups) {
-    for (auto *slot : g.cover_slots) {
+  this->cover_url_list_.clear();
+  this->cover_pending_url_.clear();
+  auto register_pool = [this](const std::vector<online_image::OnlineImage *> &pool) {
+    for (auto *slot : pool) {
       if (slot == nullptr)
         continue;
       this->cover_slot_list_.push_back(slot);
       this->cover_widget_list_.push_back(nullptr);
+      this->cover_url_list_.push_back("");
+      this->cover_pending_url_.push_back("");
       slot->add_on_finished_callback([this, slot](bool /*cached*/) { this->on_cover_ready_(slot); });
       slot->add_on_error_callback([this, slot]() { this->on_cover_error_(slot); });
     }
+  };
+  for (const auto &g : groups) {
+    register_pool(g.cover_slots);  // grid covers
+    register_pool(g.thumb_slots);  // detail header + episode thumbnails
   }
 #else
   (void) groups;
 #endif
 }
 
+// Bind `img` to `slot` for `url`. If the slot already holds that exact URL we just rebind and
+// show it (no re-download — this is what makes returning to the grid instant). Otherwise we
+// hide the image, issue the download, and queue it; on_cover_ready_ reveals it once decoded.
+int LvglRenderer::bind_cover_(lv_obj_t *img, online_image::OnlineImage *slot, const std::string &url) {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  int idx = -1;
+  for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+    if (this->cover_slot_list_[s] == slot) {
+      idx = (int) s;
+      break;
+    }
+  lv_image_set_src(img, slot->get_lv_image_dsc());
+  if (idx >= 0)
+    this->cover_widget_list_[idx] = img;
+  if (idx >= 0 && this->cover_url_list_[idx] == url)
+    return idx;  // already FINISHED loading this exact URL -> show immediately
+  lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);  // hide until the right-size image is decoded
+  if (idx >= 0)
+    this->cover_pending_url_[idx] = url;  // committed to cover_url_list_ only on completion
+  slot->set_url(url);
+  this->cover_queue_.push_back(slot);
+  return idx;
+#else
+  (void) img;
+  (void) slot;
+  (void) url;
+  return -1;
+#endif
+}
+
 void LvglRenderer::on_cover_ready_(online_image::OnlineImage *slot) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   for (size_t i = 0; i < this->cover_slot_list_.size(); i++) {
-    if (this->cover_slot_list_[i] == slot && this->cover_widget_list_[i] != nullptr) {
-      lv_image_set_src(this->cover_widget_list_[i], slot->get_lv_image_dsc());
-      lv_obj_invalidate(this->cover_widget_list_[i]);
+    if (this->cover_slot_list_[i] == slot) {
+      this->cover_url_list_[i] = this->cover_pending_url_[i];  // commit: this URL is now loaded
+      if (this->cover_widget_list_[i] != nullptr) {
+        lv_image_set_src(this->cover_widget_list_[i], slot->get_lv_image_dsc());
+        lv_obj_clear_flag(this->cover_widget_list_[i], LV_OBJ_FLAG_HIDDEN);  // reveal: it's ready
+        lv_obj_invalidate(this->cover_widget_list_[i]);
+      }
       break;
     }
   }
@@ -935,6 +992,13 @@ void LvglRenderer::on_cover_ready_(online_image::OnlineImage *slot) {
 void LvglRenderer::on_cover_error_(online_image::OnlineImage *slot) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   ESP_LOGW(TAG, "cover download failed");
+  // Forget the URL so a later rebuild retries this slot instead of assuming it's loaded.
+  for (size_t i = 0; i < this->cover_slot_list_.size(); i++)
+    if (this->cover_slot_list_[i] == slot) {
+      this->cover_url_list_[i].clear();
+      this->cover_pending_url_[i].clear();
+      break;
+    }
   this->advance_cover_(slot);
 #else
   (void) slot;
@@ -1037,15 +1101,18 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // The cover widgets we are about to (re)create were just destroyed: drop stale pointers so
-  // a late download callback can't touch a freed object. Reset the serial download queue too.
-  for (auto *slot : g.cover_slots) {
-    for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
-      if (this->cover_slot_list_[s] == slot)
-        this->cover_widget_list_[s] = nullptr;
-  }
+  // a late download callback can't touch a freed object. We keep cover_url_list_ intact so a
+  // slot already holding the right image is not re-downloaded. Reset the serial queue too.
+  auto clear_widgets = [this](const std::vector<online_image::OnlineImage *> &pool) {
+    for (auto *slot : pool)
+      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+        if (this->cover_slot_list_[s] == slot)
+          this->cover_widget_list_[s] = nullptr;
+  };
+  clear_widgets(g.cover_slots);
+  clear_widgets(g.thumb_slots);
   this->cover_queue_.clear();
   this->cover_load_idx_ = 0;
-  this->np_last_cover_.clear();  // slot 0 may be reused here -> force now-playing to reload it
 #endif
 
   // Grid level = wrapping cover grid (2 columns); detail level = vertical list.
@@ -1053,10 +1120,10 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
   } else {
-    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_row(grid, 16, 0);
-    lv_obj_set_style_pad_column(grid, 12, 0);
+    // Grid level = a vertical list of full-width horizontal cards (cover + title + actions).
+    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_row(grid, 14, 0);
   }
 
   auto add_button = [this, grid](const char *text, const lv_font_t *fb, uint32_t color, InputEvent ev,
@@ -1078,105 +1145,64 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return b;
   };
 
-  // A favourite tile: a grey card (entity-tile language) holding the cover (tap = play, with
-  // a play badge bottom-right and, for podcasts/audiobooks, an "Épisodes/Chapitres" button
-  // overlaid at the top), then title + type. Cover downloads async; on_cover_ready_ refreshes.
-  const int COVER_PX = 350;  // matches the online_image resize; two tiles fill the 800px width
+  // A favourite card (DA "variante A"): a full-width grey card laid out horizontally —
+  // [ cover | title + type chip + actions ]. The cover is small (fast JPEG decode) but the
+  // card fills the column. Only the "▶ Lecture" button starts playback (so a press-drag on
+  // the card/cover scrolls the list); podcasts/audiobooks also get an "Épisodes/Chapitres"
+  // button. Cover loads async via bind_cover_ (skip-if-cached + hide-until-ready).
+  const int COVER_PX = 200;
   auto make_cover_tile = [&](const QuickItem &item, int idx) {
-    lv_obj_t *tile = lv_obj_create(grid);
-    lv_obj_set_size(tile, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
-    lv_obj_set_style_border_width(tile, 0, 0);
-    lv_obj_set_style_radius(tile, 16, 0);
-    lv_obj_set_style_pad_all(tile, 10, 0);
-    lv_obj_set_style_pad_row(tile, 6, 0);
-    lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(tile, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *card = lv_obj_create(grid);
+    lv_obj_set_width(card, lv_pct(100));
+    lv_obj_set_height(card, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(card, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_border_width(card, 0, 0);
+    lv_obj_set_style_radius(card, 20, 0);
+    lv_obj_set_style_pad_all(card, 18, 0);
+    lv_obj_set_style_pad_column(card, 22, 0);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Cover image holder — NOT clickable, so a press-drag here scrolls the grid instead of
-    // triggering playback. Only the central play button below starts playback.
-    lv_obj_t *cover = lv_obj_create(tile);
+    // Cover holder (not clickable -> press-drag scrolls the list).
+    lv_obj_t *cover = lv_obj_create(card);
     lv_obj_set_size(cover, COVER_PX, COVER_PX);
     lv_obj_set_style_bg_color(cover, lv_color_hex(0x15151C), 0);
     lv_obj_set_style_border_width(cover, 0, 0);
     lv_obj_set_style_shadow_width(cover, 0, 0);
-    lv_obj_set_style_radius(cover, 12, 0);
+    lv_obj_set_style_radius(cover, 14, 0);
     lv_obj_set_style_pad_all(cover, 0, 0);
     lv_obj_set_style_clip_corner(cover, true, 0);
     lv_obj_clear_flag(cover, LV_OBJ_FLAG_SCROLLABLE);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
     if (idx >= 0 && idx < (int) g.cover_slots.size() && g.cover_slots[idx] != nullptr &&
         !item.cover_url.empty()) {
-      online_image::OnlineImage *slot = g.cover_slots[idx];
       lv_obj_t *img = lv_image_create(cover);
       lv_obj_center(img);
-      lv_image_set_src(img, slot->get_lv_image_dsc());
-      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
-        if (this->cover_slot_list_[s] == slot)
-          this->cover_widget_list_[s] = img;
-      // Fetch the cover already at the display size (server resizes; no on-device scaling).
-      slot->set_url(item.cover_url + "?size=" + std::to_string(COVER_PX));
-      this->cover_queue_.push_back(slot);  // downloaded serially after the grid is built
+      this->bind_cover_(img, g.cover_slots[idx], item.cover_url + "?size=" + std::to_string(COVER_PX));
     }
 #endif
 
-    // Central play button — the only play trigger.
-    lv_obj_t *playbtn = lv_button_create(cover);
-    lv_obj_set_size(playbtn, 120, 120);
-    lv_obj_set_style_radius(playbtn, 60, 0);
-    lv_obj_set_style_bg_color(playbtn, lv_color_hex(0x0A0A0C), 0);
-    lv_obj_set_style_bg_opa(playbtn, LV_OPA_50, 0);
-    lv_obj_set_style_shadow_width(playbtn, 0, 0);
-    lv_obj_center(playbtn);
-    lv_obj_t *play = lv_label_create(playbtn);
-    lv_label_set_text(play, LV_SYMBOL_PLAY);
-    lv_obj_center(play);
-    lv_obj_set_style_text_color(play, lv_color_hex(COL_TEXT), 0);
-    lv_obj_set_style_text_font(play, &lv_font_montserrat_48, 0);
-    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
+    // Body column: title, type chip, actions.
+    lv_obj_t *body = lv_obj_create(card);
+    lv_obj_set_height(body, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(body, 1);
+    lv_obj_set_style_bg_opa(body, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(body, 0, 0);
+    lv_obj_set_style_pad_all(body, 0, 0);
+    lv_obj_set_style_pad_row(body, 14, 0);
+    lv_obj_set_flex_flow(body, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(body, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(body, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Drill button overlaid at the top (podcasts/audiobooks).
-    if (item.has_children) {
-      lv_obj_t *drill = lv_button_create(cover);
-      lv_obj_set_width(drill, COVER_PX - 16);
-      lv_obj_set_height(drill, LV_SIZE_CONTENT);
-      lv_obj_align(drill, LV_ALIGN_TOP_MID, 0, 8);
-      lv_obj_set_style_bg_color(drill, lv_color_hex(0x0A0A0C), 0);
-      lv_obj_set_style_bg_opa(drill, LV_OPA_70, 0);
-      lv_obj_set_style_shadow_width(drill, 0, 0);
-      lv_obj_set_style_radius(drill, 10, 0);
-      lv_obj_set_style_pad_ver(drill, 10, 0);
-      lv_obj_set_style_pad_column(drill, 10, 0);
-      lv_obj_set_flex_flow(drill, LV_FLEX_FLOW_ROW);
-      lv_obj_set_flex_align(drill, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-      // Icon uses the built-in Montserrat (has LV_SYMBOL glyphs); the text uses the accented
-      // font (which lacks the symbol range) — keep them in separate labels.
-      lv_obj_t *di = lv_label_create(drill);
-      lv_label_set_text(di, LV_SYMBOL_LIST);
-      lv_obj_set_style_text_color(di, lv_color_hex(COL_TEXT), 0);
-      lv_obj_set_style_text_font(di, &lv_font_montserrat_20, 0);
-      lv_obj_t *dl = lv_label_create(drill);
-      lv_label_set_text(dl, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
-      lv_obj_set_style_text_color(dl, lv_color_hex(COL_TEXT), 0);
-      this->set_text_font_(dl, this->font_small_, &lv_font_montserrat_20);
-      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
-      g_cbdata.push_back(dc);
-      lv_obj_add_event_cb(drill, btn_event_cb, LV_EVENT_CLICKED, dc);
-    }
-
-    // Title
-    lv_obj_t *l = lv_label_create(tile);
-    lv_obj_set_width(l, COVER_PX);
+    lv_obj_t *l = lv_label_create(body);
+    lv_obj_set_width(l, lv_pct(100));
     lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
-    lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(l, clean_title(item.title).c_str());
     lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
 
-    // Type
+    // Type chip (rounded muted pill).
     const char *tylbl = "Titre";
     if (item.media_type == "playlist")
       tylbl = "Playlist";
@@ -1188,45 +1214,102 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       tylbl = "Podcast";
     else if (item.media_type == "audiobook")
       tylbl = "Livre audio";
-    lv_obj_t *ty = lv_label_create(tile);
-    lv_label_set_text(ty, tylbl);
-    lv_obj_set_style_text_color(ty, lv_color_hex(COL_MUTED), 0);
-    this->set_text_font_(ty, this->font_small_, &lv_font_montserrat_20);
+    lv_obj_t *chip = lv_obj_create(body);
+    lv_obj_set_size(chip, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(chip, lv_color_hex(0x23232C), 0);
+    lv_obj_set_style_border_width(chip, 0, 0);
+    lv_obj_set_style_radius(chip, 20, 0);
+    lv_obj_set_style_pad_hor(chip, 16, 0);
+    lv_obj_set_style_pad_ver(chip, 6, 0);
+    lv_obj_clear_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *cl = lv_label_create(chip);
+    lv_label_set_text(cl, tylbl);
+    lv_obj_set_style_text_color(cl, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(cl, this->font_small_, &lv_font_montserrat_20);
+
+    // Actions row: ▶ Lecture (the only play trigger) + Épisodes/Chapitres for drillables.
+    lv_obj_t *actions = lv_obj_create(body);
+    lv_obj_set_size(actions, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(actions, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(actions, 0, 0);
+    lv_obj_set_style_pad_all(actions, 0, 0);
+    lv_obj_set_style_pad_column(actions, 14, 0);
+    lv_obj_set_flex_flow(actions, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(actions, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(actions, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *playbtn = lv_button_create(actions);
+    lv_obj_set_height(playbtn, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(playbtn, lv_color_hex(0x3DD68C), 0);
+    lv_obj_set_style_shadow_width(playbtn, 0, 0);
+    lv_obj_set_style_radius(playbtn, 30, 0);
+    lv_obj_set_style_pad_hor(playbtn, 22, 0);
+    lv_obj_set_style_pad_ver(playbtn, 12, 0);
+    lv_obj_t *pl = lv_label_create(playbtn);
+    // "Lecture" is ASCII, so the whole label (play glyph + text) fits the built-in Montserrat.
+    lv_label_set_text(pl, LV_SYMBOL_PLAY " Lecture");
+    lv_obj_set_style_text_color(pl, lv_color_hex(0x06281A), 0);
+    lv_obj_set_style_text_font(pl, &lv_font_montserrat_28, 0);
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
+
+    if (item.has_children) {
+      lv_obj_t *eps = lv_button_create(actions);
+      lv_obj_set_height(eps, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_opa(eps, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(eps, 2, 0);
+      lv_obj_set_style_border_color(eps, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_set_style_shadow_width(eps, 0, 0);
+      lv_obj_set_style_radius(eps, 30, 0);
+      lv_obj_set_style_pad_hor(eps, 18, 0);
+      lv_obj_set_style_pad_ver(eps, 10, 0);
+      lv_obj_set_style_pad_column(eps, 9, 0);
+      lv_obj_set_flex_flow(eps, LV_FLEX_FLOW_ROW);
+      lv_obj_set_flex_align(eps, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      // Icon (built-in font, has the symbol) + text (accented font for "Épisodes").
+      lv_obj_t *ei = lv_label_create(eps);
+      lv_label_set_text(ei, LV_SYMBOL_LIST);
+      lv_obj_set_style_text_color(ei, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_set_style_text_font(ei, &lv_font_montserrat_20, 0);
+      lv_obj_t *el = lv_label_create(eps);
+      lv_label_set_text(el, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
+      lv_obj_set_style_text_color(el, lv_color_hex(COL_ACCENT), 0);
+      this->set_text_font_(el, this->font_small_, &lv_font_montserrat_20);
+      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
+      g_cbdata.push_back(dc);
+      lv_obj_add_event_cb(eps, btn_event_cb, LV_EVENT_CLICKED, dc);
+    }
   };
 
-  // An episode/chapter row: [ thumbnail | title ], whole row taps -> play. The thumbnail is
-  // served by our own signed, cached proxy (music-library /api/v1/quick/thumb): the device
-  // fetches it from us — fast handshake, no third-party host — so it no longer trips the task
-  // watchdog the way the old direct weserv fetch did. `cover_url` is already complete and
-  // SIGNED, so it must be used VERBATIM (appending ?size= would break the HMAC signature).
-  // Reuses a grid cover slot, skipping the one used by the detail header.
+  // An episode/chapter row: [ thumbnail | title | ▶ ]. The row itself is NOT clickable so a
+  // press-drag scrolls the list; only the round play button starts playback (avoids launching
+  // a chapter while sliding). Episode thumbnails come from our signed, cached /thumb proxy and
+  // are used VERBATIM (the HMAC signature covers src+size; appending would break it). They use
+  // the dedicated detail pool (thumb_slots 1..; slot 0 is the header), never the grid covers.
   auto make_episode_row = [&](const QuickItem &item, int idx) {
-    lv_obj_t *row = lv_button_create(grid);
+    lv_obj_t *row = lv_obj_create(grid);
     lv_obj_set_width(row, lv_pct(100));
     lv_obj_set_height(row, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(row, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_shadow_width(row, 0, 0);
     lv_obj_set_style_radius(row, 12, 0);
     lv_obj_set_style_pad_all(row, 12, 0);
-    lv_obj_set_style_pad_column(row, 12, 0);
+    lv_obj_set_style_pad_right(row, 22, 0);  // keep the ▶ clear of the list scrollbar
+    lv_obj_set_style_pad_column(row, 14, 0);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
-    int hdr = L->detail_index();
-    int sidx = (idx < hdr) ? idx : idx + 1;  // skip the slot used by the header cover
-    if (!item.cover_url.empty() && sidx >= 0 && sidx < (int) g.cover_slots.size() &&
-        g.cover_slots[sidx] != nullptr) {
-      online_image::OnlineImage *slot = g.cover_slots[sidx];
+    int sidx = idx + 1;
+    if (!item.cover_url.empty() && sidx >= 1 && sidx < (int) g.thumb_slots.size() &&
+        g.thumb_slots[sidx] != nullptr) {
       lv_obj_t *img = lv_image_create(row);
       lv_obj_set_size(img, 56, 56);
       lv_obj_set_style_radius(img, 8, 0);
       lv_obj_set_style_clip_corner(img, true, 0);
-      lv_image_set_src(img, slot->get_lv_image_dsc());
-      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
-        if (this->cover_slot_list_[s] == slot)
-          this->cover_widget_list_[s] = img;
-      slot->set_url(item.cover_url);  // signed proxy URL — use as-is
-      this->cover_queue_.push_back(slot);
+      this->bind_cover_(img, g.thumb_slots[sidx], item.cover_url);  // signed proxy URL — as-is
     }
 #endif
     lv_obj_t *l = lv_label_create(row);
@@ -1235,9 +1318,22 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_label_set_text(l, clean_title(item.title).c_str());
     lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
+
+    // Round green play button (the only trigger).
+    lv_obj_t *playbtn = lv_button_create(row);
+    lv_obj_set_size(playbtn, 64, 64);
+    lv_obj_set_style_radius(playbtn, 32, 0);
+    lv_obj_set_style_bg_color(playbtn, lv_color_hex(0x3DD68C), 0);
+    lv_obj_set_style_shadow_width(playbtn, 0, 0);
+    lv_obj_set_style_pad_all(playbtn, 0, 0);
+    lv_obj_t *pl = lv_label_create(playbtn);
+    lv_label_set_text(pl, LV_SYMBOL_PLAY);
+    lv_obj_center(pl);
+    lv_obj_set_style_text_color(pl, lv_color_hex(0x06281A), 0);
+    lv_obj_set_style_text_font(pl, &lv_font_montserrat_28, 0);
     auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
     g_cbdata.push_back(d);
-    lv_obj_add_event_cb(row, btn_event_cb, LV_EVENT_CLICKED, d);
+    lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
   };
 
   // Detail level: a header row [ back chevron | parent cover | big title ].
@@ -1271,22 +1367,15 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, db);
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER
-    // Parent cover at native 64px: reuse the parent's grid slot, reloaded at ?size=64 (the
-    // slot has no forced resize, so it decodes the server's 64px variant -> no scaling).
-    int ci = L->detail_index();
-    if (ci >= 0 && ci < (int) g.cover_slots.size() && g.cover_slots[ci] != nullptr &&
-        !L->detail_cover_url().empty()) {
-      online_image::OnlineImage *slot = g.cover_slots[ci];
+    // Parent cover at native 64px on the detail pool's slot 0 (a dedicated slot, not a grid
+    // slot — so it never disturbs the grid). bind_cover_ hides it until the 64px variant
+    // arrives, so there's no big-image flash.
+    if (!g.thumb_slots.empty() && g.thumb_slots[0] != nullptr && !L->detail_cover_url().empty()) {
       lv_obj_t *hc = lv_image_create(head);
-      lv_obj_set_size(hc, 64, 64);  // clip until the 64px variant arrives (avoids a huge flash)
+      lv_obj_set_size(hc, 64, 64);
       lv_obj_set_style_clip_corner(hc, true, 0);
       lv_obj_set_style_radius(hc, 8, 0);
-      lv_image_set_src(hc, slot->get_lv_image_dsc());
-      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
-        if (this->cover_slot_list_[s] == slot)
-          this->cover_widget_list_[s] = hc;
-      slot->set_url(L->detail_cover_url() + "?size=64");
-      this->cover_queue_.push_back(slot);  // serial download with the episode thumbs
+      this->bind_cover_(hc, g.thumb_slots[0], L->detail_cover_url() + "?size=64");
     }
 #endif
 
@@ -1425,33 +1514,76 @@ void LvglRenderer::build_now_playing_() {
   lv_obj_set_flex_align(tr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(tr, LV_OBJ_FLAG_SCROLLABLE);
 
-  auto tbtn = [this, tr](const char *sym, int size, InputEvent ev) -> lv_obj_t * {
+  // Transport buttons. prev/next are grey circles; play/pause is bigger and green (the
+  // primary action), with a dark glyph.
+  auto tbtn = [this, tr](const char *sym, int size, InputEvent ev, bool primary) -> lv_obj_t * {
     lv_obj_t *b = lv_button_create(tr);
     lv_obj_set_size(b, size, size);
     lv_obj_set_style_radius(b, size / 2, 0);
-    lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_bg_color(b, lv_color_hex(primary ? 0x3DD68C : COL_TILE), 0);
     lv_obj_set_style_shadow_width(b, 0, 0);
     lv_obj_t *l = lv_label_create(b);
     lv_label_set_text(l, sym);
     lv_obj_center(l);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
+    lv_obj_set_style_text_font(l, primary ? &lv_font_montserrat_48 : &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x06281A : COL_TEXT), 0);
     auto *d = new CbData{this, ev, -1};
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
     return l;
   };
-  tbtn(LV_SYMBOL_PREV, 64, InputEvent::NP_PREV);
-  this->np_pp_icon_ = tbtn(LV_SYMBOL_PLAY, 88, InputEvent::NP_PLAY_PAUSE);
-  tbtn(LV_SYMBOL_NEXT, 64, InputEvent::NP_NEXT);
+  tbtn(LV_SYMBOL_PREV, 72, InputEvent::NP_PREV, false);
+  this->np_pp_icon_ = tbtn(LV_SYMBOL_PLAY, 120, InputEvent::NP_PLAY_PAUSE, true);
+  tbtn(LV_SYMBOL_NEXT, 72, InputEvent::NP_NEXT, false);
 
-  // Secondary controls: shuffle, volume -, volume +, repeat.
+  // Volume row: speaker icon + horizontal slider (absolute 0..100).
+  lv_obj_t *vr = lv_obj_create(root);
+  lv_obj_set_width(vr, lv_pct(86));
+  lv_obj_set_height(vr, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(vr, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(vr, 0, 0);
+  lv_obj_set_style_pad_all(vr, 0, 0);
+  lv_obj_set_style_pad_column(vr, 18, 0);
+  lv_obj_set_style_margin_top(vr, 22, 0);
+  lv_obj_set_flex_flow(vr, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(vr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(vr, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Volume icon doubles as a mute toggle.
+  lv_obj_t *vbtn = lv_button_create(vr);
+  lv_obj_set_size(vbtn, 56, 56);
+  lv_obj_set_style_radius(vbtn, 28, 0);
+  lv_obj_set_style_bg_opa(vbtn, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_shadow_width(vbtn, 0, 0);
+  lv_obj_set_style_pad_all(vbtn, 0, 0);
+  this->np_vol_lbl_ = lv_label_create(vbtn);
+  lv_label_set_text(this->np_vol_lbl_, ICON_VOL_ON);
+  lv_obj_center(this->np_vol_lbl_);
+  // MDI font: a true slashed speaker for mute (the built-in symbol set has none).
+  this->set_text_font_(this->np_vol_lbl_, this->font_icons_, &lv_font_montserrat_28);
+  lv_obj_set_style_text_color(this->np_vol_lbl_, lv_color_hex(COL_MUTED), 0);
+  auto *vmd = new CbData{this, InputEvent::NP_MUTE, -1};
+  g_cbdata.push_back(vmd);
+  lv_obj_add_event_cb(vbtn, btn_event_cb, LV_EVENT_CLICKED, vmd);
+
+  this->np_vol_slider_ = lv_slider_create(vr);
+  lv_obj_set_flex_grow(this->np_vol_slider_, 1);
+  lv_obj_set_height(this->np_vol_slider_, 12);
+  lv_slider_set_range(this->np_vol_slider_, 0, 100);
+  lv_obj_set_style_bg_color(this->np_vol_slider_, lv_color_hex(0x3A3A44), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(this->np_vol_slider_, lv_color_hex(0x3DD68C), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(this->np_vol_slider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+  lv_obj_set_style_pad_all(this->np_vol_slider_, 10, LV_PART_KNOB);  // bigger touch target
+  lv_obj_add_event_cb(this->np_vol_slider_, np_vol_slider_cb, LV_EVENT_RELEASED, this);
+
+  // Secondary controls: shuffle, repeat.
   lv_obj_t *cr = lv_obj_create(root);
   lv_obj_set_size(cr, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(cr, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(cr, 0, 0);
   lv_obj_set_style_pad_all(cr, 0, 0);
-  lv_obj_set_style_pad_column(cr, 18, 0);
+  lv_obj_set_style_pad_column(cr, 28, 0);
+  lv_obj_set_style_margin_top(cr, 20, 0);
   lv_obj_set_flex_flow(cr, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(cr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(cr, LV_OBJ_FLAG_SCROLLABLE);
@@ -1473,8 +1605,6 @@ void LvglRenderer::build_now_playing_() {
     return l;
   };
   this->np_shuffle_lbl_ = cbtn(LV_SYMBOL_SHUFFLE, InputEvent::NP_SHUFFLE);
-  cbtn(LV_SYMBOL_MINUS, InputEvent::NP_VOL_DOWN);
-  cbtn(LV_SYMBOL_PLUS, InputEvent::NP_VOL_UP);
   this->np_repeat_lbl_ = cbtn(LV_SYMBOL_LOOP, InputEvent::NP_REPEAT);
 }
 
@@ -1492,14 +1622,37 @@ void LvglRenderer::render_now_playing_(const ViewModel &vm) {
       lv_obj_set_style_text_color(this->np_repeat_lbl_,
                                   lv_color_hex(np.repeat != "off" && !np.repeat.empty() ? COL_ACCENT : COL_MUTED),
                                   0);
+    // Reflect the current volume on the slider (RELEASED-only callback -> no feedback loop).
+    if (this->np_vol_slider_ != nullptr && np.volume >= 0)
+      lv_slider_set_value(this->np_vol_slider_, np.volume, LV_ANIM_OFF);
+    // Mute state on the volume icon (muted -> slashed speaker + accent).
+    if (this->np_vol_lbl_ != nullptr) {
+      lv_label_set_text(this->np_vol_lbl_, np.muted ? ICON_VOL_OFF : ICON_VOL_ON);
+      lv_obj_set_style_text_color(this->np_vol_lbl_, lv_color_hex(np.muted ? COL_ACCENT : COL_MUTED), 0);
+    }
 #ifdef USE_HA_DASHBOARD_LAUNCHER
     if (this->np_cover_slot_ != nullptr && this->np_cover_img_ != nullptr) {
-      lv_image_set_src(this->np_cover_img_, this->np_cover_slot_->get_lv_image_dsc());
+      int idx = -1;
       for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
-        if (this->cover_slot_list_[s] == this->np_cover_slot_)
-          this->cover_widget_list_[s] = this->np_cover_img_;
-      if (!np.cover_url.empty() && np.cover_url != this->np_last_cover_) {
-        this->np_last_cover_ = np.cover_url;
+        if (this->cover_slot_list_[s] == this->np_cover_slot_) {
+          idx = (int) s;
+          break;
+        }
+      lv_image_set_src(this->np_cover_img_, this->np_cover_slot_->get_lv_image_dsc());
+      if (idx >= 0)
+        this->cover_widget_list_[idx] = this->np_cover_img_;
+      // Same skip/hide policy as the launcher covers (the now-playing slot is shared with the
+      // detail header, so it may currently hold a different image). Downloaded directly here,
+      // not via the launcher's serial queue (this isn't the launcher screen). The loaded URL is
+      // committed in on_cover_ready_, so a re-render mid-download won't wrongly skip it.
+      if (np.cover_url.empty()) {
+        lv_obj_add_flag(this->np_cover_img_, LV_OBJ_FLAG_HIDDEN);
+      } else if (idx >= 0 && this->cover_url_list_[idx] == np.cover_url) {
+        lv_obj_clear_flag(this->np_cover_img_, LV_OBJ_FLAG_HIDDEN);  // already loaded -> show
+      } else {
+        lv_obj_add_flag(this->np_cover_img_, LV_OBJ_FLAG_HIDDEN);  // hide until decoded
+        if (idx >= 0)
+          this->cover_pending_url_[idx] = np.cover_url;
         this->np_cover_slot_->set_url(np.cover_url);
         this->np_cover_slot_->update();
       }

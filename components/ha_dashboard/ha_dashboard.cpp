@@ -120,6 +120,11 @@ void HaDashboard::add_launcher_cover_slot(online_image::OnlineImage *slot) {
   if (!this->groups_.empty() && this->groups_.back().is_launcher)
     this->groups_.back().cover_slots.push_back(slot);
 }
+
+void HaDashboard::add_launcher_thumb_slot(online_image::OnlineImage *slot) {
+  if (!this->groups_.empty() && this->groups_.back().is_launcher)
+    this->groups_.back().thumb_slots.push_back(slot);
+}
 #endif
 
 void HaDashboard::setup() {

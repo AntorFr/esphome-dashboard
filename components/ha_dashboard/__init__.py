@@ -56,6 +56,7 @@ CONF_OWNER = "owner"
 CONF_PLAYER = "player"
 CONF_HTTP_REQUEST_ID = "http_request_id"
 CONF_COVER_SLOTS = "cover_slots"
+CONF_THUMB_SLOTS = "thumb_slots"
 CONF_FONT_SMALL = "font_small"
 CONF_FONT_MEDIUM = "font_medium"
 CONF_FONT_LARGE = "font_large"
@@ -140,8 +141,11 @@ GROUP_SCHEMA = cv.All(
             cv.Optional(CONF_OWNER): cv.string,
             cv.Optional(CONF_PLAYER): cv.string,
             cv.Optional(CONF_HTTP_REQUEST_ID): cv.use_id(http_request.HttpRequestComponent),
-            # Pool of online_image slots (one per favourite) for covers — optional.
+            # Grid cover slots (one per favourite, 350px) — optional.
             cv.Optional(CONF_COVER_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
+            # Detail slots: slot 0 = header/now-playing, slots 1.. = episode thumbnails (96px).
+            # A pool dedicated to the detail view so drilling in/out never disturbs the grid.
+            cv.Optional(CONF_THUMB_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
         }
     ),
     _validate_group,
@@ -233,6 +237,9 @@ async def to_code(config):
             for slot_id in group.get(CONF_COVER_SLOTS, []):
                 slot = await cg.get_variable(slot_id)
                 cg.add(var.add_launcher_cover_slot(slot))
+            for slot_id in group.get(CONF_THUMB_SLOTS, []):
+                slot = await cg.get_variable(slot_id)
+                cg.add(var.add_launcher_thumb_slot(slot))
             continue
         cg.add(var.add_group(group[CONF_NAME], group[CONF_ICON]))
         for card in group[CONF_CARDS]:

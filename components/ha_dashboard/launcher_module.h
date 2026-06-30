@@ -58,6 +58,8 @@ class LauncherModule {
   void fetch_now_playing();
   void transport(const std::string &cmd);  // pause|resume|play_pause|stop|next|previous
   void volume_step(const std::string &direction);  // up | down
+  void set_volume(int level);                       // absolute 0..100
+  void toggle_mute();                               // mute <-> unmute
   void toggle_shuffle();
   void cycle_repeat();  // off -> all -> one -> off
   const NowPlaying &now_playing() const { return this->now_playing_; }

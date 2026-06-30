@@ -54,6 +54,18 @@ online_image:
   - { id: cov7, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
   - { id: cov8, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
   - { id: cov9, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  # Detail pool (separate from the grid): slot 0 = header cover / now-playing art, slots 1.. =
+  # episode thumbnails. Kept apart so drilling in/out never re-downloads the grid covers.
+  - { id: thm0, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm1, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm2, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm3, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm4, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm5, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm6, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm7, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm8, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm9, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
 
 external_components:
   - source:
@@ -152,6 +164,7 @@ ha_dashboard:
       # less RAM) — the API is exposed on http:// alongside https://. Covers/thumbnails are
       # served from this same host, so they stay on http too (see match_base_scheme).
       base_url: "http://music-library.berard.me"
-      owner: "Timothée"
+      owner: "Sébastien"
       player: "RINCON_B8E937D6A3F601400"  # Sonos Salle à manger
       cover_slots: [cov0, cov1, cov2, cov3, cov4, cov5, cov6, cov7, cov8, cov9]
+      thumb_slots: [thm0, thm1, thm2, thm3, thm4, thm5, thm6, thm7, thm8, thm9]

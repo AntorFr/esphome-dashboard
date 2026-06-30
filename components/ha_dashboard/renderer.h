@@ -43,6 +43,8 @@ enum class InputEvent : uint8_t {
   NP_PREV,                 // now playing: previous track
   NP_VOL_UP,               // now playing: volume up
   NP_VOL_DOWN,             // now playing: volume down
+  NP_SET_VOLUME,           // now playing: set absolute volume (index = 0..100 from the slider)
+  NP_MUTE,                 // now playing: toggle mute (tap the volume icon)
   NP_SHUFFLE,              // now playing: toggle shuffle
   NP_REPEAT,               // now playing: cycle repeat mode
 };
