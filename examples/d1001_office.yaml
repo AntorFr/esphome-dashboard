@@ -35,6 +35,12 @@ ota:
 logger:
   level: DEBUG
 
+# HTTP client for the Music Library launcher (ESP -> music-library REST API).
+http_request:
+  id: ml_http
+  timeout: 5s
+  verify_ssl: false
+
 external_components:
   - source:
       type: local

@@ -20,6 +20,12 @@ esphome:
 esp32:
   board: esp32-p4-evboard
   cpu_frequency: 360MHz
+  # reTerminal D1001 has 32 MB onboard QSPI flash (+ 32 MB PSRAM). We declare 16 MB (a safe
+  # under-statement) on purpose: it already yields a ~7.75 MB app partition — the firmware
+  # exceeds the default 4 MB assumption (~1.84 MB app) once the Music Library launcher
+  # (http_request + TLS) is included — and avoids the experimental-features flag that 32 MB
+  # OTA requires. The upper 16 MB of flash is left unused.
+  flash_size: 16MB
   framework:
     type: esp-idf
 
