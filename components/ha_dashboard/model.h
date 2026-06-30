@@ -11,6 +11,8 @@
 namespace esphome {
 namespace ha_dashboard {
 
+class LauncherModule;  // layer-1 music launcher (see launcher_module.h); pointer only here
+
 enum class CardType : uint8_t {
   LIGHT = 0,
   SWITCH = 1,
@@ -102,6 +104,11 @@ struct Group {
   std::string name;
   std::string icon;
   std::vector<Card> cards;
+
+  // Music Library launcher group (D1001 tab): no entity cards — renders a cover/title grid
+  // driven by `launcher`. See ADR-0007. `launcher` is owned by HaDashboard.
+  bool is_launcher{false};
+  LauncherModule *launcher{nullptr};
 };
 
 }  // namespace ha_dashboard

@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <vector>
 #include "esphome/core/log.h"
+#include "launcher_module.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -682,6 +683,8 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
 
   this->group_grids_.clear();
   this->group_tiles_.clear();
+  this->launcher_grids_.clear();
+  this->launcher_sig_.clear();
   for (size_t gi = 0; gi < groups.size(); gi++) {
     lv_obj_t *grid = lv_obj_create(content);
     lv_obj_set_size(grid, lv_pct(100), lv_pct(100));
@@ -755,6 +758,23 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     }
     this->group_grids_.push_back(grid);
     this->group_tiles_.push_back(tiles);
+
+    // Launcher groups also get a (scrollable) list container, populated at render time from
+    // the LauncherModule. Non-launcher groups keep a nullptr slot to stay index-aligned.
+    lv_obj_t *lgrid = nullptr;
+    if (groups[gi].is_launcher) {
+      lgrid = lv_obj_create(content);
+      lv_obj_set_size(lgrid, lv_pct(100), lv_pct(100));
+      lv_obj_set_style_bg_opa(lgrid, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(lgrid, 0, 0);
+      lv_obj_set_style_pad_all(lgrid, 0, 0);
+      lv_obj_set_style_pad_top(lgrid, 16, 0);
+      lv_obj_set_style_pad_row(lgrid, 10, 0);
+      lv_obj_set_flex_flow(lgrid, LV_FLEX_FLOW_COLUMN);
+      lv_obj_add_flag(lgrid, LV_OBJ_FLAG_HIDDEN);
+    }
+    this->launcher_grids_.push_back(lgrid);
+    this->launcher_sig_.push_back(-1);
   }
 }
 
@@ -771,11 +791,30 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
       lv_obj_set_style_text_color(this->tab_lbls_[i], lv_color_hex(on ? COL_TEXT : COL_MUTED), 0);
   }
 
-  // Grids: show only the active group's tiles, refresh their state in place.
+  // Grids: show only the active group, refreshing it in place. Launcher groups use their
+  // own list container instead of the entity tile grid.
   for (size_t gi = 0; gi < this->group_grids_.size(); gi++) {
-    if ((int) gi == active) {
+    bool is_active = (int) gi == active;
+    const Group &g = (*vm.groups)[gi];
+    lv_obj_t *lgrid = (gi < this->launcher_grids_.size()) ? this->launcher_grids_[gi] : nullptr;
+
+    if (g.is_launcher) {
+      lv_obj_add_flag(this->group_grids_[gi], LV_OBJ_FLAG_HIDDEN);  // entity grid unused here
+      if (lgrid != nullptr) {
+        if (is_active) {
+          lv_obj_clear_flag(lgrid, LV_OBJ_FLAG_HIDDEN);
+          this->render_launcher_((int) gi, g);
+        } else {
+          lv_obj_add_flag(lgrid, LV_OBJ_FLAG_HIDDEN);
+        }
+      }
+      continue;
+    }
+
+    if (lgrid != nullptr)
+      lv_obj_add_flag(lgrid, LV_OBJ_FLAG_HIDDEN);
+    if (is_active) {
       lv_obj_clear_flag(this->group_grids_[gi], LV_OBJ_FLAG_HIDDEN);
-      const Group &g = (*vm.groups)[gi];
       for (size_t ci = 0; ci < this->group_tiles_[gi].size() && ci < g.cards.size(); ci++) {
         const Card &c = g.cards[ci];
         const Tile &t = this->group_tiles_[gi][ci];
@@ -797,6 +836,67 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
 
   if (this->dashboard_scr_ != nullptr)
     lv_screen_load(this->dashboard_scr_);
+}
+
+void LvglRenderer::render_launcher_(int gi, const Group &g) {
+  if (gi < 0 || gi >= (int) this->launcher_grids_.size())
+    return;
+  lv_obj_t *grid = this->launcher_grids_[gi];
+  if (grid == nullptr || g.launcher == nullptr)
+    return;
+  LauncherModule *L = g.launcher;
+
+  // Skip the (expensive) rebuild if nothing changed since last time.
+  long sig = (long) L->status() * 1000000L + (long) L->items().size();
+  if (this->launcher_sig_[gi] == sig)
+    return;
+  this->launcher_sig_[gi] = sig;
+
+  lv_obj_clean(grid);  // destroys old children (and their event cbs)
+
+  if (L->status() != LauncherStatus::READY) {
+    const char *msg = "";
+    switch (L->status()) {
+      case LauncherStatus::LOADING:
+        msg = "Chargement…";
+        break;
+      case LauncherStatus::EMPTY:
+        msg = "Rien ici pour le moment";
+        break;
+      case LauncherStatus::ERROR:
+        msg = "Musique indisponible";
+        break;
+      default:
+        msg = "";
+        break;
+    }
+    lv_obj_t *lbl = lv_label_create(grid);
+    lv_label_set_text(lbl, msg);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
+    return;
+  }
+
+  // READY: one tappable tile per favourite (title only for now; covers come later).
+  const std::vector<QuickItem> &items = L->items();
+  for (size_t i = 0; i < items.size(); i++) {
+    lv_obj_t *tile = lv_button_create(grid);
+    lv_obj_set_width(tile, lv_pct(100));
+    lv_obj_set_height(tile, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(tile, 0, 0);
+    lv_obj_set_style_radius(tile, 14, 0);
+    lv_obj_set_style_pad_all(tile, 16, 0);
+
+    lv_obj_t *lbl = lv_label_create(tile);
+    lv_label_set_text(lbl, items[i].title.c_str());
+    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
+
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, (int) i};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(tile, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
 }
 
 const Card *LvglRenderer::current_card_(const ViewModel &vm) const {

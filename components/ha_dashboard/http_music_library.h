@@ -2,12 +2,12 @@
 // HTTP/JSON adapter implementing the MusicLibraryBackend port against music-library's REST
 // API (ESP -> music-library -> Music Assistant). See ADR-0007.
 //
-// Guarded by USE_HTTP_REQUEST so it only compiles when the http_request component is in the
+// Guarded by USE_HA_DASHBOARD_LAUNCHER so it only compiles when the http_request component is in the
 // build (i.e. when a music_library launcher is configured). Synchronous: ESPHome's
 // http_request blocks the loop for the request — payloads are small, results are delivered
 // to the callback inline.
 #include "esphome/core/defines.h"
-#ifdef USE_HTTP_REQUEST
+#ifdef USE_HA_DASHBOARD_LAUNCHER
 #include <string>
 #include <vector>
 #include "esphome/components/http_request/http_request.h"
@@ -41,4 +41,4 @@ class HttpMusicLibrary : public MusicLibraryBackend {
 
 }  // namespace ha_dashboard
 }  // namespace esphome
-#endif  // USE_HTTP_REQUEST
+#endif  // USE_HA_DASHBOARD_LAUNCHER

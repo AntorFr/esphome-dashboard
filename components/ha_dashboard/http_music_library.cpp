@@ -1,5 +1,5 @@
 #include "http_music_library.h"
-#ifdef USE_HTTP_REQUEST
+#ifdef USE_HA_DASHBOARD_LAUNCHER
 #include "esphome/components/json/json_util.h"
 #include "esphome/core/application.h"
 #include "esphome/core/hal.h"
@@ -147,4 +147,4 @@ void HttpMusicLibrary::play(const std::string &uri, int seek_s) {
 
 }  // namespace ha_dashboard
 }  // namespace esphome
-#endif  // USE_HTTP_REQUEST
+#endif  // USE_HA_DASHBOARD_LAUNCHER

@@ -90,6 +90,32 @@ void HaDashboard::add_media_card(int group_index, homeassistant_addon::Homeassis
   c.media = media;
 }
 
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+void HaDashboard::add_launcher_group(const std::string &name, const std::string &icon,
+                                     http_request::HttpRequestComponent *http, const std::string &base_url,
+                                     const std::string &owner, const std::string &queue_id) {
+  auto backend = std::make_unique<HttpMusicLibrary>();
+  backend->set_http(http);
+  backend->set_base_url(base_url);
+  backend->set_queue_id(queue_id);
+
+  auto launcher = std::make_unique<LauncherModule>();
+  launcher->set_owner(owner);
+  launcher->set_backend(backend.get());
+  launcher->set_on_changed([this]() { this->controller_.refresh(); });
+
+  Group g;
+  g.name = name;
+  g.icon = icon;
+  g.is_launcher = true;
+  g.launcher = launcher.get();
+  this->groups_.push_back(g);
+
+  this->ml_backends_.push_back(std::move(backend));
+  this->launchers_.push_back(std::move(launcher));
+}
+#endif
+
 void HaDashboard::setup() {
   this->renderer_.set_profile(this->profile_);
   this->controller_.set_inactivity_timeout(this->timeout_ms_);

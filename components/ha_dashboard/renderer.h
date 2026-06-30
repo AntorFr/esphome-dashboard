@@ -32,6 +32,7 @@ enum class InputEvent : uint8_t {
   ENCODER_CCW,   // encoder counter-clockwise
   MEDIA_PREV,    // media player: previous track
   MEDIA_NEXT,    // media player: next track
+  LAUNCHER_ACTIVATE,  // music launcher: tap a favourite tile -> play (index = tile)
 };
 
 // Instantané de l'état de navigation passé au renderer.

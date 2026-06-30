@@ -1,6 +1,7 @@
 #include "controller.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+#include "launcher_module.h"
 
 namespace esphome {
 namespace ha_dashboard {
@@ -19,7 +20,22 @@ void Controller::start() {
   // D1001 starts straight on the merged dashboard; Dial starts idle.
   this->state_ = this->dashboard_mode_ ? NavState::DASHBOARD : NavState::IDLE;
   this->last_event_ms_ = millis();
+  if (this->dashboard_mode_)
+    this->maybe_load_launcher_(this->group_index_);  // initial tab may be a launcher
   this->render_();
+}
+
+// (Re)load a launcher group's favourites when its tab is entered. Loads once (status IDLE)
+// or after a previous failure (status ERROR); otherwise leaves the cached list in place.
+void Controller::maybe_load_launcher_(int gi) {
+  if (this->groups_ == nullptr || gi < 0 || gi >= (int) this->groups_->size())
+    return;
+  Group &g = (*this->groups_)[gi];
+  if (!g.is_launcher || g.launcher == nullptr)
+    return;
+  LauncherStatus s = g.launcher->status();
+  if (s == LauncherStatus::IDLE || s == LauncherStatus::ERROR)
+    g.launcher->load();
 }
 
 Card *Controller::current_card_() {
@@ -176,8 +192,10 @@ void Controller::handle(InputEvent event, int index) {
       int n = this->group_count_();
       switch (event) {
         case InputEvent::SELECT_GROUP:
-          if (index >= 0 && index < n)
+          if (index >= 0 && index < n) {
             this->group_index_ = index;
+            this->maybe_load_launcher_(index);  // fetch favourites when entering a launcher tab
+          }
           break;
         case InputEvent::TOGGLE: {
           int gi = this->group_index_;
@@ -185,6 +203,15 @@ void Controller::handle(InputEvent event, int index) {
               index < (int) (*this->groups_)[gi].cards.size()) {
             Card &c = (*this->groups_)[gi].cards[index];
             this->primary_action_(c);
+          }
+          break;
+        }
+        case InputEvent::LAUNCHER_ACTIVATE: {
+          int gi = this->group_index_;
+          if (this->groups_ && gi < (int) this->groups_->size()) {
+            Group &g = (*this->groups_)[gi];
+            if (g.is_launcher && g.launcher != nullptr)
+              g.launcher->activate(index);
           }
           break;
         }

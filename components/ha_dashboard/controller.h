@@ -38,6 +38,7 @@ class Controller {
   void adjust_(Card &card, int dir);     // encoder rotate: stage an optimistic value change (+/-)
   void commit_pending_(Card &card);      // push the staged value to HA (after debounce / on leave)
   Card *current_card_();                  // focused card in the current group, or null
+  void maybe_load_launcher_(int gi);      // (re)load a launcher group's favourites on entry
   int group_count_() const;
   int card_count_(int group_index) const;
   void enter_group_(int group_index);

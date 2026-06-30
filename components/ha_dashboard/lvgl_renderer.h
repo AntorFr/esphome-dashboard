@@ -60,6 +60,9 @@ class LvglRenderer : public Renderer {
   // D1001 dashboard (tabs + tile grid).
   void build_dashboard_(const std::vector<Group> &groups);
   void render_dashboard_(const ViewModel &vm);
+  // Music Library launcher tab: a list of favourite titles (rebuilt only when the module's
+  // status/count changes). Covers via online_image come later.
+  void render_launcher_(int gi, const Group &g);
 
   // Apply an esphome font if provided, else the built-in LVGL fallback.
   void set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback);
@@ -133,6 +136,10 @@ class LvglRenderer : public Renderer {
   std::vector<lv_obj_t *> tab_lbls_;
   std::vector<lv_obj_t *> group_grids_;
   std::vector<std::vector<Tile>> group_tiles_;
+  // Launcher tabs: one (scrollable) list container per group (nullptr for non-launcher
+  // groups), with a render signature to skip rebuilds when nothing changed.
+  std::vector<lv_obj_t *> launcher_grids_;
+  std::vector<long> launcher_sig_;
 };
 
 }  // namespace ha_dashboard

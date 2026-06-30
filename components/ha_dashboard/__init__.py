@@ -5,7 +5,15 @@ Voir docs/config-reference.md et docs/architecture.md.
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import binary_sensor, climate, cover, sensor, switch, time as time_comp
+from esphome.components import (
+    binary_sensor,
+    climate,
+    cover,
+    http_request,
+    sensor,
+    switch,
+    time as time_comp,
+)
 from esphome.components.homeassistant_addon import HomeassistantMediaPlayer
 from esphome.components.lvgl import lv_validation as lvalid
 from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
@@ -42,6 +50,10 @@ CONF_SWITCH_ID = "switch_id"
 CONF_COVER_ID = "cover_id"
 CONF_CLIMATE_ID = "climate_id"
 CONF_MEDIA_PLAYER_ID = "media_player_id"
+CONF_BASE_URL = "base_url"
+CONF_OWNER = "owner"
+CONF_PLAYER = "player"
+CONF_HTTP_REQUEST_ID = "http_request_id"
 CONF_FONT_SMALL = "font_small"
 CONF_FONT_MEDIUM = "font_medium"
 CONF_FONT_LARGE = "font_large"
@@ -99,12 +111,36 @@ CARD_SCHEMA = cv.All(
     _validate_card,
 )
 
-GROUP_SCHEMA = cv.Schema(
-    {
-        cv.Required(CONF_NAME): cv.string,
-        cv.Optional(CONF_ICON, default=""): cv.string,
-        cv.Required(CONF_CARDS): cv.All(cv.ensure_list(CARD_SCHEMA), cv.Length(min=1)),
-    }
+# A group is either a normal entity group (cards) or a "music_library" launcher tab
+# (D1001) backed by the music-library REST API.
+GROUP_TYPES = ["entities", "music_library"]
+
+
+def _validate_group(group):
+    if str(group.get(CONF_TYPE, "entities")) == "music_library":
+        for key in (CONF_BASE_URL, CONF_OWNER, CONF_PLAYER, CONF_HTTP_REQUEST_ID):
+            if key not in group:
+                raise cv.Invalid(f"Un groupe 'music_library' requiert '{key}'")
+    elif CONF_CARDS not in group:
+        raise cv.Invalid("Un groupe 'entities' requiert 'cards'")
+    return group
+
+
+GROUP_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Required(CONF_NAME): cv.string,
+            cv.Optional(CONF_ICON, default=""): cv.string,
+            cv.Optional(CONF_TYPE, default="entities"): cv.one_of(*GROUP_TYPES, lower=True),
+            cv.Optional(CONF_CARDS): cv.All(cv.ensure_list(CARD_SCHEMA), cv.Length(min=1)),
+            # music_library launcher fields:
+            cv.Optional(CONF_BASE_URL): cv.string,
+            cv.Optional(CONF_OWNER): cv.string,
+            cv.Optional(CONF_PLAYER): cv.string,
+            cv.Optional(CONF_HTTP_REQUEST_ID): cv.use_id(http_request.HttpRequestComponent),
+        }
+    ),
+    _validate_group,
 )
 
 CONFIG_SCHEMA = cv.Schema(
@@ -144,6 +180,11 @@ async def to_code(config):
     cg.add_define("USE_API_HOMEASSISTANT_STATES")
     cg.add_define("USE_API_HOMEASSISTANT_SERVICES")
 
+    # The music_library launcher (HTTP adapter) is compiled only when a launcher group is
+    # configured. http_request has no USE_ define of its own, so we gate on our own flag.
+    if any(str(g.get(CONF_TYPE, "entities")) == "music_library" for g in config[CONF_GROUPS]):
+        cg.add_define("USE_HA_DASHBOARD_LAUNCHER")
+
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
@@ -173,6 +214,19 @@ async def to_code(config):
             cg.add(setter(await cg.get_variable(config[conf])))
 
     for group_index, group in enumerate(config[CONF_GROUPS]):
+        if str(group.get(CONF_TYPE, "entities")) == "music_library":
+            http = await cg.get_variable(group[CONF_HTTP_REQUEST_ID])
+            cg.add(
+                var.add_launcher_group(
+                    group[CONF_NAME],
+                    group[CONF_ICON],
+                    http,
+                    group[CONF_BASE_URL],
+                    group[CONF_OWNER],
+                    group[CONF_PLAYER],
+                )
+            )
+            continue
         cg.add(var.add_group(group[CONF_NAME], group[CONF_ICON]))
         for card in group[CONF_CARDS]:
             color = 0

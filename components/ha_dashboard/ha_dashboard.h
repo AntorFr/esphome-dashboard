@@ -2,6 +2,7 @@
 // Composant ESPHome — glue : possède le Controller (couche 1), le LvglRenderer
 // (couche 2) et lit les entrées physiques (couche 3 : encodeur/bouton du Dial).
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -9,9 +10,15 @@
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
 #include "controller.h"
+#include "launcher_module.h"
 #include "lvgl_renderer.h"
 #include "model.h"
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+#include "esphome/components/http_request/http_request.h"
+#include "http_music_library.h"
+#endif
 
 namespace esphome {
 namespace ha_dashboard {
@@ -48,6 +55,13 @@ class HaDashboard : public Component {
                         bool has_color);
   void add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media, const std::string &name,
                       uint32_t color, bool has_color);
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  // Music Library launcher group (D1001 tab): owns an HTTP backend + a LauncherModule, wired
+  // to the speaker (queue_id) and profile (owner). See ADR-0007.
+  void add_launcher_group(const std::string &name, const std::string &icon,
+                          http_request::HttpRequestComponent *http, const std::string &base_url,
+                          const std::string &owner, const std::string &queue_id);
+#endif
 
  protected:
   void build_if_ready_();
@@ -60,6 +74,12 @@ class HaDashboard : public Component {
   std::vector<Group> groups_;
   Controller controller_;
   LvglRenderer renderer_;
+
+  // Launcher modules (layer 1) for music_library groups; pointers stored in Group::launcher.
+  std::vector<std::unique_ptr<LauncherModule>> launchers_;
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  std::vector<std::unique_ptr<HttpMusicLibrary>> ml_backends_;
+#endif
 
   sensor::Sensor *encoder_{nullptr};
   binary_sensor::BinarySensor *button_{nullptr};

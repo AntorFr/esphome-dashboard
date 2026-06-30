@@ -135,3 +135,11 @@ ha_dashboard:
       icon: gate
       cards:
         - { type: cover, cover_id: cover_portail, name: "Portail", color: "#577EFF" }
+    # Music Library launcher tab (kids): favourites of profile "Timothée" -> his speaker.
+    - name: "Histoires"
+      icon: music
+      type: music_library
+      http_request_id: ml_http
+      base_url: "https://music-library.berard.me"
+      owner: "Timothée"
+      player: "RINCON_74CA60C838E601400"
