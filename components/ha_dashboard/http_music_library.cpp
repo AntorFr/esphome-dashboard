@@ -28,6 +28,14 @@ static std::string url_encode(const std::string &s) {
   return out;
 }
 
+// music-library returns http cover URLs that 301-redirect to https (which online_image
+// doesn't follow across schemes) -> fetch https directly.
+static std::string upgrade_https(std::string u) {
+  if (u.rfind("http://", 0) == 0)
+    u.replace(0, 7, "https://");
+  return u;
+}
+
 // Read a full response body into `out`. Blocks until COMPLETE / error / timeout.
 static bool read_body(http_request::HttpContainer *c, std::string &out, uint32_t timeout_ms) {
   uint8_t buf[256];
@@ -97,7 +105,7 @@ void HttpMusicLibrary::fetch_favorites(const std::string &owner, QuickItemsCallb
         q.title = it["title"] | "";
         q.media_type = it["media_type"] | "";
         q.uri = it["uri"] | "";
-        q.cover_url = it["cover_url"] | "";
+        q.cover_url = upgrade_https(it["cover_url"] | "");
         q.has_children = it["has_children"] | false;
         items.push_back(std::move(q));
       }
@@ -127,7 +135,7 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
         QuickItem q;
         q.title = it["title"] | "";
         q.uri = it["uri"] | "";
-        q.cover_url = it["cover_url"] | "";  // null for chapters -> ""
+        q.cover_url = upgrade_https(it["cover_url"] | "");  // null for chapters -> ""
         q.seek = it["seek"] | 0;
         items.push_back(std::move(q));
       }
