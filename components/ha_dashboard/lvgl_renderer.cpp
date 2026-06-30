@@ -846,13 +846,41 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return;
   LauncherModule *L = g.launcher;
 
-  // Skip the (expensive) rebuild if nothing changed since last time.
-  long sig = (long) L->status() * 1000000L + (long) L->items().size();
+  const bool detail = (L->level() == LauncherLevel::DETAIL);
+
+  // Rebuild only when something changed (level / status / count / paging).
+  long sig = (((long) detail * 8 + (long) L->status()) * 100000L) + (long) L->items().size() * 4L +
+             (L->has_more() ? 2 : 0) + (L->loading_more() ? 1 : 0);
   if (this->launcher_sig_[gi] == sig)
     return;
   this->launcher_sig_[gi] = sig;
 
   lv_obj_clean(grid);  // destroys old children (and their event cbs)
+
+  auto add_button = [this, grid](const char *text, const lv_font_t *fb, uint32_t color, InputEvent ev,
+                                 int idx) -> lv_obj_t * {
+    lv_obj_t *b = lv_button_create(grid);
+    lv_obj_set_width(b, lv_pct(100));
+    lv_obj_set_height(b, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(b, 0, 0);
+    lv_obj_set_style_radius(b, 14, 0);
+    lv_obj_set_style_pad_all(b, 16, 0);
+    lv_obj_t *l = lv_label_create(b);
+    lv_label_set_text(l, text);
+    lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
+    this->set_text_font_(l, this->font_medium_, fb);
+    auto *d = new CbData{this, ev, idx};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    return b;
+  };
+
+  // Detail level: a back row above the episode/chapter list.
+  if (detail) {
+    std::string bt = std::string(LV_SYMBOL_LEFT " ") + L->detail_title();
+    add_button(bt.c_str(), &lv_font_montserrat_28, COL_TEXT, InputEvent::LAUNCHER_BACK, -1);
+  }
 
   if (L->status() != LauncherStatus::READY) {
     const char *msg = "";
@@ -861,7 +889,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
         msg = "Chargement…";
         break;
       case LauncherStatus::EMPTY:
-        msg = "Rien ici pour le moment";
+        msg = detail ? "Aucun épisode" : "Rien ici pour le moment";
         break;
       case LauncherStatus::ERROR:
         msg = "Musique indisponible";
@@ -877,25 +905,66 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return;
   }
 
-  // READY: one tappable tile per favourite (title only for now; covers come later).
   const std::vector<QuickItem> &items = L->items();
   for (size_t i = 0; i < items.size(); i++) {
-    lv_obj_t *tile = lv_button_create(grid);
-    lv_obj_set_width(tile, lv_pct(100));
-    lv_obj_set_height(tile, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
-    lv_obj_set_style_shadow_width(tile, 0, 0);
-    lv_obj_set_style_radius(tile, 14, 0);
-    lv_obj_set_style_pad_all(tile, 16, 0);
+    // Grid + drillable (podcast/audiobook): a row with [ title (play) | list button (drill) ].
+    if (!detail && items[i].has_children) {
+      lv_obj_t *row = lv_obj_create(grid);
+      lv_obj_set_width(row, lv_pct(100));
+      lv_obj_set_height(row, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(row, 0, 0);
+      lv_obj_set_style_pad_all(row, 0, 0);
+      lv_obj_set_style_pad_column(row, 8, 0);
+      lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+      lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *lbl = lv_label_create(tile);
-    lv_label_set_text(lbl, items[i].title.c_str());
-    lv_obj_set_style_text_color(lbl, lv_color_hex(COL_TEXT), 0);
-    this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
+      lv_obj_t *title_btn = lv_button_create(row);
+      lv_obj_set_flex_grow(title_btn, 1);
+      lv_obj_set_height(title_btn, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_color(title_btn, lv_color_hex(COL_TILE), 0);
+      lv_obj_set_style_shadow_width(title_btn, 0, 0);
+      lv_obj_set_style_radius(title_btn, 14, 0);
+      lv_obj_set_style_pad_all(title_btn, 16, 0);
+      lv_obj_t *tl = lv_label_create(title_btn);
+      lv_label_set_text(tl, items[i].title.c_str());
+      lv_obj_set_style_text_color(tl, lv_color_hex(COL_TEXT), 0);
+      this->set_text_font_(tl, this->font_medium_, &lv_font_montserrat_28);
+      auto *da = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, (int) i};
+      g_cbdata.push_back(da);
+      lv_obj_add_event_cb(title_btn, btn_event_cb, LV_EVENT_CLICKED, da);
 
-    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, (int) i};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(tile, btn_event_cb, LV_EVENT_CLICKED, d);
+      lv_obj_t *list_btn = lv_button_create(row);
+      lv_obj_set_height(list_btn, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_color(list_btn, lv_color_hex(COL_TILE), 0);
+      lv_obj_set_style_shadow_width(list_btn, 0, 0);
+      lv_obj_set_style_radius(list_btn, 14, 0);
+      lv_obj_set_style_pad_all(list_btn, 16, 0);
+      lv_obj_t *ll = lv_label_create(list_btn);
+      lv_label_set_text(ll, items[i].media_type == "audiobook" ? "Chapitres" : "Épisodes");
+      lv_obj_set_style_text_color(ll, lv_color_hex(COL_ACCENT), 0);
+      this->set_text_font_(ll, this->font_small_, &lv_font_montserrat_20);
+      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, (int) i};
+      g_cbdata.push_back(dc);
+      lv_obj_add_event_cb(list_btn, btn_event_cb, LV_EVENT_CLICKED, dc);
+      continue;
+    }
+
+    // Leaf favourite, or an episode/chapter row in detail: a single tappable button (play).
+    add_button(items[i].title.c_str(), &lv_font_montserrat_28, COL_TEXT, InputEvent::LAUNCHER_ACTIVATE,
+               (int) i);
+  }
+
+  // Detail: "load more" affordance when more pages are available.
+  if (detail && L->has_more()) {
+    if (L->loading_more()) {
+      lv_obj_t *lbl = lv_label_create(grid);
+      lv_label_set_text(lbl, "Chargement…");
+      lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
+      this->set_text_font_(lbl, this->font_small_, &lv_font_montserrat_20);
+    } else {
+      add_button("Charger plus", &lv_font_montserrat_28, COL_ACCENT, InputEvent::LAUNCHER_LOAD_MORE, -1);
+    }
   }
 }
 

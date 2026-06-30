@@ -206,12 +206,23 @@ void Controller::handle(InputEvent event, int index) {
           }
           break;
         }
-        case InputEvent::LAUNCHER_ACTIVATE: {
+        case InputEvent::LAUNCHER_ACTIVATE:
+        case InputEvent::LAUNCHER_OPEN_CHILDREN:
+        case InputEvent::LAUNCHER_BACK:
+        case InputEvent::LAUNCHER_LOAD_MORE: {
           int gi = this->group_index_;
           if (this->groups_ && gi < (int) this->groups_->size()) {
             Group &g = (*this->groups_)[gi];
-            if (g.is_launcher && g.launcher != nullptr)
-              g.launcher->activate(index);
+            if (g.is_launcher && g.launcher != nullptr) {
+              if (event == InputEvent::LAUNCHER_ACTIVATE)
+                g.launcher->activate(index);
+              else if (event == InputEvent::LAUNCHER_OPEN_CHILDREN)
+                g.launcher->open_children(index);
+              else if (event == InputEvent::LAUNCHER_BACK)
+                g.launcher->back();
+              else  // LAUNCHER_LOAD_MORE
+                g.launcher->load_more_children();
+            }
           }
           break;
         }
