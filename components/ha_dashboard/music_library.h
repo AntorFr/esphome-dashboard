@@ -13,7 +13,7 @@ namespace ha_dashboard {
 // GET /api/v1/quick/{owner} (and of the future children endpoint):
 // {id, title, media_type, uri, cover_url, has_children}.
 struct QuickItem {
-  std::string id;
+  std::string id;            // local media id (used to fetch children)
   std::string title;
   std::string media_type;    // playlist | album | radio | podcast | audiobook | track
   std::string uri;           // pass verbatim to POST /api/v1/ma/play
@@ -21,6 +21,7 @@ struct QuickItem {
                              // episodes usually have a thumbnail, audiobook chapters do not
                              // -> the renderer falls back to a position number)
   bool has_children{false};  // podcast/audiobook -> a "list" button drills into episodes/chapters
+  int seek{0};               // play offset (s): audiobook chapter start; 0 otherwise
 };
 
 // Async result: ok=false means the request failed (offline, HTTP error, parse error);
@@ -40,9 +41,10 @@ class MusicLibraryBackend {
   // GET /api/v1/quick/{owner} -> the profile's favourites (cover grid). Few items, unpaged.
   virtual void fetch_favorites(const std::string &owner, QuickItemsCallback cb) = 0;
 
-  // One page of a podcast/audiobook's episodes/chapters (drill-down). A series can hold
-  // hundreds of items, so the list is loaded incrementally on scroll: [offset, offset+limit).
-  virtual void fetch_children(const std::string &uri, int offset, int limit,
+  // One page of a podcast/audiobook's episodes/chapters (drill-down), keyed by the parent's
+  // local media id (GET /api/v1/quick/item/{id}/children). A series can hold hundreds of
+  // items, so the list is loaded incrementally on scroll: [offset, offset+limit).
+  virtual void fetch_children(const std::string &item_id, int offset, int limit,
                               QuickPageCallback cb) = 0;
 
   // POST /api/v1/ma/play?queue_id=<device speaker>&uri=<uri>&seek=<seek_s>.

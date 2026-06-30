@@ -8,7 +8,7 @@ void LauncherModule::load() {
   this->level_ = LauncherLevel::GRID;
   this->children_.clear();
   this->detail_title_.clear();
-  this->children_uri_.clear();
+  this->children_id_.clear();
   this->children_has_more_ = false;
   this->children_loading_more_ = false;
 
@@ -40,10 +40,10 @@ void LauncherModule::activate(int index) {
   if (index < 0 || index >= static_cast<int>(list.size()))
     return;
   // Play the item. For a podcast/audiobook tile this is the parent uri, which Music
-  // Assistant resumes from the saved position; for a detail row it is that episode/chapter.
-  // Seek 0: explicit chapter offsets are a later concern.
+  // Assistant resumes from the saved position; for a detail row it is that episode (own uri)
+  // or chapter (book uri + seek offset).
   if (this->backend_ != nullptr)
-    this->backend_->play(list[index].uri, 0);
+    this->backend_->play(list[index].uri, list[index].seek);
 }
 
 void LauncherModule::open_children(int index) {
@@ -57,7 +57,7 @@ void LauncherModule::open_children(int index) {
 
   this->level_ = LauncherLevel::DETAIL;
   this->detail_title_ = item.title;
-  this->children_uri_ = item.uri;
+  this->children_id_ = item.id;
   this->children_.clear();
   this->children_has_more_ = false;
   this->children_loading_more_ = false;
@@ -72,7 +72,7 @@ void LauncherModule::open_children(int index) {
 
   const uint32_t gen = ++this->gen_;
   this->backend_->fetch_children(
-      this->children_uri_, 0, PAGE_SIZE,
+      this->children_id_,0, PAGE_SIZE,
       [this, gen](bool ok, std::vector<QuickItem> items, bool has_more) {
         if (gen != this->gen_)
           return;
@@ -101,7 +101,7 @@ void LauncherModule::load_more_children() {
   const int offset = static_cast<int>(this->children_.size());
   const uint32_t gen = this->gen_;  // same session: no bump, page belongs to this drill
   this->backend_->fetch_children(
-      this->children_uri_, offset, PAGE_SIZE,
+      this->children_id_,offset, PAGE_SIZE,
       [this, gen](bool ok, std::vector<QuickItem> items, bool has_more) {
         if (gen != this->gen_)
           return;  // user navigated away / reopened -> drop this page
@@ -126,7 +126,7 @@ bool LauncherModule::back() {
   this->level_ = LauncherLevel::GRID;
   this->children_.clear();
   this->detail_title_.clear();
-  this->children_uri_.clear();
+  this->children_id_.clear();
   this->children_has_more_ = false;
   this->children_loading_more_ = false;
   this->status_ = this->favorites_.empty() ? LauncherStatus::EMPTY : LauncherStatus::READY;

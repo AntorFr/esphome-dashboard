@@ -86,9 +86,9 @@ class LauncherModule {
   std::vector<QuickItem> children_;
   std::string detail_title_;
 
-  // Drill-down paging. children_uri_ = parent being browsed; has_more_ drives "load on
-  // scroll"; loading_more_ guards against firing overlapping page requests.
-  std::string children_uri_;
+  // Drill-down paging. children_id_ = local id of the parent being browsed; has_more_ drives
+  // "load on scroll"; loading_more_ guards against firing overlapping page requests.
+  std::string children_id_;
   bool children_has_more_{false};
   bool children_loading_more_{false};
 
