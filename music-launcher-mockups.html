@@ -60,13 +60,15 @@
 
   /* cover grid (tab content) */
   .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px;overflow:hidden;align-content:start}
-  .ftile{display:flex;flex-direction:column;gap:6px}
-  .cover{position:relative;width:100%;aspect-ratio:1;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden}
-  .cover .badge{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
-  .cover .listbtn{position:absolute;left:6px;right:6px;bottom:6px;display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 0;border-radius:10px;background:rgba(10,10,12,.74);font-size:12px;color:#fff}
-  .cover .listbtn .ti{font-size:15px}
+  /* Favourite = a grey card (same language as the entity tiles): clear contour, the cover
+     sits inside it. */
+  .ftile{display:flex;flex-direction:column;gap:8px;background:var(--tile);border-radius:16px;padding:10px}
+  .cover{position:relative;width:100%;aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden}
   .ftile .ttl{font-size:13px;font-weight:500;line-height:1.2;max-height:2.4em;overflow:hidden}
   .ftile .ty{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  /* Drill-in button (podcast/audiobook) — in-flow inside the card, not overlaid. */
+  .drillbtn{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 0;border-radius:10px;background:#262234;font-size:12px;color:var(--media);margin-top:2px}
+  .drillbtn .ti{font-size:15px}
 
   /* detail view (full screen, opened on tap) */
   .dtop{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
@@ -175,12 +177,18 @@ var FAV=[
   {g:'trolls',emo:'🎬',ttl:'Trolls',ty:'album'}
 ];
 
-function cover(f,showList){
-  // Type is already conveyed by the label under the tile + the list button -> no corner
-  // badge (it was redundant and looked like a non-interactive button).
+// Just the cover square (gradient placeholder + emoji); it lives inside a grey .ftile card.
+function cover(f){
+  return '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo+'</div>';
+}
+// A full favourite card: grey tile with cover + title + type, and a drill button for
+// podcasts/audiobooks.
+function favCard(f){
   var listLbl = f.ty==='audiobook' ? 'Chapitres' : 'Épisodes';
-  return '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo
-    + (showList && f.kids?'<div class="listbtn"><i class="ti ti-list"></i>'+listLbl+'</div>':'')
+  return '<div class="ftile">'+cover(f)
+    + '<div class="ttl">'+f.ttl+'</div>'
+    + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div>'
+    + (f.kids?'<div class="drillbtn"><i class="ti ti-list"></i>'+listLbl+'</div>':'')
     + '</div>';
 }
 // np: false (hidden) | 'pause' (playing -> show ⏸) | 'play' (paused -> show ▶)
@@ -208,19 +216,13 @@ function frame(label, inner){
 
 /* A — launcher tab active: header + tabs + cover grid (list button on podcast/audiobook) */
 function fGrid(){
-  var tiles=FAV.map(function(f){
-    return '<div class="ftile">'+cover(f,true)+'<div class="ttl">'+f.ttl+'</div>'
-      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
-  }).join('');
+  var tiles=FAV.map(favCard).join('');
   return frame('A · Onglet « Musique » actif', header(true)+tabs()+'<div class="grid">'+tiles+'</div>');
 }
 
 /* B — one-tap play confirmation (stay on the grid) */
 function fToast(){
-  var tiles=FAV.slice(0,4).map(function(f){
-    return '<div class="ftile">'+cover(f,true)+'<div class="ttl">'+f.ttl+'</div>'
-      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
-  }).join('');
+  var tiles=FAV.slice(0,4).map(favCard).join('');
   return frame('B · Lecture one-tap (toast)', header(true)+tabs()+'<div class="grid">'+tiles+'</div>'
     + '<div class="toast"><div class="tc" style="background:'+GRAD.comptines+'">🎵</div>'
     + '<div class="tt"><b>Comptines</b><br>lecture sur Enceinte Chambre</div>'
@@ -300,9 +302,11 @@ function fEmpty(){ return stateFrame('É2 · Vide — 0 favori (EMPTY)', '<i cla
 function fOffline(){ return stateFrame('É3 · Hors-ligne (ERROR)', '<i class="ti ti-cloud-off bi"></i><div class="msg">Musique indisponible</div><div class="retry"><i class="ti ti-refresh"></i> Réessayer</div>'); }
 function fDecoding(){
   var tiles=FAV.map(function(f,i){
-    var c = (i===1||i===4) ? '<div class="cover ph"><i class="ti ti-photo"></i></div>' : cover(f,true);
+    var c = (i===1||i===4) ? '<div class="cover ph"><i class="ti ti-photo"></i></div>' : cover(f);
     return '<div class="ftile">'+c+'<div class="ttl">'+f.ttl+'</div>'
-      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
+      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div>'
+      + (f.kids?'<div class="drillbtn"><i class="ti ti-list"></i>'+(f.ty==='audiobook'?'Chapitres':'Épisodes')+'</div>':'')
+      + '</div>';
   }).join('');
   return frame('É4 · Pochettes en décodage', header(false)+tabs()+'<div class="grid">'+tiles+'</div>');
 }
@@ -334,6 +338,7 @@ var DECIDED=[
   ['Podcast / livre audio','tap pochette = <b>reprise directe</b> ; bouton dédié = liste des items'],
   ['Liste d\'items','<b>vue détail plein écran</b> (pas un popover) ; <b>pagination au scroll</b>'],
   ['Vignettes','épisode = vignette ; chapitre = <b>numéro</b> (sans vignette) — UX unifiée'],
+  ['Style tuile','<b>carte grise</b> (fond #17171E, contour net) comme les tuiles d\'entités ; la pochette est à l\'intérieur'],
   ['Accès « En lecture »','<b>widget média réduit</b> dans le header (pochette + ▶/⏸, sans titre), en lecture <b>et</b> en pause'],
   ['États grille','LOADING = <b>spinner</b> · EMPTY = vide discret · ERROR/offline = icône + <b>Réessayer</b> · pochette = placeholder→fondu'],
   ['État + transport','via <b>music-library</b> (relais MA), pas via HA — réactivité/cohérence dans le module'],
