@@ -649,8 +649,36 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_text_color(this->date_lbl_, lv_color_hex(COL_MUTED), 0);
   this->set_text_font_(this->date_lbl_, this->font_small_, &lv_font_montserrat_20);
 
+  // Right group: a now-playing button + the weather block.
+  lv_obj_t *right = lv_obj_create(this->dash_header_);
+  lv_obj_set_size(right, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(right, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(right, 0, 0);
+  lv_obj_set_style_pad_all(right, 0, 0);
+  lv_obj_set_style_pad_column(right, 14, 0);
+  lv_obj_set_flex_flow(right, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(right, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(right, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Now-playing button -> opens the "now playing" card.
+  this->np_btn_ = lv_button_create(right);
+  lv_obj_set_size(this->np_btn_, 56, 56);
+  lv_obj_set_style_bg_color(this->np_btn_, lv_color_hex(COL_TILE), 0);
+  lv_obj_set_style_radius(this->np_btn_, 28, 0);
+  lv_obj_set_style_shadow_width(this->np_btn_, 0, 0);
+  lv_obj_t *npi = lv_label_create(this->np_btn_);
+  lv_label_set_text(npi, LV_SYMBOL_AUDIO);
+  lv_obj_center(npi);
+  lv_obj_set_style_text_font(npi, &lv_font_montserrat_28, 0);
+  lv_obj_set_style_text_color(npi, lv_color_hex(COL_TEXT), 0);
+  {
+    auto *d = new CbData{this, InputEvent::OPEN_NOW_PLAYING, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(this->np_btn_, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
+
   // Right: weather (icon + temperature on one line, condition below), bound to a HA entity.
-  lv_obj_t *weather = lv_obj_create(this->dash_header_);
+  lv_obj_t *weather = lv_obj_create(right);
   lv_obj_set_size(weather, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(weather, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(weather, 0, 0);
@@ -1075,8 +1103,8 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_style_bg_opa(drill, LV_OPA_70, 0);
       lv_obj_set_style_shadow_width(drill, 0, 0);
       lv_obj_set_style_radius(drill, 10, 0);
-      lv_obj_set_style_pad_ver(drill, 6, 0);
-      lv_obj_set_style_pad_column(drill, 6, 0);
+      lv_obj_set_style_pad_ver(drill, 10, 0);
+      lv_obj_set_style_pad_column(drill, 10, 0);
       lv_obj_set_flex_flow(drill, LV_FLEX_FLOW_ROW);
       lv_obj_set_flex_align(drill, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
       // Icon uses the built-in Montserrat (has LV_SYMBOL glyphs); the text uses the accented
