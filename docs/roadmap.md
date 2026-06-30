@@ -90,11 +90,14 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
       (PR #2, v0.13.0-beta) — endpoints `/api/v1/ma/*` + `/api/v1/quick/item/{id}/children`
 - [x] Couche 1 : `LauncherModule` + port `MusicLibraryBackend` (`fetch_favorites`/`fetch_children` paginé/`play`) ;
       `activate`/`open_children`/`load_more_children` ; testé (host g++) — commits 31d1597, 01afe02
-- [ ] Renderer D1001 : `render_launcher()` (grille pochettes via `online_image`) +
-      `render_launcher_detail()` (liste paginée, vignette épisode / numéro chapitre) +
-      widget média header + écran `render_now_playing()`
-- [ ] Adapter HTTP `HttpMusicLibrary` (http_request + JSON) ; `base_url`/`owner`/`queue_id` du YAML
-- [ ] Entrée de menu dédiée : `groups[].type: music_library` (position = ordre YAML) dans `__init__.py` (codegen)
+- [x] Adapter HTTP `HttpMusicLibrary` (http_request + JSON) ; `base_url`/`owner`/`queue_id` du YAML
+- [x] Entrée de menu dédiée : `groups[].type: music_library` (position = ordre YAML) dans `__init__.py` (codegen)
+- [x] **VALIDÉ MATÉRIEL D1001** : onglet « Histoires » → 10 favoris réels de Timothée, tap = lecture
+      sur sa Sonos. Bout-en-bout ESP→music-library→MA OK (flash série, cf. lessons-learned 11/12).
+- [ ] Renderer D1001 — itérations suivantes : pochettes via `online_image` (grille), vue détail paginée
+      (`render_launcher_detail`, vignette épisode / numéro chapitre), widget média header + `render_now_playing()`
+- [ ] Fetch **non bloquant** (actuellement ~2,5 s de gel pendant le GET HTTPS) : tâche async / spinner réel
+- [ ] Hand-off transport (pause/next/volume/shuffle/repeat) via les endpoints `/api/v1/ma/*`
 
 ### Tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL (composant officiel)
 - [x] Composant officiel `github://clydebarrow/esphome@gsl3670` (modèle `seeed-reterminal-d1001`,

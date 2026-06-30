@@ -132,3 +132,29 @@ the DSI scanout, causing visual glitches/tearing.
 **Mitigations to try (TODO)**: lower `pclk_frequency` in the display model/override, tune
 PSRAM speed/mode (octal/120MHz if supported), reduce LVGL draw-buffer pressure, or enable a
 bounce buffer for the DSI. Not blocking for bring-up; affects display quality only.
+
+## 11. D1001 flash is 32MB — declare it, default 4MB caps the app at ~1.84MB
+
+**Symptom**: adding the Music Library launcher (which pulls in `http_request` + TLS) pushed
+the firmware to ~1.95MB and the link failed: `program size … is greater than maximum allowed
+(1835008 bytes)`. ESPHome assumes 4MB flash when `flash_size` is unset → a ~1.84MB app slot.
+
+**Fix**: the reTerminal D1001 has **32MB QSPI flash** (+32MB PSRAM). Set
+`esp32: flash_size: 32MB` and `framework.advanced.enable_idf_experimental_features: true`
+(32MB OTA needs the experimental flag). App partition becomes ~15.75MB. Declaring 16MB also
+works without the flag (safe under-statement) if you want to avoid experimental features.
+
+## 12. D1001 USB-C orientation decides whether serial flashing works
+
+**Symptom**: `esptool` / `esphome upload` over `/dev/cu.usbmodem101` failed with
+`Failed to connect to ESP32-P4: No serial data received`, on both 460800 and 115200 baud —
+even with the device running normally (no download mode needed).
+
+**Fix**: **flip the USB-C cable**. Only one connector orientation exposes the
+USB-Serial/JTAG interface esptool resets into; the other does not. After flipping, the same
+command flashed fine (`Wrote … Hash of data verified … Hard resetting via RTS pin`). No BOOT
+button required.
+
+**Note**: changing `flash_size` rewrites the partition table, so that first flash **must be
+serial** (OTA can't repartition, and the new image won't fit the old 1.84MB OTA slot).
+Subsequent updates can go back to OTA over WiFi.
