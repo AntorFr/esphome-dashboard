@@ -311,9 +311,10 @@ function fOffline(){ return stateFrame('É3 · Hors-ligne (ERROR)', '<i class="t
 function fDecoding(){
   var tiles=FAV.map(function(f,i){
     var ov = f.kids ? '<div class="coverbtn"><i class="ti ti-list"></i>'+(f.ty==='audiobook'?'Chapitres':'Épisodes')+'</div>' : '';
+    var play = '<div class="playover"><i class="ti ti-player-play-filled"></i></div>';
     var c = (i===1||i===4)
-      ? '<div class="cover ph"><i class="ti ti-photo"></i></div>'
-      : '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo+'<div class="playover"><i class="ti ti-player-play-filled"></i></div>'+ov+'</div>';
+      ? '<div class="cover ph"><i class="ti ti-photo"></i>'+play+ov+'</div>'
+      : '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo+play+ov+'</div>';
     return '<div class="ftile">'+c+'<div class="ttl">'+f.ttl+'</div>'
       + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
   }).join('');
