@@ -962,26 +962,28 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return b;
   };
 
-  // A favourite cover tile: cover square on top (tap = play), title under, and for
-  // podcasts/audiobooks a small "Épisodes/Chapitres" button to drill in. Cover downloads
-  // async (queued); on_cover_ready_ refreshes the image.
+  // A favourite tile: a grey card (entity-tile language) holding the cover (tap = play, with
+  // a play badge bottom-right and, for podcasts/audiobooks, an "Épisodes/Chapitres" button
+  // overlaid at the top), then title + type. Cover downloads async; on_cover_ready_ refreshes.
   const int COVER_PX = 256;  // matches the online_image resize -> 1:1, two per row
   auto make_cover_tile = [&](const QuickItem &item, int idx) {
     lv_obj_t *tile = lv_obj_create(grid);
-    lv_obj_set_size(tile, COVER_PX, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(tile, LV_OPA_TRANSP, 0);
+    lv_obj_set_size(tile, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(tile, lv_color_hex(COL_TILE), 0);
     lv_obj_set_style_border_width(tile, 0, 0);
-    lv_obj_set_style_pad_all(tile, 0, 0);
+    lv_obj_set_style_radius(tile, 16, 0);
+    lv_obj_set_style_pad_all(tile, 10, 0);
     lv_obj_set_style_pad_row(tile, 6, 0);
     lv_obj_set_flex_flow(tile, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(tile, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
 
+    // Cover (tap = play). Overlays are positioned absolutely inside it.
     lv_obj_t *cover = lv_button_create(tile);
     lv_obj_set_size(cover, COVER_PX, COVER_PX);
-    lv_obj_set_style_bg_color(cover, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_bg_color(cover, lv_color_hex(0x15151C), 0);
     lv_obj_set_style_shadow_width(cover, 0, 0);
-    lv_obj_set_style_radius(cover, 16, 0);
+    lv_obj_set_style_radius(cover, 12, 0);
     lv_obj_set_style_pad_all(cover, 0, 0);
     lv_obj_set_style_clip_corner(cover, true, 0);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
@@ -1002,6 +1004,43 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(cover, btn_event_cb, LV_EVENT_CLICKED, d);
 
+    // Play badge (visual only -> taps fall through to the cover button).
+    lv_obj_t *badge = lv_obj_create(cover);
+    lv_obj_set_size(badge, 40, 40);
+    lv_obj_set_style_radius(badge, 20, 0);
+    lv_obj_set_style_bg_color(badge, lv_color_hex(0x0A0A0C), 0);
+    lv_obj_set_style_bg_opa(badge, LV_OPA_60, 0);
+    lv_obj_set_style_border_width(badge, 0, 0);
+    lv_obj_set_style_pad_all(badge, 0, 0);
+    lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -8, -8);
+    lv_obj_t *play = lv_label_create(badge);
+    lv_label_set_text(play, LV_SYMBOL_PLAY);
+    lv_obj_center(play);
+    lv_obj_set_style_text_color(play, lv_color_hex(COL_TEXT), 0);
+
+    // Drill button overlaid at the top (podcasts/audiobooks).
+    if (item.has_children) {
+      lv_obj_t *drill = lv_button_create(cover);
+      lv_obj_set_width(drill, COVER_PX - 16);
+      lv_obj_set_height(drill, LV_SIZE_CONTENT);
+      lv_obj_align(drill, LV_ALIGN_TOP_MID, 0, 8);
+      lv_obj_set_style_bg_color(drill, lv_color_hex(0x0A0A0C), 0);
+      lv_obj_set_style_bg_opa(drill, LV_OPA_70, 0);
+      lv_obj_set_style_shadow_width(drill, 0, 0);
+      lv_obj_set_style_radius(drill, 10, 0);
+      lv_obj_set_style_pad_ver(drill, 6, 0);
+      lv_obj_t *dl = lv_label_create(drill);
+      lv_obj_center(dl);
+      lv_label_set_text(dl, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
+      lv_obj_set_style_text_color(dl, lv_color_hex(COL_TEXT), 0);
+      this->set_text_font_(dl, this->font_small_, &lv_font_montserrat_20);
+      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
+      g_cbdata.push_back(dc);
+      lv_obj_add_event_cb(drill, btn_event_cb, LV_EVENT_CLICKED, dc);
+    }
+
+    // Title
     lv_obj_t *l = lv_label_create(tile);
     lv_obj_set_width(l, COVER_PX);
     lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
@@ -1010,23 +1049,22 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
 
-    if (item.has_children) {
-      lv_obj_t *lb = lv_button_create(tile);
-      lv_obj_set_width(lb, COVER_PX);
-      lv_obj_set_height(lb, LV_SIZE_CONTENT);
-      lv_obj_set_style_bg_color(lb, lv_color_hex(0x262234), 0);
-      lv_obj_set_style_shadow_width(lb, 0, 0);
-      lv_obj_set_style_radius(lb, 12, 0);
-      lv_obj_set_style_pad_ver(lb, 8, 0);
-      lv_obj_t *lbl = lv_label_create(lb);
-      lv_obj_center(lbl);
-      lv_label_set_text(lbl, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
-      lv_obj_set_style_text_color(lbl, lv_color_hex(COL_ACCENT), 0);
-      this->set_text_font_(lbl, this->font_small_, &lv_font_montserrat_20);
-      auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
-      g_cbdata.push_back(dc);
-      lv_obj_add_event_cb(lb, btn_event_cb, LV_EVENT_CLICKED, dc);
-    }
+    // Type
+    const char *tylbl = "Titre";
+    if (item.media_type == "playlist")
+      tylbl = "Playlist";
+    else if (item.media_type == "album")
+      tylbl = "Album";
+    else if (item.media_type == "radio")
+      tylbl = "Radio";
+    else if (item.media_type == "podcast")
+      tylbl = "Podcast";
+    else if (item.media_type == "audiobook")
+      tylbl = "Livre audio";
+    lv_obj_t *ty = lv_label_create(tile);
+    lv_label_set_text(ty, tylbl);
+    lv_obj_set_style_text_color(ty, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(ty, this->font_small_, &lv_font_montserrat_20);
   };
 
   // Detail level: a back row above the episode/chapter list.
