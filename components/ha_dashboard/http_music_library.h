@@ -29,6 +29,8 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   void fetch_favorites(const std::string &owner, QuickItemsCallback cb) override;
   void fetch_children(const std::string &item_id, int offset, int limit, QuickPageCallback cb) override;
   void play(const std::string &uri, int seek_s) override;
+  void fetch_now_playing(NowPlayingCallback cb) override;
+  void transport(const std::string &cmd) override;
 
  protected:
   bool http_get_(const std::string &url, std::string &body);

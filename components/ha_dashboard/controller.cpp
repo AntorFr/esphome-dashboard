@@ -242,6 +242,20 @@ void Controller::handle(InputEvent event, int index) {
 }
 
 void Controller::tick(uint32_t now_ms) {
+  // Auto-retry a launcher whose load failed (e.g. network not ready right after boot): while
+  // its tab is active and status is ERROR, retry every few seconds until it succeeds.
+  if (this->state_ == NavState::DASHBOARD && this->groups_ != nullptr) {
+    int gi = this->group_index_;
+    if (gi >= 0 && gi < (int) this->groups_->size()) {
+      Group &g = (*this->groups_)[gi];
+      if (g.is_launcher && g.launcher != nullptr && g.launcher->status() == LauncherStatus::ERROR &&
+          now_ms - this->launcher_retry_ms_ >= 4000) {
+        this->launcher_retry_ms_ = now_ms;
+        g.launcher->load();
+      }
+    }
+  }
+
   // Commit a staged (debounced) adjustment once the encoder has been quiet long enough.
   if (Card *c = this->current_card_()) {
     if (c->has_pending && now_ms - c->pending_ms >= this->debounce_ms_)

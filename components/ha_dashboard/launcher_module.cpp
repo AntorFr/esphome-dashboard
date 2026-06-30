@@ -57,6 +57,7 @@ void LauncherModule::open_children(int index) {
 
   this->level_ = LauncherLevel::DETAIL;
   this->detail_title_ = item.title;
+  this->detail_index_ = index;
   this->children_id_ = item.id;
   this->children_.clear();
   this->children_has_more_ = false;
@@ -115,6 +116,22 @@ void LauncherModule::load_more_children() {
         // On error we keep what we have; has_more stays true so a later scroll can retry.
         this->notify_();
       });
+}
+
+void LauncherModule::fetch_now_playing() {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->fetch_now_playing([this](bool ok, NowPlaying np) {
+    this->now_playing_ = ok ? std::move(np) : NowPlaying{};
+    this->notify_();
+  });
+}
+
+void LauncherModule::transport(const std::string &cmd) {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->transport(cmd);
+  this->fetch_now_playing();  // refresh state after the command
 }
 
 bool LauncherModule::back() {

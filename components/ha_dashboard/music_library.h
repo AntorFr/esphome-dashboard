@@ -32,6 +32,19 @@ using QuickItemsCallback = std::function<void(bool ok, std::vector<QuickItem> it
 // this one (more episodes/chapters to load on scroll).
 using QuickPageCallback = std::function<void(bool ok, std::vector<QuickItem> items, bool has_more)>;
 
+// Compact playback snapshot of the target queue (GET /api/v1/ma/now_playing).
+struct NowPlaying {
+  bool available{false};         // a queue/player was found
+  std::string state;             // playing | paused | idle | off
+  std::string title;
+  std::string artist;
+  int position_s{0};
+  int duration_s{0};
+  int volume{-1};                // 0..100, -1 if unknown
+  bool playing() const { return this->state == "playing"; }
+};
+using NowPlayingCallback = std::function<void(bool ok, NowPlaying np)>;
+
 // Port — the LauncherModule (layer 1) depends only on this, never on the HTTP adapter.
 // One method per music-library REST call used by the launcher.
 class MusicLibraryBackend {
@@ -50,6 +63,13 @@ class MusicLibraryBackend {
   // POST /api/v1/ma/play?queue_id=<device speaker>&uri=<uri>&seek=<seek_s>.
   // queue_id (target speaker) is held by the adapter, fixed per device.
   virtual void play(const std::string &uri, int seek_s) = 0;
+
+  // GET /api/v1/ma/now_playing?queue_id= -> current playback snapshot (one-shot, on demand).
+  virtual void fetch_now_playing(NowPlayingCallback cb) = 0;
+
+  // POST /api/v1/ma/<cmd>?queue_id= -> transport command
+  // (pause | resume | play_pause | stop | next | previous).
+  virtual void transport(const std::string &cmd) = 0;
 };
 
 }  // namespace ha_dashboard

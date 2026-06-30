@@ -153,6 +153,31 @@ void HttpMusicLibrary::play(const std::string &uri, int seek_s) {
   this->http_post_(url);
 }
 
+void HttpMusicLibrary::fetch_now_playing(NowPlayingCallback cb) {
+  const std::string url =
+      this->base_url_ + "/api/v1/ma/now_playing?queue_id=" + url_encode(this->queue_id_);
+  std::string body;
+  NowPlaying np;
+  bool ok = this->http_get_(url, body);
+  if (ok) {
+    ok = json::parse_json(body, [&np](JsonObject root) -> bool {
+      np.available = root["available"] | false;
+      np.state = root["state"] | "idle";
+      np.title = root["title"] | "";
+      np.artist = root["artist"] | "";
+      np.position_s = root["position_s"] | 0;
+      np.duration_s = root["duration_s"] | 0;
+      np.volume = root["volume"] | -1;
+      return true;
+    });
+  }
+  cb(ok, std::move(np));
+}
+
+void HttpMusicLibrary::transport(const std::string &cmd) {
+  this->http_post_(this->base_url_ + "/api/v1/ma/" + cmd + "?queue_id=" + url_encode(this->queue_id_));
+}
+
 }  // namespace ha_dashboard
 }  // namespace esphome
 #endif  // USE_HA_DASHBOARD_LAUNCHER

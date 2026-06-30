@@ -54,6 +54,7 @@ class Controller {
 
   uint32_t timeout_ms_{30000};
   uint32_t last_event_ms_{0};
+  uint32_t launcher_retry_ms_{0};  // throttle auto-retry of a failed launcher load
   uint32_t debounce_ms_{350};  // encoder -> HA commit delay (optimistic preview meanwhile)
 };
 

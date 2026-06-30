@@ -160,7 +160,7 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     lv_obj_set_style_border_width(iwrow, 0, 0);
     lv_obj_set_style_pad_all(iwrow, 0, 0);
     lv_obj_set_style_pad_column(iwrow, 8, 0);
-    lv_obj_set_style_margin_top(iwrow, 12, 0);
+    lv_obj_set_style_margin_top(iwrow, 40, 0);
     lv_obj_set_flex_flow(iwrow, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(iwrow, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(iwrow, LV_OBJ_FLAG_CLICKABLE);
@@ -1120,10 +1120,52 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     this->set_text_font_(ty, this->font_small_, &lv_font_montserrat_20);
   };
 
-  // Detail level: a back row above the episode/chapter list.
+  // Detail level: a header row [ back chevron | parent cover | big title ].
   if (detail) {
-    std::string bt = std::string(LV_SYMBOL_LEFT " ") + L->detail_title();
-    add_button(bt.c_str(), &lv_font_montserrat_28, COL_TEXT, InputEvent::LAUNCHER_BACK, -1);
+    lv_obj_t *head = lv_obj_create(grid);
+    lv_obj_set_width(head, lv_pct(100));
+    lv_obj_set_height(head, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(head, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(head, 0, 0);
+    lv_obj_set_style_pad_all(head, 0, 0);
+    lv_obj_set_style_pad_bottom(head, 8, 0);
+    lv_obj_set_style_pad_column(head, 12, 0);
+    lv_obj_set_flex_flow(head, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(head, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(head, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Back chevron (icon uses the built-in Montserrat, which has the symbol glyphs).
+    lv_obj_t *back = lv_button_create(head);
+    lv_obj_set_size(back, 56, 56);
+    lv_obj_set_style_bg_color(back, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(back, 0, 0);
+    lv_obj_set_style_radius(back, 12, 0);
+    lv_obj_set_style_pad_all(back, 0, 0);
+    lv_obj_t *bi = lv_label_create(back);
+    lv_label_set_text(bi, LV_SYMBOL_LEFT);
+    lv_obj_center(bi);
+    lv_obj_set_style_text_font(bi, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(bi, lv_color_hex(COL_TEXT), 0);
+    auto *db = new CbData{this, InputEvent::LAUNCHER_BACK, -1};
+    g_cbdata.push_back(db);
+    lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, db);
+
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+    // Parent cover, reusing the grid slot's already-decoded image (no re-download).
+    int ci = L->detail_index();
+    if (ci >= 0 && ci < (int) g.cover_slots.size() && g.cover_slots[ci] != nullptr) {
+      lv_obj_t *hc = lv_image_create(head);
+      lv_image_set_src(hc, g.cover_slots[ci]->get_lv_image_dsc());
+      lv_image_set_scale(hc, 47);  // ~64px from the 350px source
+    }
+#endif
+
+    lv_obj_t *ht = lv_label_create(head);
+    lv_obj_set_flex_grow(ht, 1);
+    lv_label_set_long_mode(ht, LV_LABEL_LONG_DOT);
+    lv_label_set_text(ht, L->detail_title().c_str());
+    lv_obj_set_style_text_color(ht, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(ht, this->font_large_, &lv_font_montserrat_48);
   }
 
   if (L->status() != LauncherStatus::READY) {

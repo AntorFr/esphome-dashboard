@@ -15,6 +15,7 @@ enum class NavState : uint8_t {
   GROUP,      // card picker within a group (Dial)
   CARD,       // card detail / adjust
   DASHBOARD,  // merged tabs + tile grid (D1001)
+  NOW_PLAYING,  // music launcher: full "now playing" card (opened from the header widget)
 };
 
 // Events sémantiques émis par la couche Input (et par les widgets natifs LVGL)
@@ -36,6 +37,10 @@ enum class InputEvent : uint8_t {
   LAUNCHER_OPEN_CHILDREN,  // music launcher: tap the list button -> drill into episodes (index = tile)
   LAUNCHER_BACK,           // music launcher: leave the episode/chapter list -> back to grid
   LAUNCHER_LOAD_MORE,      // music launcher: load the next page of episodes/chapters
+  OPEN_NOW_PLAYING,        // header media widget -> open the "now playing" card
+  NP_PLAY_PAUSE,           // now playing: toggle play/pause
+  NP_NEXT,                 // now playing: next track
+  NP_PREV,                 // now playing: previous track
 };
 
 // Instantané de l'état de navigation passé au renderer.

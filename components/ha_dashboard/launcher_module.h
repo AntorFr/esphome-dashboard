@@ -54,6 +54,11 @@ class LauncherModule {
   // false if the module should be closed (was already on the grid).
   bool back();
 
+  // Now-playing (header widget / "now playing" card): one-shot fetch + transport commands.
+  void fetch_now_playing();
+  void transport(const std::string &cmd);  // pause|resume|play_pause|stop|next|previous
+  const NowPlaying &now_playing() const { return this->now_playing_; }
+
   // --- View accessors (read by the renderer) ---
   LauncherStatus status() const { return this->status_; }
   LauncherLevel level() const { return this->level_; }
@@ -63,6 +68,8 @@ class LauncherModule {
   }
   // Title of the drilled-in item (header of the DETAIL list).
   const std::string &detail_title() const { return this->detail_title_; }
+  // Favourite index of the drilled-in item (to reuse its cover in the detail header), or -1.
+  int detail_index() const { return this->detail_index_; }
   const std::string &owner() const { return this->owner_; }
 
   // DETAIL paging state (for the renderer's "load on scroll" + spinner row).
@@ -85,6 +92,8 @@ class LauncherModule {
   std::vector<QuickItem> favorites_;
   std::vector<QuickItem> children_;
   std::string detail_title_;
+  int detail_index_{-1};
+  NowPlaying now_playing_;
 
   // Drill-down paging. children_id_ = local id of the parent being browsed; has_more_ drives
   // "load on scroll"; loading_more_ guards against firing overlapping page requests.
