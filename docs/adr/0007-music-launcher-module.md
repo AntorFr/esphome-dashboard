@@ -94,10 +94,15 @@ profile/speaker pickers in v1 (the mockup keeps the chips as a later option).
   Layer 1 exposes this as `activate(i)` (primary), `open_children(i)` (secondary) and
   `load_more_children()` (scroll).
 - **Now-playing access**: a compact media widget in the **header** (beside the weather
-  widget), shown only while the device's speaker is playing; tapping it opens the
+  widget), reduced to **cover + play/pause only** (no title — no room; the title lives in
+  screen D), shown while the speaker is **playing *and* paused**. Tapping it opens the
   full-screen **"now playing"** view (screen D) with transport + volume. The header is
   global chrome, so playback stays reachable from any tab. State + transport come from the
   ML relay (see contract above), not HA.
+- **Grid states** map the `LauncherStatus` layer 1 already exposes: `LOADING` → centered
+  spinner; `EMPTY` (e.g. unknown owner) → discreet message, no alarm; `ERROR` (incl. ML
+  offline) → a cloud-off icon + "retry" (re-fetch); `READY` → the cover grid. Each tile
+  shows a neutral placeholder until `online_image` decodes its cover (then fades in).
 
 Config sketch (final schema deferred to the implementation milestone). The launcher is a
 **menu entry declared inside the ordered `groups:` list** via a `type:` discriminator, so

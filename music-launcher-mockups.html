@@ -45,11 +45,11 @@
   .hdr .right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
   .hdr .wx{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
   .hdr .wx .ti{font-size:20px}
-  /* header now-playing mini widget (like the weather widget) -> tap opens screen D */
-  .npchip{display:flex;align-items:center;gap:7px;background:var(--tile);border-radius:12px;padding:4px 8px 4px 5px;max-width:160px}
-  .npchip .npc{width:20px;height:20px;border-radius:6px;flex:none}
-  .npchip .npt2{font-size:12px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .npchip .ti{font-size:16px;color:var(--media)}
+  /* header now-playing mini widget (like the weather widget) -> tap opens screen D.
+     Reduced on purpose: cover + play/pause only, no title (no room; title lives in D). */
+  .npchip{display:inline-flex;align-items:center;gap:6px;background:var(--tile);border-radius:12px;padding:4px 7px 4px 5px}
+  .npchip .npc{width:22px;height:22px;border-radius:6px;flex:none}
+  .npchip .st{font-size:16px;color:var(--media)}
 
   /* group tabs row */
   .tabs{display:flex;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);overflow:hidden}
@@ -87,6 +87,16 @@
   .eprow .thumb{width:34px;height:34px;border-radius:8px;flex:none}
   .moreRow{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;color:var(--muted);font-size:12px}
   .moreRow .sp{width:14px;height:14px;border-radius:50%;border:2px solid #3a3a44;border-top-color:var(--media);display:inline-block}
+
+  /* grid states (map LauncherStatus: LOADING / EMPTY / ERROR) */
+  .state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 30px;text-align:center;color:var(--muted)}
+  .state .sp{width:32px;height:32px;border-radius:50%;border:3px solid #2a2a34;border-top-color:var(--media);display:inline-block}
+  .state .bi{font-size:42px;color:#3a3a44}
+  .state .msg{font-size:14px}
+  .state .retry{margin-top:2px;font-size:13px;color:var(--media);display:inline-flex;gap:6px;align-items:center;background:#1a1530;padding:6px 12px;border-radius:12px}
+  /* tile cover placeholder while online_image decodes */
+  .cover.ph{background:#15151c !important;color:#3a3a44}
+  .cover.ph .ti{font-size:30px}
 
   /* now-playing (full screen) */
   .np{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 26px;text-align:center}
@@ -172,11 +182,15 @@ function cover(f,showList){
     + (showList && f.kids?'<div class="listbtn"><i class="ti ti-list"></i>'+listLbl+'</div>':'')
     + '</div>';
 }
+// np: false (hidden) | 'pause' (playing -> show ⏸) | 'play' (paused -> show ▶)
 function header(np){
-  var right='<div class="right"><div class="wx"><i class="ti ti-cloud"></i>19°</div>'
-    + (np?'<div class="npchip" title="ouvre En lecture"><span class="npc" style="background:'+GRAD.comptines+'"></span>'
-        + '<span class="npt2">Comptines</span><i class="ti ti-player-pause-filled"></i></div>':'')
-    + '</div>';
+  var chip='';
+  if(np){
+    var ic = np==='play' ? 'ti-player-play-filled' : 'ti-player-pause-filled';
+    chip='<div class="npchip" title="ouvre En lecture"><span class="npc" style="background:'+GRAD.comptines+'"></span>'
+      + '<i class="ti '+ic+' st"></i></div>';
+  }
+  var right='<div class="right"><div class="wx"><i class="ti ti-cloud"></i>19°</div>'+chip+'</div>';
   return '<div class="hdr"><div><div class="time">14:32</div><div class="date">vendredi 27 juin</div></div>'+right+'</div>';
 }
 function tabs(){
@@ -276,6 +290,32 @@ function fNow(){
     + '</div>');
 }
 
+/* Grid states (map LauncherStatus) */
+function stateFrame(label, inner){
+  return frame(label, header(false)+tabs()+'<div class="state">'+inner+'</div>');
+}
+function fLoading(){ return stateFrame('É1 · Chargement (LOADING)', '<span class="sp"></span><div class="msg">Chargement…</div>'); }
+function fEmpty(){ return stateFrame('É2 · Vide — 0 favori (EMPTY)', '<i class="ti ti-music bi"></i><div class="msg">Rien ici pour le moment</div>'); }
+function fOffline(){ return stateFrame('É3 · Hors-ligne (ERROR)', '<i class="ti ti-cloud-off bi"></i><div class="msg">Musique indisponible</div><div class="retry"><i class="ti ti-refresh"></i> Réessayer</div>'); }
+function fDecoding(){
+  var tiles=FAV.map(function(f,i){
+    var c = (i===1||i===4) ? '<div class="cover ph"><i class="ti ti-photo"></i></div>' : cover(f,true);
+    return '<div class="ftile">'+c+'<div class="ttl">'+f.ttl+'</div>'
+      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
+  }).join('');
+  return frame('É4 · Pochettes en décodage', header(false)+tabs()+'<div class="grid">'+tiles+'</div>');
+}
+function statesBlock(){
+  return '<div class="ux"><h3>Mapping &amp; règles</h3><table>'
+    + '<tr><td>LOADING</td><td>spinner centré « Chargement… »</td></tr>'
+    + '<tr><td>EMPTY</td><td>message discret, pas d\'alerte</td></tr>'
+    + '<tr><td>ERROR / offline</td><td>icône cloud-off + « Réessayer » (re-fetch)</td></tr>'
+    + '<tr><td>READY</td><td>la grille de pochettes</td></tr>'
+    + '<tr><td>Pochette</td><td>placeholder neutre puis fondu quand <code>online_image</code> a décodé</td></tr>'
+    + '<tr><td>Widget header</td><td>réduit : pochette + ▶/⏸ (sans titre) ; affiché aussi en pause</td></tr>'
+    + '</table></div>';
+}
+
 var UX=[
   ['Swipe ← / →','change d\'onglet (Salon / Chambre / <b>Musique</b>) — geste D1001 existant'],
   ['Tap pochette','lance / <b>reprend</b> la lecture (TOUS types, y compris podcast/livre) + toast'],
@@ -293,7 +333,8 @@ var DECIDED=[
   ['Podcast / livre audio','tap pochette = <b>reprise directe</b> ; bouton dédié = liste des items'],
   ['Liste d\'items','<b>vue détail plein écran</b> (pas un popover) ; <b>pagination au scroll</b>'],
   ['Vignettes','épisode = vignette ; chapitre = <b>numéro</b> (sans vignette) — UX unifiée'],
-  ['Accès « En lecture »','<b>mini-widget média dans le header</b> (comme la météo), visible si lecture'],
+  ['Accès « En lecture »','<b>widget média réduit</b> dans le header (pochette + ▶/⏸, sans titre), en lecture <b>et</b> en pause'],
+  ['États grille','LOADING = <b>spinner</b> · EMPTY = vide discret · ERROR/offline = icône + <b>Réessayer</b> · pochette = placeholder→fondu'],
   ['État + transport','via <b>music-library</b> (relais MA), pas via HA — réactivité/cohérence dans le module'],
   ['Deux features','(A) card <b>media_player HA</b> générique · (B) module <b>Musique (ML)</b> avec son now-playing'],
   ['Position onglet','<b>ordre dans le YAML</b> — entrée de menu déclarée parmi les groupes'],
@@ -315,6 +356,9 @@ document.getElementById('app').innerHTML =
   '<div class="card-block"><h2><i class="ti ti-music"></i>Parcours du module <span class="tag">— onglet dédié → grille pochettes → (épisodes) → lecture</span></h2>'
   + '<div class="row">' + fGrid() + fToast() + fEpisodes() + '</div>'
   + '<div class="row">' + fChapters() + fNow() + uxBlock() + '</div>'
+  + '</div>'
+  + '<div class="card-block"><h2><i class="ti ti-loader-2"></i>États de la grille <span class="tag">— mappés sur LauncherStatus + décodage des pochettes</span></h2>'
+  + '<div class="row">' + fLoading() + fEmpty() + fOffline() + fDecoding() + statesBlock() + '</div>'
   + '</div>';
 </script>
 </body>
