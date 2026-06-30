@@ -36,9 +36,19 @@ class LauncherModule {
   // Enter the module: (re)load the owner's favourites. Resets to the GRID level.
   void load();
 
-  // Tap a tile in the current list. On the grid: a podcast/audiobook drills into its
-  // children, anything else plays immediately. On the detail list: plays the child.
-  void select(int index);
+  // Primary action — tap on a tile (or a detail row): play it. For a podcast/audiobook
+  // tile this plays the parent uri, which Music Assistant resumes from the saved position.
+  // For a detail row it plays that specific episode/chapter. Works at both levels.
+  void activate(int index);
+
+  // Secondary action — the "list" button on a podcast/audiobook tile: drill into its
+  // episodes/chapters (first page) so a specific item can be picked. Grid level only;
+  // a no-op for tiles without children.
+  void open_children(int index);
+
+  // Load the next page of the detail list. Call when the user scrolls near the end.
+  // No-op if there is no more / a page is already loading / not in DETAIL.
+  void load_more_children();
 
   // Go up one level. Returns true if handled (was in DETAIL -> back to grid),
   // false if the module should be closed (was already on the grid).
@@ -55,6 +65,13 @@ class LauncherModule {
   const std::string &detail_title() const { return this->detail_title_; }
   const std::string &owner() const { return this->owner_; }
 
+  // DETAIL paging state (for the renderer's "load on scroll" + spinner row).
+  bool has_more() const { return this->children_has_more_; }
+  bool loading_more() const { return this->children_loading_more_; }
+
+  // Page size for drill-down requests.
+  static constexpr int PAGE_SIZE = 50;
+
  protected:
   void notify_() {
     if (this->on_changed_)
@@ -68,6 +85,12 @@ class LauncherModule {
   std::vector<QuickItem> favorites_;
   std::vector<QuickItem> children_;
   std::string detail_title_;
+
+  // Drill-down paging. children_uri_ = parent being browsed; has_more_ drives "load on
+  // scroll"; loading_more_ guards against firing overlapping page requests.
+  std::string children_uri_;
+  bool children_has_more_{false};
+  bool children_loading_more_{false};
 
   LauncherStatus status_{LauncherStatus::IDLE};
   LauncherLevel level_{LauncherLevel::GRID};
