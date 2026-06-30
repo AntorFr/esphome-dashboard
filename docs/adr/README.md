@@ -10,3 +10,4 @@ Format léger : *Contexte → Décision → Conséquences*. Statut : `Accepté` 
 | [0004](0004-i18n-tables.md) | i18n par tables de traduction clé→texte | Accepté |
 | [0005](0005-touch-view-lifecycle.md) | Robustesse tactile & cycle de vie des vues | Accepté |
 | [0006](0006-config-auto-inject.md) | Config auto-injectée depuis `display:` | Accepté |
+| [0007](0007-music-launcher-module.md) | Module music launcher (D1001) en REST direct vers music-library | Accepté |

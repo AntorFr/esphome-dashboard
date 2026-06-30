@@ -80,6 +80,20 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [ ] `cover`, puis `media_player` (volume + play/pause), puis `climate`
 - [ ] `homeassistant_addon` porté/nettoyé (domaines non-natifs)
 
+### M6 — Module « Histoires & Musique » (D1001, music-library) — cadré ([ADR-0007](adr/0007-music-launcher-module.md))
+> Lanceur enfants : grille de pochettes → un tap lance playlist/podcast/épisode.
+> Échange = REST direct ESP→music-library ; enceinte + profil figés en YAML par appareil.
+> Maquettes : `music-launcher-mockups.html` (5 écrans D1001).
+- [x] **music-library** : endpoint compact `GET /api/v1/quick/{owner}` (PR #1, release v0.12.0-beta)
+- [ ] Couche 1 : `LauncherModule` (config base_url/owner/queue_id + état favoris/sélection)
+- [ ] Port `MusicLibraryBackend` (out) : `fetch_favorites` / `play` / `fetch_children` + adapter HTTP
+- [ ] Renderer D1001 : `render_launcher()` (grille pochettes via `online_image`) +
+      `render_launcher_detail()` (épisodes/chapitres) ; `NavState` LAUNCHER / LAUNCHER_DETAIL
+- [ ] Entrée de menu dédiée (onglet) + schéma `music_library:` dans `__init__.py` (codegen)
+- [ ] Hand-off lecture → card `media_player` existante (now playing) OU toast de confirmation
+- [ ] **À trancher** : transport du drill-down épisodes/chapitres — endpoint JSON compact
+      à ajouter côté music-library (préféré) vs HTML existant `/media/{id}/episodes` (rejeté)
+
 ### Tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL (composant officiel)
 - [x] Composant officiel `github://clydebarrow/esphome@gsl3670` (modèle `seeed-reterminal-d1001`,
       firmware binaire dédié + calibration/INT par défaut). Notre vendorisation abandonnée
