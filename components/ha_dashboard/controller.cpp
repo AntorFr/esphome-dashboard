@@ -267,6 +267,22 @@ void Controller::handle(InputEvent event, int index) {
           if (L != nullptr)
             L->transport("previous");
           break;
+        case InputEvent::NP_VOL_UP:
+          if (L != nullptr)
+            L->volume_step("up");
+          break;
+        case InputEvent::NP_VOL_DOWN:
+          if (L != nullptr)
+            L->volume_step("down");
+          break;
+        case InputEvent::NP_SHUFFLE:
+          if (L != nullptr)
+            L->toggle_shuffle();
+          break;
+        case InputEvent::NP_REPEAT:
+          if (L != nullptr)
+            L->cycle_repeat();
+          break;
         case InputEvent::BACK:
           this->state_ = NavState::DASHBOARD;
           break;

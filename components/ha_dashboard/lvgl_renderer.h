@@ -152,7 +152,13 @@ class LvglRenderer : public Renderer {
   lv_obj_t *now_playing_scr_{nullptr};
   lv_obj_t *np_title_lbl_{nullptr};
   lv_obj_t *np_sub_lbl_{nullptr};
-  lv_obj_t *np_pp_icon_{nullptr};  // play/pause glyph (toggles)
+  lv_obj_t *np_pp_icon_{nullptr};   // play/pause glyph (toggles)
+  lv_obj_t *np_cover_img_{nullptr};
+  lv_obj_t *np_shuffle_lbl_{nullptr};
+  lv_obj_t *np_repeat_lbl_{nullptr};
+  lv_obj_t *np_vol_lbl_{nullptr};
+  online_image::OnlineImage *np_cover_slot_{nullptr};  // dedicated slot for the now-playing art
+  std::string np_last_cover_;  // dedup: only (re)download when the cover URL changes
   std::vector<lv_obj_t *> tab_btns_;
   std::vector<lv_obj_t *> tab_lbls_;
   std::vector<lv_obj_t *> group_grids_;

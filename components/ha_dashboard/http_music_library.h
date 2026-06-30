@@ -31,6 +31,9 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   void play(const std::string &uri, int seek_s) override;
   void fetch_now_playing(NowPlayingCallback cb) override;
   void transport(const std::string &cmd) override;
+  void volume_step(const std::string &direction) override;
+  void set_shuffle(bool enabled) override;
+  void set_repeat(const std::string &mode) override;
 
  protected:
   bool http_get_(const std::string &url, std::string &body);

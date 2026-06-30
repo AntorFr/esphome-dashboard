@@ -57,6 +57,9 @@ class LauncherModule {
   // Now-playing (header widget / "now playing" card): one-shot fetch + transport commands.
   void fetch_now_playing();
   void transport(const std::string &cmd);  // pause|resume|play_pause|stop|next|previous
+  void volume_step(const std::string &direction);  // up | down
+  void toggle_shuffle();
+  void cycle_repeat();  // off -> all -> one -> off
   const NowPlaying &now_playing() const { return this->now_playing_; }
 
   // --- View accessors (read by the renderer) ---

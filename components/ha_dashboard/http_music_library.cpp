@@ -165,9 +165,13 @@ void HttpMusicLibrary::fetch_now_playing(NowPlayingCallback cb) {
       np.state = root["state"] | "idle";
       np.title = root["title"] | "";
       np.artist = root["artist"] | "";
+      np.cover_url = upgrade_https(root["cover_url"] | "");
       np.position_s = root["position_s"] | 0;
       np.duration_s = root["duration_s"] | 0;
       np.volume = root["volume"] | -1;
+      np.muted = root["muted"] | false;
+      np.shuffle = root["shuffle"] | false;
+      np.repeat = root["repeat"] | "off";
       return true;
     });
   }
@@ -176,6 +180,21 @@ void HttpMusicLibrary::fetch_now_playing(NowPlayingCallback cb) {
 
 void HttpMusicLibrary::transport(const std::string &cmd) {
   this->http_post_(this->base_url_ + "/api/v1/ma/" + cmd + "?queue_id=" + url_encode(this->queue_id_));
+}
+
+void HttpMusicLibrary::volume_step(const std::string &direction) {
+  this->http_post_(this->base_url_ + "/api/v1/ma/volume_step?queue_id=" + url_encode(this->queue_id_) +
+                   "&direction=" + direction);
+}
+
+void HttpMusicLibrary::set_shuffle(bool enabled) {
+  this->http_post_(this->base_url_ + "/api/v1/ma/shuffle?queue_id=" + url_encode(this->queue_id_) +
+                   "&enabled=" + (enabled ? "true" : "false"));
+}
+
+void HttpMusicLibrary::set_repeat(const std::string &mode) {
+  this->http_post_(this->base_url_ + "/api/v1/ma/repeat?queue_id=" + url_encode(this->queue_id_) +
+                   "&mode=" + mode);
 }
 
 }  // namespace ha_dashboard

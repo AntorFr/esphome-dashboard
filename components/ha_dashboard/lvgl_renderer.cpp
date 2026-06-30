@@ -226,6 +226,13 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
   } else {
     this->build_dashboard_(groups);
     this->build_now_playing_();
+    // Reuse the first launcher's slot 0 for the now-playing artwork (grid isn't shown then).
+    for (const auto &g : groups) {
+      if (g.is_launcher && !g.cover_slots.empty()) {
+        this->np_cover_slot_ = g.cover_slots[0];
+        break;
+      }
+    }
   }
 }
 
@@ -1337,6 +1344,11 @@ void LvglRenderer::build_now_playing_() {
     lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, d);
   }
 
+  this->np_cover_img_ = lv_image_create(root);
+  lv_obj_set_size(this->np_cover_img_, 280, 280);
+  lv_obj_set_style_radius(this->np_cover_img_, 16, 0);
+  lv_obj_set_style_clip_corner(this->np_cover_img_, true, 0);
+
   this->np_title_lbl_ = lv_label_create(root);
   lv_obj_set_width(this->np_title_lbl_, lv_pct(90));
   lv_label_set_long_mode(this->np_title_lbl_, LV_LABEL_LONG_DOT);
@@ -1380,6 +1392,38 @@ void LvglRenderer::build_now_playing_() {
   tbtn(LV_SYMBOL_PREV, 64, InputEvent::NP_PREV);
   this->np_pp_icon_ = tbtn(LV_SYMBOL_PLAY, 88, InputEvent::NP_PLAY_PAUSE);
   tbtn(LV_SYMBOL_NEXT, 64, InputEvent::NP_NEXT);
+
+  // Secondary controls: shuffle, volume -, volume +, repeat.
+  lv_obj_t *cr = lv_obj_create(root);
+  lv_obj_set_size(cr, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(cr, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(cr, 0, 0);
+  lv_obj_set_style_pad_all(cr, 0, 0);
+  lv_obj_set_style_pad_column(cr, 18, 0);
+  lv_obj_set_flex_flow(cr, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(cr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(cr, LV_OBJ_FLAG_SCROLLABLE);
+
+  auto cbtn = [this, cr](const char *sym, InputEvent ev) -> lv_obj_t * {
+    lv_obj_t *b = lv_button_create(cr);
+    lv_obj_set_size(b, 56, 56);
+    lv_obj_set_style_radius(b, 28, 0);
+    lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(b, 0, 0);
+    lv_obj_t *l = lv_label_create(b);
+    lv_label_set_text(l, sym);
+    lv_obj_center(l);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(COL_MUTED), 0);
+    auto *d = new CbData{this, ev, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    return l;
+  };
+  this->np_shuffle_lbl_ = cbtn(LV_SYMBOL_SHUFFLE, InputEvent::NP_SHUFFLE);
+  cbtn(LV_SYMBOL_MINUS, InputEvent::NP_VOL_DOWN);
+  cbtn(LV_SYMBOL_PLUS, InputEvent::NP_VOL_UP);
+  this->np_repeat_lbl_ = cbtn(LV_SYMBOL_LOOP, InputEvent::NP_REPEAT);
 }
 
 void LvglRenderer::render_now_playing_(const ViewModel &vm) {
@@ -1390,6 +1434,25 @@ void LvglRenderer::render_now_playing_(const ViewModel &vm) {
     lv_label_set_text(this->np_sub_lbl_, clean_title(np.artist).c_str());
     if (this->np_pp_icon_ != nullptr)
       lv_label_set_text(this->np_pp_icon_, np.playing() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+    if (this->np_shuffle_lbl_ != nullptr)
+      lv_obj_set_style_text_color(this->np_shuffle_lbl_, lv_color_hex(np.shuffle ? COL_ACCENT : COL_MUTED), 0);
+    if (this->np_repeat_lbl_ != nullptr)
+      lv_obj_set_style_text_color(this->np_repeat_lbl_,
+                                  lv_color_hex(np.repeat != "off" && !np.repeat.empty() ? COL_ACCENT : COL_MUTED),
+                                  0);
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+    if (this->np_cover_slot_ != nullptr && this->np_cover_img_ != nullptr) {
+      lv_image_set_src(this->np_cover_img_, this->np_cover_slot_->get_lv_image_dsc());
+      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+        if (this->cover_slot_list_[s] == this->np_cover_slot_)
+          this->cover_widget_list_[s] = this->np_cover_img_;
+      if (!np.cover_url.empty() && np.cover_url != this->np_last_cover_) {
+        this->np_last_cover_ = np.cover_url;
+        this->np_cover_slot_->set_url(np.cover_url);
+        this->np_cover_slot_->update();
+      }
+    }
+#endif
   }
   if (this->now_playing_scr_ != nullptr)
     lv_screen_load(this->now_playing_scr_);

@@ -41,6 +41,10 @@ enum class InputEvent : uint8_t {
   NP_PLAY_PAUSE,           // now playing: toggle play/pause
   NP_NEXT,                 // now playing: next track
   NP_PREV,                 // now playing: previous track
+  NP_VOL_UP,               // now playing: volume up
+  NP_VOL_DOWN,             // now playing: volume down
+  NP_SHUFFLE,              // now playing: toggle shuffle
+  NP_REPEAT,               // now playing: cycle repeat mode
 };
 
 // Instantané de l'état de navigation passé au renderer.

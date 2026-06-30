@@ -38,9 +38,13 @@ struct NowPlaying {
   std::string state;             // playing | paused | idle | off
   std::string title;
   std::string artist;
+  std::string cover_url;         // current item artwork (may be empty)
   int position_s{0};
   int duration_s{0};
   int volume{-1};                // 0..100, -1 if unknown
+  bool muted{false};
+  bool shuffle{false};
+  std::string repeat;            // off | one | all
   bool playing() const { return this->state == "playing"; }
 };
 using NowPlayingCallback = std::function<void(bool ok, NowPlaying np)>;
@@ -70,6 +74,13 @@ class MusicLibraryBackend {
   // POST /api/v1/ma/<cmd>?queue_id= -> transport command
   // (pause | resume | play_pause | stop | next | previous).
   virtual void transport(const std::string &cmd) = 0;
+
+  // POST /api/v1/ma/volume_step?queue_id=&direction=up|down
+  virtual void volume_step(const std::string &direction) = 0;
+  // POST /api/v1/ma/shuffle?queue_id=&enabled=
+  virtual void set_shuffle(bool enabled) = 0;
+  // POST /api/v1/ma/repeat?queue_id=&mode=off|one|all
+  virtual void set_repeat(const std::string &mode) = 0;
 };
 
 }  // namespace ha_dashboard

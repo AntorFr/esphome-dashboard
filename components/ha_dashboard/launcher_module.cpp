@@ -134,6 +134,29 @@ void LauncherModule::transport(const std::string &cmd) {
   this->fetch_now_playing();  // refresh state after the command
 }
 
+void LauncherModule::volume_step(const std::string &direction) {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->volume_step(direction);
+  this->fetch_now_playing();
+}
+
+void LauncherModule::toggle_shuffle() {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->set_shuffle(!this->now_playing_.shuffle);
+  this->fetch_now_playing();
+}
+
+void LauncherModule::cycle_repeat() {
+  if (this->backend_ == nullptr)
+    return;
+  const std::string &r = this->now_playing_.repeat;
+  const char *next = (r == "off") ? "all" : (r == "all") ? "one" : "off";
+  this->backend_->set_repeat(next);
+  this->fetch_now_playing();
+}
+
 bool LauncherModule::back() {
   if (this->level_ != LauncherLevel::DETAIL)
     return false;  // already on the grid -> caller closes the module
