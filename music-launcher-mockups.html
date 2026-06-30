@@ -42,8 +42,14 @@
   .hdr{display:flex;align-items:flex-start;padding:14px 16px 8px}
   .hdr .time{font-size:30px;font-weight:500;line-height:1}
   .hdr .date{font-size:12px;color:var(--muted);margin-top:2px}
-  .hdr .wx{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+  .hdr .right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .hdr .wx{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
   .hdr .wx .ti{font-size:20px}
+  /* header now-playing mini widget (like the weather widget) -> tap opens screen D */
+  .npchip{display:flex;align-items:center;gap:7px;background:var(--tile);border-radius:12px;padding:4px 8px 4px 5px;max-width:160px}
+  .npchip .npc{width:20px;height:20px;border-radius:6px;flex:none}
+  .npchip .npt2{font-size:12px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .npchip .ti{font-size:16px;color:var(--media)}
 
   /* group tabs row */
   .tabs{display:flex;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);overflow:hidden}
@@ -166,9 +172,12 @@ function cover(f,showList){
     + (showList && f.kids?'<div class="listbtn"><i class="ti ti-list"></i>'+listLbl+'</div>':'')
     + '</div>';
 }
-function header(){
-  return '<div class="hdr"><div><div class="time">14:32</div><div class="date">vendredi 27 juin</div></div>'
-    + '<div class="wx"><i class="ti ti-cloud"></i>19°</div></div>';
+function header(np){
+  var right='<div class="right"><div class="wx"><i class="ti ti-cloud"></i>19°</div>'
+    + (np?'<div class="npchip" title="ouvre En lecture"><span class="npc" style="background:'+GRAD.comptines+'"></span>'
+        + '<span class="npt2">Comptines</span><i class="ti ti-player-pause-filled"></i></div>':'')
+    + '</div>';
+  return '<div class="hdr"><div><div class="time">14:32</div><div class="date">vendredi 27 juin</div></div>'+right+'</div>';
 }
 function tabs(){
   return '<div class="tabs">'
@@ -188,7 +197,7 @@ function fGrid(){
     return '<div class="ftile">'+cover(f,true)+'<div class="ttl">'+f.ttl+'</div>'
       + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
   }).join('');
-  return frame('A · Onglet « Musique » actif', header()+tabs()+'<div class="grid">'+tiles+'</div>');
+  return frame('A · Onglet « Musique » actif', header(true)+tabs()+'<div class="grid">'+tiles+'</div>');
 }
 
 /* B — one-tap play confirmation (stay on the grid) */
@@ -197,7 +206,7 @@ function fToast(){
     return '<div class="ftile">'+cover(f,true)+'<div class="ttl">'+f.ttl+'</div>'
       + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
   }).join('');
-  return frame('B · Lecture one-tap (toast)', header()+tabs()+'<div class="grid">'+tiles+'</div>'
+  return frame('B · Lecture one-tap (toast)', header(true)+tabs()+'<div class="grid">'+tiles+'</div>'
     + '<div class="toast"><div class="tc" style="background:'+GRAD.comptines+'">🎵</div>'
     + '<div class="tt"><b>Comptines</b><br>lecture sur Enceinte Chambre</div>'
     + '<i class="ti ti-circle-check-filled ok"></i></div>');
@@ -251,9 +260,9 @@ function fChapters(){
     + rows + '</div>');
 }
 
-/* D — now playing (full screen detail) */
+/* D — now playing (full screen) — opened from the header media widget; controls via ML */
 function fNow(){
-  return frame('D · En lecture',
+  return frame('D · En lecture (via widget header)',
     '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">En lecture</span></div>'
     + '<div class="np">'
     + '<div class="bigcover" style="background:'+GRAD.comptines+'">🎵</div>'
@@ -274,6 +283,7 @@ var UX=[
   ['Tap ligne (détail)','joue l\'épisode / le chapitre choisi'],
   ['Scroll (détail)','<b>pagination dynamique</b> : charge la page suivante (séries de centaines d\'items)'],
   ['Retour (détail)','ferme la vue détail → revient à la grille de l\'onglet'],
+  ['Widget média (header)','visible si lecture en cours → tap ouvre « En lecture » (écran D)'],
   ['Owner / enceinte','figés en YAML par appareil — aucun sélecteur à l\'écran'],
 ];
 
@@ -283,6 +293,9 @@ var DECIDED=[
   ['Podcast / livre audio','tap pochette = <b>reprise directe</b> ; bouton dédié = liste des items'],
   ['Liste d\'items','<b>vue détail plein écran</b> (pas un popover) ; <b>pagination au scroll</b>'],
   ['Vignettes','épisode = vignette ; chapitre = <b>numéro</b> (sans vignette) — UX unifiée'],
+  ['Accès « En lecture »','<b>mini-widget média dans le header</b> (comme la météo), visible si lecture'],
+  ['État + transport','via <b>music-library</b> (relais MA), pas via HA — réactivité/cohérence dans le module'],
+  ['Deux features','(A) card <b>media_player HA</b> générique · (B) module <b>Musique (ML)</b> avec son now-playing'],
   ['Position onglet','<b>ordre dans le YAML</b> — entrée de menu déclarée parmi les groupes'],
 ];
 
@@ -291,8 +304,10 @@ function uxBlock(){
   var dec=DECIDED.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('');
   return '<div class="ux"><h3>Interactions &amp; échanges</h3><table>'+rows+'</table>'
     + '<h3 style="margin-top:16px">Décidé</h3><table>'+dec+'</table>'
-    + '<div class="q"><b>Reste à trancher — drill-down :</b> endpoint JSON compact à ajouter côté music-library (préféré) vs HTML existant <code>/media/{id}/episodes</code>.</div>'
-    + '<div class="q" style="background:#0f1a14;border-color:#1f3a2b"><b style="color:var(--play)">Écran D (En lecture)</b> = option future (mode « now playing » riche). Le défaut reste le toast.</div>'
+    + '<div class="q" style="background:#0f1a14;border-color:#1f3a2b"><b style="color:var(--play)">À faire côté music-library</b> (le module reste sur le relais ML) : '
+    + '① <code>children</code> paginé (<code>offset/limit</code>, <code>has_more</code>, <code>cover_url</code> optionnel) · '
+    + '② état <b>now-playing</b> (item, play/pause, position, volume) · '
+    + '③ <b>transport</b> (pause/play, next/prev, volume, seek).</div>'
     + '</div>';
 }
 

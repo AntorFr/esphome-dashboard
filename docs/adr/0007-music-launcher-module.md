@@ -36,14 +36,24 @@ The module is an on-device twin of the web `/quick` launcher. Rationale: covers 
 either way, music-library already exposes purpose-built endpoints, and we avoid a fragile
 HA automation hop.
 
-Contract (music-library side, shipped in its PR #1 / `v0.12.0-beta`):
+Contract (music-library side). `*` = shipped in PR #1 / `v0.12.0-beta`; the rest are
+follow-up endpoints this module needs:
 
 | Step | Call | Notes |
 |------|------|-------|
-| favourites | `GET /api/v1/quick/{owner}` | compact JSON: `id,title,media_type,uri,cover_url,has_children` |
-| cover | `GET /covers/{id}.jpg` | 300×300, decoded on device |
-| play | `POST /api/v1/ma/play?queue_id=&uri=&seek=` | `queue_id` = the device's fixed speaker |
-| episodes/chapters | *(open — see below)* | only when `has_children` |
+| favourites `*` | `GET /api/v1/quick/{owner}` | compact JSON: `id,title,media_type,uri,cover_url,has_children` |
+| cover `*` | `GET /covers/{id}.jpg` | 300×300, decoded on device |
+| play `*` | `POST /api/v1/ma/play?queue_id=&uri=&seek=` | `queue_id` = the device's fixed speaker |
+| episodes/chapters | `GET /api/v1/quick/item/{id}/children?offset=&limit=` | paged: `{items[…], has_more}`; per-item `cover_url` optional (podcast=thumb, audiobook=none) |
+| now-playing state | `GET …queue state…` (TBD) | current item, play/pause, position, volume — for the header widget + screen D |
+| transport | `POST …pause/next/prev/volume/seek…` (TBD) | controls from screen D |
+
+**Two independent features, one library.** The dashboard keeps a *generic* `media_player`
+card (HA-bound, works with any player) as a separate feature. The launcher is the *second*
+feature and stays entirely on the **ML relay**: while the module is active, both playback
+**state and transport go through music-library** (→ Music Assistant), not through HA — one
+source of truth and better in-module reactivity, even though the same speaker is also
+exposed as an HA `media_player` entity. The two features can coexist on the same dashboard.
 
 ### 2. Speaker + profile fixed in YAML, per device
 
@@ -83,6 +93,11 @@ profile/speaker pickers in v1 (the mockup keeps the chips as a later option).
     episode/chapter list (full-screen), to pick a specific item (`activate` plays it).
   Layer 1 exposes this as `activate(i)` (primary), `open_children(i)` (secondary) and
   `load_more_children()` (scroll).
+- **Now-playing access**: a compact media widget in the **header** (beside the weather
+  widget), shown only while the device's speaker is playing; tapping it opens the
+  full-screen **"now playing"** view (screen D) with transport + volume. The header is
+  global chrome, so playback stays reachable from any tab. State + transport come from the
+  ML relay (see contract above), not HA.
 
 Config sketch (final schema deferred to the implementation milestone). The launcher is a
 **menu entry declared inside the ordered `groups:` list** via a `type:` discriminator, so
@@ -114,17 +129,21 @@ dashboard:
 - (−) The device holds no auth today; music-library is assumed reachable on the LAN.
   Token/header support is a later concern.
 
-## Open question
+## Open questions — music-library API extensions
 
-**Episode/chapter drill-down transport.** music-library currently exposes episodes and
-chapters as **HTML partials** (`/media/{id}/episodes`, `/media/{id}/chapters`), built for
-HTMX, not for a microcontroller. We need a compact **paged** JSON endpoint, e.g.
-`GET /api/v1/quick/item/{id}/children?offset=&limit=`, returning `{items[…], has_more}`
-where each item carries `uri`, `title`, an optional `cover_url` (present for podcast
-episodes, empty for audiobook chapters) and possibly a `position`. Paging is required
-because a series can hold hundreds of items (loaded on scroll). The alternative — parsing
-the existing HTML on device — is rejected (brittle). This is a follow-up PR on
-music-library; tracked in `roadmap.md`.
+The module needs three additions on music-library (today only `/quick` + `/ma/play`
+exist). They are the relay path the module stays on (no HA for state/transport):
+
+1. **Children (paged) — shape decided.** `GET /api/v1/quick/item/{id}/children?offset=&limit=`
+   → `{items[…], has_more}`, each item with `uri`, `title`, optional `cover_url` (podcast
+   episode = thumbnail, audiobook chapter = empty) and possibly `position`. Paging is
+   required (series of hundreds, loaded on scroll). HTML partials
+   (`/media/{id}/episodes|chapters`) are HTMX-only and rejected for the device.
+2. **Now-playing state — shape TBD.** A compact read of the target queue: current item
+   (title, cover), play/pause, position, volume. Polled (~1 s) or pushed (SSE) — TBD.
+3. **Transport — shape TBD.** pause/play, next/prev, set-volume, seek on the target queue.
+
+Each lands as a follow-up PR on music-library; tracked in `roadmap.md`.
 
 See the visual spec in `music-launcher-mockups.html` (5 D1001 screens) and the technical
 analysis that produced this ADR.

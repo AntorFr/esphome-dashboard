@@ -80,19 +80,21 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [ ] `cover`, puis `media_player` (volume + play/pause), puis `climate`
 - [ ] `homeassistant_addon` porté/nettoyé (domaines non-natifs)
 
-### M6 — Module « Histoires & Musique » (D1001, music-library) — cadré ([ADR-0007](adr/0007-music-launcher-module.md))
-> Lanceur enfants : grille de pochettes → un tap lance playlist/podcast/épisode.
-> Échange = REST direct ESP→music-library ; enceinte + profil figés en YAML par appareil.
-> Maquettes : `music-launcher-mockups.html` (5 écrans D1001).
-- [x] **music-library** : endpoint compact `GET /api/v1/quick/{owner}` (PR #1, release v0.12.0-beta)
-- [ ] Couche 1 : `LauncherModule` (config base_url/owner/queue_id + état favoris/sélection)
-- [ ] Port `MusicLibraryBackend` (out) : `fetch_favorites` / `play` / `fetch_children` + adapter HTTP
+### M6 — Module « Musique » (D1001, music-library) — UX cadrée ([ADR-0007](adr/0007-music-launcher-module.md))
+> Lanceur enfants : onglet dédié → grille de pochettes. Tap pochette = lance/reprend (+toast) ;
+> bouton « Épisodes/Chapitres » = liste plein écran paginée. Now-playing via widget header → écran D.
+> Tout sur le relais ML (état + transport), pas via HA. Maquettes : `music-launcher-mockups.html`.
+> Feature distincte de la card `media_player` HA générique (qui, elle, reste sur HA).
+- [x] **music-library** : `GET /api/v1/quick/{owner}` (PR #1, v0.12.0-beta)
+- [x] Couche 1 : `LauncherModule` + port `MusicLibraryBackend` (`fetch_favorites`/`fetch_children` paginé/`play`) ;
+      `activate`/`open_children`/`load_more_children` ; testé (host g++) — commits 31d1597, 01afe02
+- [ ] **music-library (à faire)** : ① `…/children?offset=&limit=` paginé (`has_more`, `cover_url` optionnel) ·
+      ② état now-playing (item/play-pause/position/volume) · ③ transport (pause/next/volume/seek)
 - [ ] Renderer D1001 : `render_launcher()` (grille pochettes via `online_image`) +
-      `render_launcher_detail()` (épisodes/chapitres) ; `NavState` LAUNCHER / LAUNCHER_DETAIL
-- [ ] Entrée de menu dédiée (onglet) + schéma `music_library:` dans `__init__.py` (codegen)
-- [ ] Hand-off lecture → card `media_player` existante (now playing) OU toast de confirmation
-- [ ] **À trancher** : transport du drill-down épisodes/chapitres — endpoint JSON compact
-      à ajouter côté music-library (préféré) vs HTML existant `/media/{id}/episodes` (rejeté)
+      `render_launcher_detail()` (liste paginée, vignette épisode / numéro chapitre) +
+      widget média header + écran `render_now_playing()`
+- [ ] Adapter HTTP `HttpMusicLibrary` (http_request + JSON) ; `base_url`/`owner`/`queue_id` du YAML
+- [ ] Entrée de menu dédiée : `groups[].type: music_library` (position = ordre YAML) dans `__init__.py` (codegen)
 
 ### Tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL (composant officiel)
 - [x] Composant officiel `github://clydebarrow/esphome@gsl3670` (modèle `seeed-reterminal-d1001`,
