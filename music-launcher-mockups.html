@@ -57,6 +57,8 @@
   .ftile{display:flex;flex-direction:column;gap:6px}
   .cover{position:relative;width:100%;aspect-ratio:1;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden}
   .cover .badge{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+  .cover .listbtn{position:absolute;left:6px;right:6px;bottom:6px;display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 0;border-radius:10px;background:rgba(10,10,12,.74);font-size:12px;color:#fff}
+  .cover .listbtn .ti{font-size:15px}
   .ftile .ttl{font-size:13px;font-weight:500;line-height:1.2;max-height:2.4em;overflow:hidden}
   .ftile .ty{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
 
@@ -76,6 +78,9 @@
   .eprow .ed{font-size:11px;color:var(--muted)}
   .eprow.resume{outline:1.5px solid var(--play)}
   .eprow.resume .n{background:var(--play);color:#06231a}
+  .eprow .thumb{width:34px;height:34px;border-radius:8px;flex:none}
+  .moreRow{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;color:var(--muted);font-size:12px}
+  .moreRow .sp{width:14px;height:14px;border-radius:50%;border:2px solid #3a3a44;border-top-color:var(--media);display:inline-block}
 
   /* now-playing (full screen) */
   .np{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 26px;text-align:center}
@@ -128,7 +133,7 @@ l'<b>owner</b> et l'<b>enceinte</b> sont figés en YAML par appareil. Cible : D1
   <span><i class="dot" style="background:var(--media)"></i> onglet lanceur (violet)</span>
   <span><i class="dot" style="background:var(--amber)"></i> onglet groupe d'entités (ambre)</span>
   <span><i class="dot" style="background:var(--play)"></i> lecture / confirmation</span>
-  <span style="margin-left:auto">Swipe ← / → = change d'onglet · tap pochette = lance / ouvre épisodes</span>
+  <span style="margin-left:auto">Tap pochette = lance / reprend · bouton « Épisodes/Chapitres » = liste plein écran</span>
 </div>
 
 <div id="app"></div>
@@ -154,10 +159,12 @@ var FAV=[
   {g:'trolls',emo:'🎬',ttl:'Trolls',ty:'album'}
 ];
 
-function cover(f,extra){
+function cover(f,showList){
+  var listLbl = f.ty==='audiobook' ? 'Chapitres' : 'Épisodes';
   return '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo
     + (f.kids?'<div class="badge"><i class="ti '+TYI[f.ty]+'"></i></div>':'')
-    + (extra||'') + '</div>';
+    + (showList && f.kids?'<div class="listbtn"><i class="ti ti-list"></i>'+listLbl+'</div>':'')
+    + '</div>';
 }
 function header(){
   return '<div class="hdr"><div><div class="time">14:32</div><div class="date">vendredi 27 juin</div></div>'
@@ -175,19 +182,19 @@ function frame(label, inner){
     + '<div class="port-frame"><div class="port">'+inner+'</div></div></div>';
 }
 
-/* A — launcher tab active: header + tabs + cover grid */
+/* A — launcher tab active: header + tabs + cover grid (list button on podcast/audiobook) */
 function fGrid(){
   var tiles=FAV.map(function(f){
-    return '<div class="ftile">'+cover(f)+'<div class="ttl">'+f.ttl+'</div>'
+    return '<div class="ftile">'+cover(f,true)+'<div class="ttl">'+f.ttl+'</div>'
       + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
   }).join('');
-  return frame('A · Onglet « Histoires » actif', header()+tabs()+'<div class="grid">'+tiles+'</div>');
+  return frame('A · Onglet « Musique » actif', header()+tabs()+'<div class="grid">'+tiles+'</div>');
 }
 
 /* B — one-tap play confirmation (stay on the grid) */
 function fToast(){
   var tiles=FAV.slice(0,4).map(function(f){
-    return '<div class="ftile">'+cover(f)+'<div class="ttl">'+f.ttl+'</div>'
+    return '<div class="ftile">'+cover(f,true)+'<div class="ttl">'+f.ttl+'</div>'
       + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
   }).join('');
   return frame('B · Lecture one-tap (toast)', header()+tabs()+'<div class="grid">'+tiles+'</div>'
@@ -196,25 +203,51 @@ function fToast(){
     + '<i class="ti ti-circle-check-filled ok"></i></div>');
 }
 
-/* C — detail view: episodes (opened by tapping a podcast/audiobook tile) */
+function detailRow(lead, title, sub, resume, accent){
+  return '<div class="eprow'+(resume?' resume':'')+'">'+lead
+    + '<span class="et">'+title+'<div class="ed">'+sub+'</div></span>'
+    + '<i class="ti ti-player-play-filled" style="color:'+(accent||'var(--play)')+'"></i></div>';
+}
+
+/* C — detail (PODCAST): episodes WITH per-episode thumbnails + load-more on scroll */
 function fEpisodes(){
-  var f={g:'henri',emo:'🐰'};
+  var f={g:'henri',emo:'🐰',ty:'podcast'};
+  var thumbs=['#7ad0ff','#9bd06a','#ffb86c','#ff8fb1','#b08cff'];
   var eps=[
-    {n:'▶',t:'12 · La cabane secrète',d:'reprendre · 4:20 / 11 min',resume:true},
-    {n:'13',t:'La rivière gelée',d:'12 min'},
-    {n:'14',t:'Le grand pique-nique',d:'9 min'},
-    {n:'15',t:'Une nuit sous les étoiles',d:'13 min'},
-    {n:'16',t:'Le marché du dimanche',d:'10 min'}
+    {t:'12 · La cabane secrète',d:'reprendre · 4:20 / 11 min',resume:true},
+    {t:'13 · La rivière gelée',d:'12 min'},
+    {t:'14 · Le grand pique-nique',d:'9 min'},
+    {t:'15 · Une nuit sous les étoiles',d:'13 min'}
   ];
-  var rows=eps.map(function(e){
-    return '<div class="eprow'+(e.resume?' resume':'')+'"><span class="n">'+e.n+'</span>'
-      + '<span class="et">'+e.t+'<div class="ed">'+e.d+'</div></span>'
-      + '<i class="ti ti-player-play-filled" style="color:var(--play)"></i></div>';
+  var rows=eps.map(function(e,i){
+    var lead='<span class="thumb" style="background:linear-gradient(135deg,'+thumbs[i]+',#1d1730)"></span>';
+    return detailRow(lead, e.t, e.d, e.resume);
   }).join('');
-  return frame('C · Vue détail — épisodes',
+  rows += '<div class="moreRow"><span class="sp"></span> chargement…</div>';  // pagination on scroll
+  return frame('C · Détail PODCAST (vignettes + pagination)',
     '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">Henri le Lapin</span></div>'
     + '<div class="eplist"><div class="ephead">'+cover(f)
-    + '<div class="meta"><div class="h">Henri le Lapin</div><div class="s">Podcast · 16 épisodes</div></div></div>'
+    + '<div class="meta"><div class="h">Henri le Lapin</div><div class="s">Podcast · 248 épisodes</div></div></div>'
+    + rows + '</div>');
+}
+
+/* C2 — detail (AUDIOBOOK): chapters WITHOUT thumbnails -> number badge */
+function fChapters(){
+  var f={g:'prince',emo:'🌹',ty:'audiobook'};
+  var chs=[
+    {n:'▶',t:'Chapitre 7',d:'reprendre · 2:10 / 8 min',resume:true},
+    {n:'8',t:'Chapitre 8',d:'7 min'},
+    {n:'9',t:'Chapitre 9',d:'9 min'},
+    {n:'10',t:'Chapitre 10',d:'6 min'},
+    {n:'11',t:'Chapitre 11',d:'8 min'}
+  ];
+  var rows=chs.map(function(c){
+    return detailRow('<span class="n">'+c.n+'</span>', c.t, c.d, c.resume, 'var(--media)');
+  }).join('');
+  return frame('C2 · Détail LIVRE AUDIO (chapitres, sans vignette)',
+    '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">Le Petit Prince</span></div>'
+    + '<div class="eplist"><div class="ephead">'+cover(f)
+    + '<div class="meta"><div class="h">Le Petit Prince</div><div class="s">Livre audio · 27 chapitres</div></div></div>'
     + rows + '</div>');
 }
 
@@ -236,9 +269,10 @@ function fNow(){
 
 var UX=[
   ['Swipe ← / →','change d\'onglet (Salon / Chambre / <b>Musique</b>) — geste D1001 existant'],
-  ['Tap pochette','playlist/album/radio → <b>POST /ma/play</b> immédiat + toast (écran B)'],
-  ['Tap podcast/livre','ouvre la <b>vue détail</b> épisodes/chapitres (écran C)'],
-  ['Tap épisode','play avec <code>seek</code> (reprise)'],
+  ['Tap pochette','lance / <b>reprend</b> la lecture (TOUS types, y compris podcast/livre) + toast'],
+  ['Bouton « Épisodes / Chapitres »','sur une tuile podcast/livre → ouvre la <b>vue détail plein écran</b>'],
+  ['Tap ligne (détail)','joue l\'épisode / le chapitre choisi'],
+  ['Scroll (détail)','<b>pagination dynamique</b> : charge la page suivante (séries de centaines d\'items)'],
   ['Retour (détail)','ferme la vue détail → revient à la grille de l\'onglet'],
   ['Owner / enceinte','figés en YAML par appareil — aucun sélecteur à l\'écran'],
 ];
@@ -246,7 +280,10 @@ var UX=[
 var DECIDED=[
   ['Libellé onglet','<b>« Musique »</b>'],
   ['Après lancement','<b>toast</b>, on reste sur la grille (écran B)'],
-  ['Position onglet','définie par l\'<b>ordre dans le YAML</b> — l\'onglet est une entrée de menu déclarée parmi les groupes'],
+  ['Podcast / livre audio','tap pochette = <b>reprise directe</b> ; bouton dédié = liste des items'],
+  ['Liste d\'items','<b>vue détail plein écran</b> (pas un popover) ; <b>pagination au scroll</b>'],
+  ['Vignettes','épisode = vignette ; chapitre = <b>numéro</b> (sans vignette) — UX unifiée'],
+  ['Position onglet','<b>ordre dans le YAML</b> — entrée de menu déclarée parmi les groupes'],
 ];
 
 function uxBlock(){
@@ -262,7 +299,7 @@ function uxBlock(){
 document.getElementById('app').innerHTML =
   '<div class="card-block"><h2><i class="ti ti-music"></i>Parcours du module <span class="tag">— onglet dédié → grille pochettes → (épisodes) → lecture</span></h2>'
   + '<div class="row">' + fGrid() + fToast() + fEpisodes() + '</div>'
-  + '<div class="row">' + fNow() + uxBlock() + '</div>'
+  + '<div class="row">' + fChapters() + fNow() + uxBlock() + '</div>'
   + '</div>';
 </script>
 </body>

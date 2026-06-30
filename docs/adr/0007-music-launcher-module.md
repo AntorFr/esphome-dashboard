@@ -65,13 +65,24 @@ profile/speaker pickers in v1 (the mockup keeps the chips as a later option).
   existing gesture. The kid's profile/speaker are fixed in YAML, so there are no on-screen
   selectors — the header stays time/date/weather.
 - **Renderer**: two new D1001 views — `render_launcher()` fills the active tab with the
-  cover grid, and `render_launcher_detail()` is a pushed full-screen view (episode/chapter
-  list, then "now playing") mirroring the entity detail view. Covers render via ESPHome
-  `online_image` (URL → decoded JPEG → LVGL image), so the renderer never touches HTTP.
+  cover grid, and `render_launcher_detail()` is a pushed **full-screen** view (the episode/
+  chapter list) mirroring the entity detail view — not a popover inside the tile (no room,
+  and a series can hold hundreds of items). The detail list **paginates on scroll** (the
+  renderer calls `load_more_children()` near the end; a spinner row shows while loading).
+  Each row shows the item's **thumbnail when present (podcast episodes), otherwise a
+  position number (audiobook chapters)** — one unified row, two cases. Covers/thumbnails
+  render via ESPHome `online_image` (URL → decoded JPEG → LVGL image), so the renderer
+  never touches HTTP.
 - **Input**: handled by the existing `InputTouch` (tap tile, tap row, back). No new gestures.
-- After a leaf tile is tapped, the default is a short **confirmation toast** while staying
-  on the grid (kid-friendly, error-tolerant). A richer full-screen "now playing" view is a
-  later option.
+- **Two interactions per tile** (decided with the user):
+  - **Tap the cover → play**. For a playlist/album/radio it starts; for a podcast/audiobook
+    it plays the parent uri, which Music Assistant **resumes** from the saved position.
+    Feedback is a short **confirmation toast** while staying on the grid (kid-friendly,
+    error-tolerant). A richer full-screen "now playing" view is a later option.
+  - **A "list" button on podcast/audiobook tiles → drill in** to the paginated
+    episode/chapter list (full-screen), to pick a specific item (`activate` plays it).
+  Layer 1 exposes this as `activate(i)` (primary), `open_children(i)` (secondary) and
+  `load_more_children()` (scroll).
 
 Config sketch (final schema deferred to the implementation milestone). The launcher is a
 **menu entry declared inside the ordered `groups:` list** via a `type:` discriminator, so
@@ -107,10 +118,13 @@ dashboard:
 
 **Episode/chapter drill-down transport.** music-library currently exposes episodes and
 chapters as **HTML partials** (`/media/{id}/episodes`, `/media/{id}/chapters`), built for
-HTMX, not for a microcontroller. Before implementing screen C we decide between:
-(a) adding a compact JSON endpoint (e.g. `GET /api/v1/quick/item/{id}/children`) mirroring
-the `/quick` shape, or (b) parsing the existing HTML on device (rejected — brittle).
-Leaning towards (a), as a follow-up PR on music-library. Tracked in `roadmap.md`.
+HTMX, not for a microcontroller. We need a compact **paged** JSON endpoint, e.g.
+`GET /api/v1/quick/item/{id}/children?offset=&limit=`, returning `{items[…], has_more}`
+where each item carries `uri`, `title`, an optional `cover_url` (present for podcast
+episodes, empty for audiobook chapters) and possibly a `position`. Paging is required
+because a series can hold hundreds of items (loaded on scroll). The alternative — parsing
+the existing HTML on device — is rejected (brittle). This is a follow-up PR on
+music-library; tracked in `roadmap.md`.
 
 See the visual spec in `music-launcher-mockups.html` (5 D1001 screens) and the technical
 analysis that produced this ADR.
