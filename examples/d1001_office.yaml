@@ -44,16 +44,16 @@ http_request:
 # Cover-image pool for the launcher (one slot per favourite). URLs are set at runtime; the
 # initial url is just a required placeholder. JPEG -> RGB565, downloaded/decoded async.
 online_image:
-  - { id: cov0, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov1, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov2, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov3, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov4, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov5, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov6, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov7, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov8, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov9, url: "https://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov0, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov1, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov2, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov3, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov4, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov5, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov6, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov7, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov8, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov9, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
 
 external_components:
   - source:
@@ -148,7 +148,10 @@ ha_dashboard:
       icon: music
       type: music_library
       http_request_id: ml_http
-      base_url: "https://music-library.berard.me"
+      # Plaintext HTTP (port 80): avoids the per-image TLS handshake on the device (faster,
+      # less RAM) — the API is exposed on http:// alongside https://. Covers/thumbnails are
+      # served from this same host, so they stay on http too (see match_base_scheme).
+      base_url: "http://music-library.berard.me"
       owner: "Timothée"
       player: "RINCON_B8E937D6A3F601400"  # Sonos Salle à manger
       cover_slots: [cov0, cov1, cov2, cov3, cov4, cov5, cov6, cov7, cov8, cov9]

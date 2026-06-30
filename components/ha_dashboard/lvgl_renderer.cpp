@@ -1194,10 +1194,12 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     this->set_text_font_(ty, this->font_small_, &lv_font_montserrat_20);
   };
 
-  // An episode/chapter row (title only). Thumbnails are intentionally NOT loaded here: their
-  // source is the external weserv/MA image proxy, whose slow TLS handshakes blocked the loop
-  // long enough to trip the task watchdog while scrolling. A fast server-side episode
-  // thumbnail endpoint (like /covers?size=) is the proper fix — see roadmap.
+  // An episode/chapter row: [ thumbnail | title ], whole row taps -> play. The thumbnail is
+  // served by our own signed, cached proxy (music-library /api/v1/quick/thumb): the device
+  // fetches it from us — fast handshake, no third-party host — so it no longer trips the task
+  // watchdog the way the old direct weserv fetch did. `cover_url` is already complete and
+  // SIGNED, so it must be used VERBATIM (appending ?size= would break the HMAC signature).
+  // Reuses a grid cover slot, skipping the one used by the detail header.
   auto make_episode_row = [&](const QuickItem &item, int idx) {
     lv_obj_t *row = lv_button_create(grid);
     lv_obj_set_width(row, lv_pct(100));
@@ -1205,9 +1207,30 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_style_bg_color(row, lv_color_hex(COL_TILE), 0);
     lv_obj_set_style_shadow_width(row, 0, 0);
     lv_obj_set_style_radius(row, 12, 0);
-    lv_obj_set_style_pad_all(row, 16, 0);
+    lv_obj_set_style_pad_all(row, 12, 0);
+    lv_obj_set_style_pad_column(row, 12, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+    int hdr = L->detail_index();
+    int sidx = (idx < hdr) ? idx : idx + 1;  // skip the slot used by the header cover
+    if (!item.cover_url.empty() && sidx >= 0 && sidx < (int) g.cover_slots.size() &&
+        g.cover_slots[sidx] != nullptr) {
+      online_image::OnlineImage *slot = g.cover_slots[sidx];
+      lv_obj_t *img = lv_image_create(row);
+      lv_obj_set_size(img, 56, 56);
+      lv_obj_set_style_radius(img, 8, 0);
+      lv_obj_set_style_clip_corner(img, true, 0);
+      lv_image_set_src(img, slot->get_lv_image_dsc());
+      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+        if (this->cover_slot_list_[s] == slot)
+          this->cover_widget_list_[s] = img;
+      slot->set_url(item.cover_url);  // signed proxy URL — use as-is
+      this->cover_queue_.push_back(slot);
+    }
+#endif
     lv_obj_t *l = lv_label_create(row);
-    lv_obj_set_width(l, lv_pct(100));
+    lv_obj_set_flex_grow(l, 1);
     lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
     lv_label_set_text(l, clean_title(item.title).c_str());
     lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);

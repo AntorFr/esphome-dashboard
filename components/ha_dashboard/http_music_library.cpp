@@ -28,11 +28,16 @@ static std::string url_encode(const std::string &s) {
   return out;
 }
 
-// music-library returns http cover URLs that 301-redirect to https (which online_image
-// doesn't follow across schemes) -> fetch https directly.
-static std::string upgrade_https(std::string u) {
-  if (u.rfind("http://", 0) == 0)
+// Cover/thumbnail URLs are built by the server from the request host, so they share the API
+// scheme but the server (behind a TLS-terminating proxy) may emit them as http. online_image
+// won't follow a cross-scheme 301, so align the cover scheme to the configured base_url:
+// https deployment -> force https (avoids the proxy redirect); plaintext :8001 -> keep http.
+static std::string match_base_scheme(std::string u, const std::string &base) {
+  const bool base_https = base.rfind("https://", 0) == 0;
+  if (base_https && u.rfind("http://", 0) == 0)
     u.replace(0, 7, "https://");
+  else if (!base_https && u.rfind("https://", 0) == 0)
+    u.replace(0, 8, "http://");
   return u;
 }
 
@@ -92,9 +97,10 @@ void HttpMusicLibrary::fetch_favorites(const std::string &owner, QuickItemsCallb
   const std::string url = this->base_url_ + "/api/v1/quick/" + url_encode(owner);
   std::string body;
   std::vector<QuickItem> items;
+  const std::string &base = this->base_url_;
   bool ok = this->http_get_(url, body);
   if (ok) {
-    ok = json::parse_json(body, [&items](JsonObject root) -> bool {
+    ok = json::parse_json(body, [&items, &base](JsonObject root) -> bool {
       JsonArray arr = root["items"].as<JsonArray>();
       if (arr.isNull())
         return false;
@@ -105,7 +111,7 @@ void HttpMusicLibrary::fetch_favorites(const std::string &owner, QuickItemsCallb
         q.title = it["title"] | "";
         q.media_type = it["media_type"] | "";
         q.uri = it["uri"] | "";
-        q.cover_url = upgrade_https(it["cover_url"] | "");
+        q.cover_url = match_base_scheme(it["cover_url"] | "", base);
         q.has_children = it["has_children"] | false;
         items.push_back(std::move(q));
       }
@@ -123,9 +129,10 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
   std::string body;
   std::vector<QuickItem> items;
   bool has_more = false;
+  const std::string &base = this->base_url_;
   bool ok = this->http_get_(url, body);
   if (ok) {
-    ok = json::parse_json(body, [&items, &has_more](JsonObject root) -> bool {
+    ok = json::parse_json(body, [&items, &has_more, &base](JsonObject root) -> bool {
       has_more = root["has_more"] | false;
       JsonArray arr = root["items"].as<JsonArray>();
       if (arr.isNull())
@@ -135,7 +142,7 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
         QuickItem q;
         q.title = it["title"] | "";
         q.uri = it["uri"] | "";
-        q.cover_url = upgrade_https(it["cover_url"] | "");  // null for chapters -> ""
+        q.cover_url = match_base_scheme(it["cover_url"] | "", base);  // null for chapters -> ""
         q.seek = it["seek"] | 0;
         items.push_back(std::move(q));
       }
@@ -158,14 +165,15 @@ void HttpMusicLibrary::fetch_now_playing(NowPlayingCallback cb) {
       this->base_url_ + "/api/v1/ma/now_playing?queue_id=" + url_encode(this->queue_id_);
   std::string body;
   NowPlaying np;
+  const std::string &base = this->base_url_;
   bool ok = this->http_get_(url, body);
   if (ok) {
-    ok = json::parse_json(body, [&np](JsonObject root) -> bool {
+    ok = json::parse_json(body, [&np, &base](JsonObject root) -> bool {
       np.available = root["available"] | false;
       np.state = root["state"] | "idle";
       np.title = root["title"] | "";
       np.artist = root["artist"] | "";
-      np.cover_url = upgrade_https(root["cover_url"] | "");
+      np.cover_url = match_base_scheme(root["cover_url"] | "", base);
       np.position_s = root["position_s"] | 0;
       np.duration_s = root["duration_s"] | 0;
       np.volume = root["volume"] | -1;
