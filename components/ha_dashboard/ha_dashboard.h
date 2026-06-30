@@ -34,6 +34,7 @@ class HaDashboard : public Component {
   void set_font_medium(font::Font *f) { this->renderer_.set_font_medium(f); }
   void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
   void set_font_weather(font::Font *f) { this->renderer_.set_font_weather(f); }
+  void set_font_icons(font::Font *f) { this->renderer_.set_font_icons(f); }
 
   // Appelés par le codegen (to_code) pour peupler le modèle.
   void add_group(const std::string &name, const std::string &icon);
@@ -77,6 +78,7 @@ class HaDashboard : public Component {
 
   float last_encoder_{NAN};
   bool button_down_{false};
+  bool button_hold_triggered_{false};  // hold already produced a BACK -> ignore the release
   uint32_t button_down_ms_{0};
 };
 

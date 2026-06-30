@@ -46,6 +46,7 @@ CONF_FONT_SMALL = "font_small"
 CONF_FONT_MEDIUM = "font_medium"
 CONF_FONT_LARGE = "font_large"
 CONF_FONT_WEATHER = "font_weather"
+CONF_FONT_ICONS = "font_icons"
 
 PROFILES = ["dial", "reterminal_d1001"]
 
@@ -128,6 +129,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_FONT_MEDIUM): lvalid.lv_font,
         cv.Optional(CONF_FONT_LARGE): lvalid.lv_font,
         cv.Optional(CONF_FONT_WEATHER): lvalid.lv_font,
+        cv.Optional(CONF_FONT_ICONS): lvalid.lv_font,
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -165,6 +167,7 @@ async def to_code(config):
         (CONF_FONT_MEDIUM, var.set_font_medium),
         (CONF_FONT_LARGE, var.set_font_large),
         (CONF_FONT_WEATHER, var.set_font_weather),
+        (CONF_FONT_ICONS, var.set_font_icons),
     ):
         if conf in config:
             cg.add(setter(await cg.get_variable(config[conf])))

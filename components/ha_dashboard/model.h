@@ -38,6 +38,12 @@ struct Card {
   bool on{false};
   float value_local{0.0f};
 
+  // Debounce de réglage (encodeur) : aperçu optimiste affiché tout de suite, commande
+  // HA envoyée seulement après un court silence (cf. Controller::tick).
+  bool has_pending{false};
+  float pending_value{0.0f};  // valeur cible normalisée 0..1 en attente d'envoi
+  uint32_t pending_ms{0};
+
   bool available() const { return true; }  // disponibilité HA fine = jalon suivant
 
   // État on/off "actif" effectif selon le type.
@@ -84,6 +90,9 @@ struct Card {
         return this->is_on() ? 1.0f : 0.0f;
     }
   }
+
+  // Valeur à afficher : aperçu en attente (optimiste) sinon valeur live.
+  float display_value() const { return this->has_pending ? this->pending_value : this->value(); }
 
   // La card affiche-t-elle une valeur réglable (barre / arc) ? (switch = non)
   bool has_value() const { return this->type != CardType::SWITCH; }

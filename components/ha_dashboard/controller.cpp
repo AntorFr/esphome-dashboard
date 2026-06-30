@@ -22,17 +22,22 @@ void Controller::start() {
   this->render_();
 }
 
+Card *Controller::current_card_() {
+  int gi = this->group_index_, ci = this->card_index_;
+  if (this->groups_ == nullptr || gi < 0 || gi >= (int) this->groups_->size())
+    return nullptr;
+  auto &cards = (*this->groups_)[gi].cards;
+  if (ci < 0 || ci >= (int) cards.size())
+    return nullptr;
+  return &cards[ci];
+}
+
 void Controller::enter_group_(int group_index) {
   this->group_index_ = group_index;
   this->card_index_ = 0;
-  // Règle : un groupe à une seule card saute le niveau Groupe (cf. docs/ux-interaction.md).
-  if (this->card_count_(group_index) <= 1) {
-    this->group_skipped_ = true;
-    this->state_ = NavState::CARD;
-  } else {
-    this->group_skipped_ = false;
-    this->state_ = NavState::GROUP;
-  }
+  // Dial : le niveau Groupe EST le carrousel de cards (chaque position = une card avec son
+  // arc + réglage + toggle). Un groupe mono-card = un carrousel à une seule card (sans dots).
+  this->state_ = NavState::GROUP;
 }
 
 void Controller::handle(InputEvent event, int index) {
@@ -51,11 +56,17 @@ void Controller::handle(InputEvent event, int index) {
       if (n == 0)
         break;
       switch (event) {
-        case InputEvent::FOCUS_NEXT:
+        // Encoder rotates the radial launcher focus (touch drag is handled in the renderer,
+        // which reports the snapped focus via SELECT_GROUP).
+        case InputEvent::ENCODER_CW:
           this->group_index_ = (this->group_index_ + 1) % n;
           break;
-        case InputEvent::FOCUS_PREV:
+        case InputEvent::ENCODER_CCW:
           this->group_index_ = (this->group_index_ - 1 + n) % n;
+          break;
+        case InputEvent::SELECT_GROUP:
+          if (index >= 0 && index < n)
+            this->group_index_ = index;  // focus only (radial snap)
           break;
         case InputEvent::SELECT:
           this->enter_group_(index >= 0 ? index : this->group_index_);
@@ -70,6 +81,8 @@ void Controller::handle(InputEvent event, int index) {
       break;
     }
 
+    // Dial carousel: slide <-/-> changes card (FOCUS), encoder adjusts the value (debounced),
+    // tap toggles, slide-up / hold goes back to the menu.
     case NavState::GROUP: {
       int n = this->card_count_(this->group_index_);
       if (n == 0) {
@@ -78,19 +91,48 @@ void Controller::handle(InputEvent event, int index) {
       }
       switch (event) {
         case InputEvent::FOCUS_NEXT:
+          if (Card *c = this->current_card_())
+            this->commit_pending_(*c);  // flush staged change before leaving the card
           this->card_index_ = (this->card_index_ + 1) % n;
           break;
         case InputEvent::FOCUS_PREV:
+          if (Card *c = this->current_card_())
+            this->commit_pending_(*c);
           this->card_index_ = (this->card_index_ - 1 + n) % n;
           break;
+        case InputEvent::ENCODER_CW:
+          if (Card *c = this->current_card_())
+            this->adjust_(*c, +1);
+          break;
+        case InputEvent::ENCODER_CCW:
+          if (Card *c = this->current_card_())
+            this->adjust_(*c, -1);
+          break;
+        case InputEvent::TOGGLE:
         case InputEvent::SELECT:
-          this->card_index_ = index >= 0 ? index : this->card_index_;
-          this->state_ = NavState::CARD;
+          if (Card *c = this->current_card_()) {
+            this->commit_pending_(*c);
+            this->primary_action_(*c);
+          }
+          break;
+        case InputEvent::MEDIA_PREV:
+          if (Card *c = this->current_card_())
+            if (c->type == CardType::MEDIA_PLAYER && c->media != nullptr)
+              c->media->previous_track();
+          break;
+        case InputEvent::MEDIA_NEXT:
+          if (Card *c = this->current_card_())
+            if (c->type == CardType::MEDIA_PLAYER && c->media != nullptr)
+              c->media->next_track();
           break;
         case InputEvent::BACK:
+          if (Card *c = this->current_card_())
+            this->commit_pending_(*c);
           this->state_ = NavState::MENU;
           break;
         case InputEvent::SLEEP:
+          if (Card *c = this->current_card_())
+            this->commit_pending_(*c);
           this->state_ = NavState::IDLE;
           break;
         default:
@@ -99,17 +141,25 @@ void Controller::handle(InputEvent event, int index) {
       break;
     }
 
-    case NavState::CARD:
+    case NavState::CARD: {
+      int gi = this->group_index_, ci = this->card_index_;
+      bool valid = this->groups_ && gi < (int) this->groups_->size() &&
+                   ci < (int) (*this->groups_)[gi].cards.size();
       switch (event) {
         case InputEvent::TOGGLE:
-        case InputEvent::SELECT: {
-          int gi = this->group_index_, ci = this->card_index_;
-          if (this->groups_ && gi < (int) this->groups_->size() &&
-              ci < (int) (*this->groups_)[gi].cards.size()) {
+        case InputEvent::SELECT:
+          if (valid)
             this->primary_action_((*this->groups_)[gi].cards[ci]);
-          }
           break;
-        }
+        // Encoder rotation adjusts the focused card's value (brightness/volume/temp/position).
+        case InputEvent::FOCUS_NEXT:
+          if (valid)
+            this->adjust_((*this->groups_)[gi].cards[ci], +1);
+          break;
+        case InputEvent::FOCUS_PREV:
+          if (valid)
+            this->adjust_((*this->groups_)[gi].cards[ci], -1);
+          break;
         case InputEvent::BACK:
           this->state_ = this->group_skipped_ ? NavState::MENU : NavState::GROUP;
           break;
@@ -120,6 +170,7 @@ void Controller::handle(InputEvent event, int index) {
           break;
       }
       break;
+    }
 
     case NavState::DASHBOARD: {
       int n = this->group_count_();
@@ -148,10 +199,17 @@ void Controller::handle(InputEvent event, int index) {
 }
 
 void Controller::tick(uint32_t now_ms) {
+  // Commit a staged (debounced) adjustment once the encoder has been quiet long enough.
+  if (Card *c = this->current_card_()) {
+    if (c->has_pending && now_ms - c->pending_ms >= this->debounce_ms_)
+      this->commit_pending_(*c);
+  }
   if (this->state_ == NavState::IDLE)
     return;  // already in standby
   if (now_ms - this->last_event_ms_ >= this->timeout_ms_) {
     ESP_LOGD(TAG, "inactivity timeout -> idle");
+    if (Card *c = this->current_card_())
+      this->commit_pending_(*c);
     this->state_ = NavState::IDLE;
     this->render_();
   }
@@ -186,6 +244,60 @@ void Controller::primary_action_(Card &c) {
       break;
   }
   ESP_LOGD(TAG, "primary action on '%s'", c.name.c_str());
+}
+
+static float clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }
+
+// Encoder rotate: stage an optimistic normalized value (shown immediately by the renderer
+// via Card::display_value). The actual HA command is sent later by commit_pending_ once the
+// encoder goes quiet (debounce) — avoids flooding HA with one call per detent.
+void Controller::adjust_(Card &c, int dir) {
+  float step = 0.05f;  // default step for cover / media / light
+  if (c.type == CardType::CLIMATE) {
+    if (c.climate == nullptr)
+      return;
+    auto traits = c.climate->get_traits();
+    float lo = traits.get_visual_min_temperature(), hi = traits.get_visual_max_temperature();
+    step = (hi > lo) ? 0.5f / (hi - lo) : 0.05f;  // ~0.5°C per detent, normalized
+  } else if (c.type == CardType::SWITCH) {
+    return;  // nothing to adjust
+  }
+  float base = c.has_pending ? c.pending_value : c.value();
+  c.pending_value = clamp01(base + dir * step);
+  c.has_pending = true;
+  c.pending_ms = millis();
+  ESP_LOGD(TAG, "adjust '%s' dir=%d -> %.2f (pending)", c.name.c_str(), dir, c.pending_value);
+}
+
+// Push the staged value to Home Assistant and clear the pending flag.
+void Controller::commit_pending_(Card &c) {
+  if (!c.has_pending)
+    return;
+  float v = c.pending_value;
+  switch (c.type) {
+    case CardType::COVER:
+      if (c.cover != nullptr)
+        c.cover->make_call().set_position(v).perform();
+      break;
+    case CardType::MEDIA_PLAYER:
+      if (c.media != nullptr)
+        c.media->set_volume(v);
+      break;
+    case CardType::CLIMATE:
+      if (c.climate != nullptr) {
+        auto traits = c.climate->get_traits();
+        float lo = traits.get_visual_min_temperature(), hi = traits.get_visual_max_temperature();
+        c.climate->make_call().set_target_temperature(lo + v * (hi - lo)).perform();
+      }
+      break;
+    case CardType::LIGHT:
+    default:
+      c.value_local = v;  // stub binding for now
+      c.on = v > 0.0f;
+      break;
+  }
+  c.has_pending = false;
+  ESP_LOGD(TAG, "commit '%s' -> %.2f", c.name.c_str(), v);
 }
 
 void Controller::render_() {

@@ -28,18 +28,34 @@ class LvglRenderer : public Renderer {
   void set_clock(const char *time_str, const char *date_str);
   // Update the header weather slot (icon glyph + temperature + condition text).
   void set_weather(const char *icon_glyph, const char *temp_str, const char *cond_str);
+  // Tint the idle (standby) background according to the time of day.
+  void set_idle_hour(int hour);
 
   void set_font_small(font::Font *f) { this->font_small_ = f; }
   void set_font_medium(font::Font *f) { this->font_medium_ = f; }
   void set_font_large(font::Font *f) { this->font_large_ = f; }
   void set_font_weather(font::Font *f) { this->font_weather_ = f; }
+  void set_font_icons(font::Font *f) { this->font_icons_ = f; }
+  // Button-hold return gauge (driven from the component while the encoder button is held).
+  void set_return_progress(float p) { this->render_return_(p); }
 
  protected:
   lv_obj_t *make_screen_();
-  lv_obj_t *make_flex_container_(lv_obj_t *parent);
-  lv_obj_t *make_button_(lv_obj_t *parent, const char *text, InputEvent event, int index);
-  void set_focus_(std::vector<lv_obj_t *> &buttons, int focused);
   const Card *current_card_(const ViewModel &vm) const;
+
+  // Dial radial launcher (group picker): icons sit at fixed positions on the ring, the
+  // highlight (grow + accent) moves to the focused one (cf. esp-dial behaviour).
+  void build_menu_(const std::vector<Group> &groups);
+  void layout_menu_(int focus);                    // restyle for the focused index (no motion)
+  void menu_circle_pos_(int i, float &x, float &y) const;
+  static void menu_gesture_cb(lv_event_t *e);      // tap an icon to enter its group
+
+  // Dial card carousel (group = one card at a time, slide to navigate).
+  void build_card_view_();
+  void render_card_view_(const ViewModel &vm);
+  void set_carousel_translate_(float dx);          // follow horizontal drag
+  void render_return_(float p);                    // return gauge progress 0..1
+  static void carousel_gesture_cb(lv_event_t *e);  // slide / tap on the card screen
 
   // D1001 dashboard (tabs + tile grid).
   void build_dashboard_(const std::vector<Group> &groups);
@@ -65,18 +81,46 @@ class LvglRenderer : public Renderer {
   lv_obj_t *idle_date_lbl_{nullptr};
   lv_obj_t *menu_scr_{nullptr};
   lv_obj_t *card_scr_{nullptr};
-  std::vector<lv_obj_t *> group_scrs_;
 
-  std::vector<lv_obj_t *> group_btns_;               // boutons du menu
-  std::vector<std::vector<lv_obj_t *>> card_btns_;   // boutons par groupe
+  // Static model + display geometry (for the gesture math; cf. ADR-0005).
+  const std::vector<Group> *model_{nullptr};
+  int w_{240};
+  int h_{240};
 
+  // Radial launcher widgets (icons fixed; only the highlight moves).
+  std::vector<lv_obj_t *> menu_circles_;
+  std::vector<lv_obj_t *> menu_icons_;
+  lv_obj_t *menu_name_lbl_{nullptr};
+  bool m_down_{false};
+  int m_sx_{0}, m_sy_{0};
+
+  // Card carousel widgets.
   lv_obj_t *card_title_{nullptr};
   lv_obj_t *card_value_{nullptr};
+  lv_obj_t *card_arc_{nullptr};
+  lv_obj_t *card_icon_{nullptr};
+  lv_obj_t *card_center_{nullptr};  // icon/value/name column (translated + faded)
+  lv_obj_t *card_dots_{nullptr};    // pagination dots container
+  lv_obj_t *card_hint_{nullptr};    // "^ menu" chevron hint
+  lv_obj_t *ret_l_{nullptr};        // return gauge: left arc
+  lv_obj_t *ret_r_{nullptr};        // return gauge: right arc
+  lv_obj_t *card_prev_btn_{nullptr};  // media: previous track (shown only for media cards)
+  lv_obj_t *card_next_btn_{nullptr};  // media: next track
+
+  // Carousel gesture state.
+  bool gest_drag_{false};
+  int gest_sx_{0}, gest_sy_{0};
+  int gest_dx_{0}, gest_dy_{0};            // last delta seen while pressing
+  int gest_peak_dx_{0}, gest_peak_dy_{0};  // peak signed displacement (robust to edge lift-off)
+  int gest_mode_{0};                       // 0 none, 1 horizontal (carousel), 2 vertical (gauge)
+  bool gest_committed_{false};             // horizontal card change already fired this gesture
+  float gest_ret_p_{0.0f};
 
   font::Font *font_small_{nullptr};
   font::Font *font_medium_{nullptr};
   font::Font *font_large_{nullptr};
   font::Font *font_weather_{nullptr};
+  font::Font *font_icons_{nullptr};
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};

@@ -10,7 +10,8 @@ namespace esphome {
 namespace ha_dashboard {
 
 static const char *const TAG = "ha_dashboard";
-static constexpr uint32_t LONG_PRESS_MS = 700;  // maintien bouton -> BACK
+static constexpr uint32_t HOLD_MS = 1100;    // button hold to fill the return gauge (cf. prototype)
+static constexpr uint32_t TAP_MAX_MS = 350;  // shorter press = quick click (SELECT)
 
 void HaDashboard::add_group(const std::string &name, const std::string &icon) {
   Group g;
@@ -143,11 +144,13 @@ void HaDashboard::poll_encoder_() {
     this->last_encoder_ = v;
     return;
   }
+  // The encoder is context-dependent: the controller maps CW/CCW to menu rotation (MENU)
+  // or value adjustment (GROUP carousel). Touch handles card navigation (FOCUS_*).
   if (v > this->last_encoder_) {
-    this->controller_.handle(InputEvent::FOCUS_NEXT, -1);
+    this->controller_.handle(InputEvent::ENCODER_CW, -1);
     this->last_encoder_ = v;
   } else if (v < this->last_encoder_) {
-    this->controller_.handle(InputEvent::FOCUS_PREV, -1);
+    this->controller_.handle(InputEvent::ENCODER_CCW, -1);
     this->last_encoder_ = v;
   }
 }
@@ -157,14 +160,39 @@ void HaDashboard::poll_button_() {
     return;
   bool down = this->button_->state;
   uint32_t now = millis();
-  if (down && !this->button_down_) {
+  if (down && !this->button_down_) {  // press
     this->button_down_ = true;
+    this->button_hold_triggered_ = false;
     this->button_down_ms_ = now;
-  } else if (!down && this->button_down_) {
+  } else if (down && this->button_down_) {  // held: animate the return gauge like a slide-up
+    if (this->button_hold_triggered_)
+      return;
+    uint32_t dur = now - this->button_down_ms_;
+    NavState st = this->controller_.state();
+    if (st == NavState::GROUP) {
+      float p = (float) dur / HOLD_MS;
+      if (p > 1.0f)
+        p = 1.0f;
+      this->renderer_.set_return_progress(p);
+      if (p >= 1.0f) {  // gauge full -> back to the menu
+        this->renderer_.set_return_progress(0);
+        this->controller_.handle(InputEvent::BACK, -1);
+        this->button_hold_triggered_ = true;
+      }
+    } else if (st == NavState::MENU && dur >= HOLD_MS) {  // no gauge in the menu, just go idle
+      this->controller_.handle(InputEvent::BACK, -1);
+      this->button_hold_triggered_ = true;
+    }
+  } else if (!down && this->button_down_) {  // release
     this->button_down_ = false;
     uint32_t dur = now - this->button_down_ms_;
-    // Maintien = retour (jauge de retour à venir) ; appui court = valider.
-    this->controller_.handle(dur >= LONG_PRESS_MS ? InputEvent::BACK : InputEvent::SELECT, -1);
+    if (this->button_hold_triggered_)
+      return;  // hold already acted
+    if (dur < TAP_MAX_MS) {
+      this->controller_.handle(InputEvent::SELECT, -1);  // quick click
+    } else if (this->controller_.state() == NavState::GROUP) {
+      this->renderer_.set_return_progress(0);  // partial hold -> cancel the gauge
+    }
   }
 }
 
@@ -288,6 +316,7 @@ void HaDashboard::update_clock_() {
   else
     snprintf(date_buf, sizeof(date_buf), "%s %s %d", days[dow], months[mon], t.day_of_month);
   this->renderer_.set_clock(time_buf, date_buf);
+  this->renderer_.set_idle_hour(t.hour);
 }
 
 void HaDashboard::loop() {

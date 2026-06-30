@@ -104,6 +104,7 @@ ha_dashboard:
   font_medium: ha_font_medium
   font_large: ha_font_large
   font_weather: ha_font_weather
+  font_icons: ha_font_icons
   # Pas d'encodeur/bouton : navigation tactile seule sur le D1001.
   groups:
     - name: "Focus"

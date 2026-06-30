@@ -1,28 +1,28 @@
-# Montserrat fonts with Latin (accented) glyphs for the dashboard text.
-# LVGL's built-in lv_font_montserrat_* only cover ASCII, so French accents break.
-# Sizes are tuned for the 800x1280 panel (roughly 2x the mockup's mock-canvas sizes).
+# Montserrat + MDI fonts sized for the M5Stack Dial (round 240x240). Same glyph ids as
+# montserrat_fr.yaml (the 800x1280 D1001 variant) but much smaller — the D1001 sizes are
+# ~2x too big on the Dial. Include THIS package on the Dial, the other on the D1001.
 font:
   - file: "gfonts://Montserrat"
     id: ha_font_small
-    size: 22
+    size: 14
     bpp: 4
     glyphsets: [GF_Latin_Core]
   - file: "gfonts://Montserrat@500"
     id: ha_font_medium
-    size: 30
+    size: 20
     bpp: 4
     glyphsets: [GF_Latin_Core]
   - file: "gfonts://Montserrat@600"
     id: ha_font_large
-    size: 56
+    size: 38
     bpp: 4
     glyphsets: [GF_Latin_Core]
-  # Material Design Icons — weather pictograms for the header.
+  # Material Design Icons — weather pictograms (header / idle).
   - file:
       type: web
       url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
     id: ha_font_weather
-    size: 44
+    size: 26
     bpp: 4
     glyphs:
       - "\U000F0590"  # weather-cloudy
@@ -41,14 +41,12 @@ font:
       - "\U000F067F"  # weather-snowy-rainy
       - "\U000F0F31"  # weather-night-partly-cloudy
       - "\U000F0026"  # alert (exceptional / fallback)
-  # Material Design Icons — group/menu icons. Same MDI webfont (= Home Assistant's icon
-  # set): the font component only embeds the glyphs listed here, so storage stays tiny
-  # (a handful of bitmaps), not the full ~7000-icon set nor any SVG.
+  # Material Design Icons — group/menu icons (subset only = tiny storage).
   - file:
       type: web
       url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
     id: ha_font_icons
-    size: 28
+    size: 22
     bpp: 4
     glyphs:
       - "\U000F0493"  # cog (settings)

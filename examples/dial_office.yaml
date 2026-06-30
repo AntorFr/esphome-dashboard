@@ -1,9 +1,8 @@
-# Config de test réaliste — Dial Bureau (reprend les menus du device réel).
-# Cartes BINAIRES uniquement pour ce premier test (card switch = binding HA réel).
-# Les menus Musique / Chauffage / Portail (media_player / climate / cover) arriveront
-# en M5 — laissés en commentaire ci-dessous.
+# Config Dial Bureau — remplacement de esp-dial (parité fonctionnelle).
+# Navigation : molette = focus (menu/groupe) / réglage (carte) ; bouton = valider /
+# maintien = retour ; tactile = tap. Veille horloge après inactivité.
 #
-# En dev local : external_components pointe sur ../components.
+# En dev local : external_components -> ../components.
 # En prod : remplacer par  { source: github://AntorFR/esphome-dashboard }
 substitutions:
   device_name: dial-office-desk
@@ -41,13 +40,14 @@ external_components:
 
 packages:
   board: !include ../packages/boards/m5stack_dial.yaml
+  fonts: !include ../packages/fonts/montserrat_fr_dial.yaml
 
 time:
   - platform: sntp
     id: sntp_time
     timezone: Europe/Paris
 
-# === Entités Home Assistant liées (cartes binaires) ===
+# === Entités Home Assistant ===
 switch:
   - platform: homeassistant
     id: perf_mode
@@ -70,12 +70,40 @@ switch:
     name: "Core One"
     internal: true
 
+cover:
+  - platform: homeassistant_addon
+    id: cover_portail
+    entity_id: cover.portail_2
+    name: "Portail"
+    internal: true
+
+climate:
+  - platform: homeassistant_addon
+    id: climate_chauffage
+    entity_id: climate.mobile_heater_plug_thermostat
+    name: "Chauffage"
+    internal: true
+
+homeassistant_addon:
+  media_players:
+    - id: media_bureau
+      entity_id: media_player.bureau_2
+      volume_step: 0.05
+
 ha_dashboard:
   profile: dial
   language: fr
   inactivity_timeout: 30s
   encoder: dial_encoder
   encoder_button: dial_button
+  time_id: sntp_time
+  weather:
+    entity: weather.petit_mars
+  font_small: ha_font_small
+  font_medium: ha_font_medium
+  font_large: ha_font_large
+  font_weather: ha_font_weather
+  font_icons: ha_font_icons
   groups:
     - name: "Focus"
       icon: settings
@@ -87,8 +115,15 @@ ha_dashboard:
       cards:
         - { type: switch, switch_id: iron,     name: "Fer à souder", color: "#D32F2F" }
         - { type: switch, switch_id: core_one, name: "Core One",      color: "#0097A7" }
-
-    # === À venir en M5 (cartes dédiées) — non binaires, non bindables en switch ===
-    # - name: "Musique"   # media_player.ma_bureau (card media_player)
-    # - name: "Chauffage" # climate.mobile_heater_plug_thermostat (card climate)
-    # - name: "Portail"   # cover.portail_2 (card cover)
+    - name: "Musique"
+      icon: speaker
+      cards:
+        - { type: media_player, media_player_id: media_bureau, name: "Enceinte", color: "#A06CFF" }
+    - name: "Chauffage"
+      icon: thermostat
+      cards:
+        - { type: climate, climate_id: climate_chauffage, name: "Chauffage", color: "#03A964" }
+    - name: "Portail"
+      icon: gate
+      cards:
+        - { type: cover, cover_id: cover_portail, name: "Portail", color: "#577EFF" }

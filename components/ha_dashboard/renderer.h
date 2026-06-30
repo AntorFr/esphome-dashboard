@@ -21,13 +21,17 @@ enum class NavState : uint8_t {
 // vers le Controller. `index` = item ciblé pour une sélection directe (sinon -1).
 enum class InputEvent : uint8_t {
   WAKE = 0,      // leave idle
-  FOCUS_NEXT,    // next focus (encoder / swipe)
-  FOCUS_PREV,    // previous focus
+  FOCUS_NEXT,    // next focus (touch swipe ->) — Dial carousel = next card
+  FOCUS_PREV,    // previous focus (touch swipe <-) — Dial carousel = previous card
   SELECT,        // confirm focus (or index if provided)
-  BACK,          // go up one level
+  BACK,          // go up one level (slide up / button hold)
   TOGGLE,        // card primary action (on/off), index = card
   SLEEP,         // back to idle (timeout)
-  SELECT_GROUP,  // pick a group directly (D1001 tabs), index = group
+  SELECT_GROUP,  // focus a group directly (D1001 tabs / Dial radial snap), index = group
+  ENCODER_CW,    // encoder clockwise — context-dependent (menu rotate / card adjust)
+  ENCODER_CCW,   // encoder counter-clockwise
+  MEDIA_PREV,    // media player: previous track
+  MEDIA_NEXT,    // media player: next track
 };
 
 // Instantané de l'état de navigation passé au renderer.
