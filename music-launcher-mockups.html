@@ -176,9 +176,10 @@ var FAV=[
 ];
 
 function cover(f,showList){
+  // Type is already conveyed by the label under the tile + the list button -> no corner
+  // badge (it was redundant and looked like a non-interactive button).
   var listLbl = f.ty==='audiobook' ? 'Chapitres' : 'Épisodes';
   return '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo
-    + (f.kids?'<div class="badge"><i class="ti '+TYI[f.ty]+'"></i></div>':'')
     + (showList && f.kids?'<div class="listbtn"><i class="ti ti-list"></i>'+listLbl+'</div>':'')
     + '</div>';
 }
