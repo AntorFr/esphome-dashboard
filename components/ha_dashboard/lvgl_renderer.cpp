@@ -1022,14 +1022,17 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_flex_align(tile, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Cover (tap = play). Overlays are positioned absolutely inside it.
-    lv_obj_t *cover = lv_button_create(tile);
+    // Cover image holder — NOT clickable, so a press-drag here scrolls the grid instead of
+    // triggering playback. Only the central play button below starts playback.
+    lv_obj_t *cover = lv_obj_create(tile);
     lv_obj_set_size(cover, COVER_PX, COVER_PX);
     lv_obj_set_style_bg_color(cover, lv_color_hex(0x15151C), 0);
+    lv_obj_set_style_border_width(cover, 0, 0);
     lv_obj_set_style_shadow_width(cover, 0, 0);
     lv_obj_set_style_radius(cover, 12, 0);
     lv_obj_set_style_pad_all(cover, 0, 0);
     lv_obj_set_style_clip_corner(cover, true, 0);
+    lv_obj_clear_flag(cover, LV_OBJ_FLAG_SCROLLABLE);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
     if (idx >= 0 && idx < (int) g.cover_slots.size() && g.cover_slots[idx] != nullptr &&
         !item.cover_url.empty()) {
@@ -1044,25 +1047,23 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       this->cover_queue_.push_back(slot);  // downloaded serially after the grid is built
     }
 #endif
-    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(cover, btn_event_cb, LV_EVENT_CLICKED, d);
 
-    // Play badge bottom-right (visual only -> taps fall through to the cover button).
-    lv_obj_t *badge = lv_obj_create(cover);
-    lv_obj_set_size(badge, 60, 60);
-    lv_obj_set_style_radius(badge, 30, 0);
-    lv_obj_set_style_bg_color(badge, lv_color_hex(0x0A0A0C), 0);
-    lv_obj_set_style_bg_opa(badge, LV_OPA_60, 0);
-    lv_obj_set_style_border_width(badge, 0, 0);
-    lv_obj_set_style_pad_all(badge, 0, 0);
-    lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -10, -10);
-    lv_obj_t *play = lv_label_create(badge);
+    // Central play button — the only play trigger.
+    lv_obj_t *playbtn = lv_button_create(cover);
+    lv_obj_set_size(playbtn, 88, 88);
+    lv_obj_set_style_radius(playbtn, 44, 0);
+    lv_obj_set_style_bg_color(playbtn, lv_color_hex(0x0A0A0C), 0);
+    lv_obj_set_style_bg_opa(playbtn, LV_OPA_50, 0);
+    lv_obj_set_style_shadow_width(playbtn, 0, 0);
+    lv_obj_center(playbtn);
+    lv_obj_t *play = lv_label_create(playbtn);
     lv_label_set_text(play, LV_SYMBOL_PLAY);
     lv_obj_center(play);
     lv_obj_set_style_text_color(play, lv_color_hex(COL_TEXT), 0);
-    lv_obj_set_style_text_font(play, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(play, &lv_font_montserrat_48, 0);
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
 
     // Drill button overlaid at the top (podcasts/audiobooks).
     if (item.has_children) {
@@ -1155,8 +1156,9 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     int ci = L->detail_index();
     if (ci >= 0 && ci < (int) g.cover_slots.size() && g.cover_slots[ci] != nullptr) {
       lv_obj_t *hc = lv_image_create(head);
+      lv_obj_set_size(hc, 64, 64);
       lv_image_set_src(hc, g.cover_slots[ci]->get_lv_image_dsc());
-      lv_image_set_scale(hc, 47);  // ~64px from the 350px source
+      lv_image_set_inner_align(hc, LV_IMAGE_ALIGN_CONTAIN);  // scale the source to fit 64px
     }
 #endif
 
@@ -1165,7 +1167,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_label_set_long_mode(ht, LV_LABEL_LONG_DOT);
     lv_label_set_text(ht, L->detail_title().c_str());
     lv_obj_set_style_text_color(ht, lv_color_hex(COL_TEXT), 0);
-    this->set_text_font_(ht, this->font_large_, &lv_font_montserrat_48);
+    this->set_text_font_(ht, this->font_medium_, &lv_font_montserrat_28);
   }
 
   if (L->status() != LauncherStatus::READY) {
