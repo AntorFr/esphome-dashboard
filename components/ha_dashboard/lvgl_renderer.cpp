@@ -7,6 +7,9 @@
 #include <vector>
 #include "esphome/core/log.h"
 #include "launcher_module.h"
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+#include "esphome/components/online_image/online_image.h"
+#endif
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -776,6 +779,40 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     this->launcher_grids_.push_back(lgrid);
     this->launcher_sig_.push_back(-1);
   }
+
+  this->register_cover_slots_(groups);
+}
+
+void LvglRenderer::register_cover_slots_(const std::vector<Group> &groups) {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  this->cover_slot_list_.clear();
+  this->cover_widget_list_.clear();
+  for (const auto &g : groups) {
+    for (auto *slot : g.cover_slots) {
+      if (slot == nullptr)
+        continue;
+      this->cover_slot_list_.push_back(slot);
+      this->cover_widget_list_.push_back(nullptr);
+      slot->add_on_finished_callback([this, slot](bool /*cached*/) { this->on_cover_ready_(slot); });
+    }
+  }
+#else
+  (void) groups;
+#endif
+}
+
+void LvglRenderer::on_cover_ready_(online_image::OnlineImage *slot) {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  for (size_t i = 0; i < this->cover_slot_list_.size(); i++) {
+    if (this->cover_slot_list_[i] == slot && this->cover_widget_list_[i] != nullptr) {
+      lv_image_set_src(this->cover_widget_list_[i], slot->get_lv_image_dsc());
+      lv_obj_invalidate(this->cover_widget_list_[i]);
+      return;
+    }
+  }
+#else
+  (void) slot;
+#endif
 }
 
 void LvglRenderer::render_dashboard_(const ViewModel &vm) {
@@ -857,6 +894,16 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
 
   lv_obj_clean(grid);  // destroys old children (and their event cbs)
 
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  // The cover widgets we are about to (re)create were just destroyed: drop stale pointers so
+  // a late download callback can't touch a freed object.
+  for (auto *slot : g.cover_slots) {
+    for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+      if (this->cover_slot_list_[s] == slot)
+        this->cover_widget_list_[s] = nullptr;
+  }
+#endif
+
   auto add_button = [this, grid](const char *text, const lv_font_t *fb, uint32_t color, InputEvent ev,
                                  int idx) -> lv_obj_t * {
     lv_obj_t *b = lv_button_create(grid);
@@ -871,6 +918,46 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
     this->set_text_font_(l, this->font_medium_, fb);
     auto *d = new CbData{this, ev, idx};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    return b;
+  };
+
+  // A favourite tile: [ cover | title ], whole tile taps -> play. Binds a cover slot when one
+  // is available for this index (covers download async; on_cover_ready_ refreshes the image).
+  auto make_fav_button = [&](lv_obj_t *parent, const QuickItem &item, int idx, bool grow) -> lv_obj_t * {
+    lv_obj_t *b = lv_button_create(parent);
+    if (grow)
+      lv_obj_set_flex_grow(b, 1);
+    else
+      lv_obj_set_width(b, lv_pct(100));
+    lv_obj_set_height(b, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(b, 0, 0);
+    lv_obj_set_style_radius(b, 14, 0);
+    lv_obj_set_style_pad_all(b, 12, 0);
+    lv_obj_set_style_pad_column(b, 12, 0);
+    lv_obj_set_flex_flow(b, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(b, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+    if (idx >= 0 && idx < (int) g.cover_slots.size() && g.cover_slots[idx] != nullptr &&
+        !item.cover_url.empty()) {
+      online_image::OnlineImage *slot = g.cover_slots[idx];
+      lv_obj_t *img = lv_image_create(b);
+      lv_image_set_src(img, slot->get_lv_image_dsc());
+      for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
+        if (this->cover_slot_list_[s] == slot)
+          this->cover_widget_list_[s] = img;
+      slot->set_url(item.cover_url);
+      slot->update();
+    }
+#endif
+    lv_obj_t *l = lv_label_create(b);
+    lv_obj_set_flex_grow(l, 1);
+    lv_label_set_text(l, item.title.c_str());
+    lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
     return b;
@@ -919,20 +1006,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
       lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
-      lv_obj_t *title_btn = lv_button_create(row);
-      lv_obj_set_flex_grow(title_btn, 1);
-      lv_obj_set_height(title_btn, LV_SIZE_CONTENT);
-      lv_obj_set_style_bg_color(title_btn, lv_color_hex(COL_TILE), 0);
-      lv_obj_set_style_shadow_width(title_btn, 0, 0);
-      lv_obj_set_style_radius(title_btn, 14, 0);
-      lv_obj_set_style_pad_all(title_btn, 16, 0);
-      lv_obj_t *tl = lv_label_create(title_btn);
-      lv_label_set_text(tl, items[i].title.c_str());
-      lv_obj_set_style_text_color(tl, lv_color_hex(COL_TEXT), 0);
-      this->set_text_font_(tl, this->font_medium_, &lv_font_montserrat_28);
-      auto *da = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, (int) i};
-      g_cbdata.push_back(da);
-      lv_obj_add_event_cb(title_btn, btn_event_cb, LV_EVENT_CLICKED, da);
+      make_fav_button(row, items[i], (int) i, /*grow=*/true);
 
       lv_obj_t *list_btn = lv_button_create(row);
       lv_obj_set_height(list_btn, LV_SIZE_CONTENT);
@@ -950,9 +1024,13 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       continue;
     }
 
-    // Leaf favourite, or an episode/chapter row in detail: a single tappable button (play).
-    add_button(items[i].title.c_str(), &lv_font_montserrat_28, COL_TEXT, InputEvent::LAUNCHER_ACTIVATE,
-               (int) i);
+    // Leaf favourite (grid) gets a cover; an episode/chapter row in detail is title-only.
+    if (!detail) {
+      make_fav_button(grid, items[i], (int) i, /*grow=*/false);
+    } else {
+      add_button(items[i].title.c_str(), &lv_font_montserrat_28, COL_TEXT,
+                 InputEvent::LAUNCHER_ACTIVATE, (int) i);
+    }
   }
 
   // Detail: "load more" affordance when more pages are available.

@@ -60,9 +60,13 @@ class LvglRenderer : public Renderer {
   // D1001 dashboard (tabs + tile grid).
   void build_dashboard_(const std::vector<Group> &groups);
   void render_dashboard_(const ViewModel &vm);
-  // Music Library launcher tab: a list of favourite titles (rebuilt only when the module's
-  // status/count changes). Covers via online_image come later.
+  // Music Library launcher tab: list of favourites (rebuilt only when the module's
+  // status/count/level changes), with covers via online_image slots.
   void render_launcher_(int gi, const Group &g);
+  // Register on-download-finished callbacks for every cover slot (once, at build time).
+  void register_cover_slots_(const std::vector<Group> &groups);
+  // Refresh the LVGL image bound to a cover slot once its download/decode completes.
+  void on_cover_ready_(online_image::OnlineImage *slot);
 
   // Apply an esphome font if provided, else the built-in LVGL fallback.
   void set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback);
@@ -140,6 +144,9 @@ class LvglRenderer : public Renderer {
   // groups), with a render signature to skip rebuilds when nothing changed.
   std::vector<lv_obj_t *> launcher_grids_;
   std::vector<long> launcher_sig_;
+  // Cover slots (flattened across launcher groups) -> currently bound LVGL image (or null).
+  std::vector<online_image::OnlineImage *> cover_slot_list_;
+  std::vector<lv_obj_t *> cover_widget_list_;
 };
 
 }  // namespace ha_dashboard

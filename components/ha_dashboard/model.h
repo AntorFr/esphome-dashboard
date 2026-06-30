@@ -9,6 +9,9 @@
 #include "esphome/components/switch/switch.h"
 
 namespace esphome {
+namespace online_image {
+class OnlineImage;  // cover image slots (pointer only here; see lvgl_renderer)
+}
 namespace ha_dashboard {
 
 class LauncherModule;  // layer-1 music launcher (see launcher_module.h); pointer only here
@@ -109,6 +112,8 @@ struct Group {
   // driven by `launcher`. See ADR-0007. `launcher` is owned by HaDashboard.
   bool is_launcher{false};
   LauncherModule *launcher{nullptr};
+  // Pool of online_image slots (one per favourite index) for covers; declared in YAML.
+  std::vector<online_image::OnlineImage *> cover_slots;
 };
 
 }  // namespace ha_dashboard
