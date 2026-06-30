@@ -42,6 +42,41 @@ static void btn_event_cb(lv_event_t *e) {
     d->renderer->emit(d->event, d->index);
 }
 
+// Drop leading symbol/emoji codepoints (>= U+2000) the accented text font can't render
+// (e.g. "🌊 Episode" -> "Episode"); Latin letters + accents (< U+2000) are kept.
+static std::string clean_title(const std::string &s) {
+  size_t i = 0;
+  while (i < s.size()) {
+    unsigned char c = s[i];
+    if (c < 0x80)
+      break;  // ASCII
+    uint32_t cp;
+    size_t len;
+    if ((c & 0xE0) == 0xC0) {
+      cp = c & 0x1F;
+      len = 2;
+    } else if ((c & 0xF0) == 0xE0) {
+      cp = c & 0x0F;
+      len = 3;
+    } else if ((c & 0xF8) == 0xF0) {
+      cp = c & 0x07;
+      len = 4;
+    } else {
+      break;
+    }
+    if (i + len > s.size())
+      break;
+    for (size_t k = 1; k < len; k++)
+      cp = (cp << 6) | (s[i + k] & 0x3F);
+    if (cp < 0x2000)
+      break;  // Latin / accents -> keep
+    i += len;
+  }
+  while (i < s.size() && s[i] == ' ')
+    i++;
+  return i != 0 ? s.substr(i) : s;
+}
+
 void LvglRenderer::set_profile(const std::string &profile) {
   this->profile_ = profile;
   this->round_ = (profile != "reterminal_d1001");
@@ -190,6 +225,7 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     this->build_card_view_();
   } else {
     this->build_dashboard_(groups);
+    this->build_now_playing_();
   }
 }
 
@@ -1078,8 +1114,8 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
 
     // Central play button — the only play trigger.
     lv_obj_t *playbtn = lv_button_create(cover);
-    lv_obj_set_size(playbtn, 88, 88);
-    lv_obj_set_style_radius(playbtn, 44, 0);
+    lv_obj_set_size(playbtn, 120, 120);
+    lv_obj_set_style_radius(playbtn, 60, 0);
     lv_obj_set_style_bg_color(playbtn, lv_color_hex(0x0A0A0C), 0);
     lv_obj_set_style_bg_opa(playbtn, LV_OPA_50, 0);
     lv_obj_set_style_shadow_width(playbtn, 0, 0);
@@ -1127,7 +1163,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_width(l, COVER_PX);
     lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(l, item.title.c_str());
+    lv_label_set_text(l, clean_title(item.title).c_str());
     lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(l, this->font_medium_, &lv_font_montserrat_28);
 
@@ -1179,21 +1215,10 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     g_cbdata.push_back(db);
     lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, db);
 
-#ifdef USE_HA_DASHBOARD_LAUNCHER
-    // Parent cover, reusing the grid slot's already-decoded image (no re-download).
-    int ci = L->detail_index();
-    if (ci >= 0 && ci < (int) g.cover_slots.size() && g.cover_slots[ci] != nullptr) {
-      lv_obj_t *hc = lv_image_create(head);
-      lv_obj_set_size(hc, 64, 64);
-      lv_image_set_src(hc, g.cover_slots[ci]->get_lv_image_dsc());
-      lv_image_set_inner_align(hc, LV_IMAGE_ALIGN_CONTAIN);  // scale the source to fit 64px
-    }
-#endif
-
     lv_obj_t *ht = lv_label_create(head);
     lv_obj_set_flex_grow(ht, 1);
     lv_label_set_long_mode(ht, LV_LABEL_LONG_DOT);
-    lv_label_set_text(ht, L->detail_title().c_str());
+    lv_label_set_text(ht, clean_title(L->detail_title()).c_str());
     lv_obj_set_style_text_color(ht, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(ht, this->font_medium_, &lv_font_montserrat_28);
   }
@@ -1226,7 +1251,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     if (!detail) {
       make_cover_tile(items[i], (int) i);  // cover grid tile (play + optional drill button)
     } else {
-      add_button(items[i].title.c_str(), &lv_font_montserrat_28, COL_TEXT,
+      add_button(clean_title(items[i].title).c_str(), &lv_font_montserrat_28, COL_TEXT,
                  InputEvent::LAUNCHER_ACTIVATE, (int) i);  // episode/chapter row (title only)
     }
   }
@@ -1248,6 +1273,105 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   if (!this->cover_queue_.empty())
     this->cover_queue_[0]->update();
 #endif
+}
+
+const Group *LvglRenderer::first_launcher_(const ViewModel &vm) const {
+  if (vm.groups == nullptr)
+    return nullptr;
+  for (const auto &g : *vm.groups)
+    if (g.is_launcher && g.launcher != nullptr)
+      return &g;
+  return nullptr;
+}
+
+void LvglRenderer::build_now_playing_() {
+  this->now_playing_scr_ = this->make_screen_();
+
+  lv_obj_t *root = lv_obj_create(this->now_playing_scr_);
+  lv_obj_set_size(root, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_opa(root, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(root, 0, 0);
+  lv_obj_set_style_pad_all(root, 24, 0);
+  lv_obj_set_style_pad_row(root, 18, 0);
+  lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(root, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Back chevron (top-left, outside the centered column).
+  lv_obj_t *back = lv_button_create(this->now_playing_scr_);
+  lv_obj_add_flag(back, LV_OBJ_FLAG_IGNORE_LAYOUT);
+  lv_obj_set_size(back, 56, 56);
+  lv_obj_align(back, LV_ALIGN_TOP_LEFT, 16, 16);
+  lv_obj_set_style_bg_color(back, lv_color_hex(COL_TILE), 0);
+  lv_obj_set_style_radius(back, 12, 0);
+  lv_obj_set_style_shadow_width(back, 0, 0);
+  lv_obj_t *bi = lv_label_create(back);
+  lv_label_set_text(bi, LV_SYMBOL_LEFT);
+  lv_obj_center(bi);
+  lv_obj_set_style_text_font(bi, &lv_font_montserrat_28, 0);
+  lv_obj_set_style_text_color(bi, lv_color_hex(COL_TEXT), 0);
+  {
+    auto *d = new CbData{this, InputEvent::BACK, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
+
+  this->np_title_lbl_ = lv_label_create(root);
+  lv_obj_set_width(this->np_title_lbl_, lv_pct(90));
+  lv_label_set_long_mode(this->np_title_lbl_, LV_LABEL_LONG_DOT);
+  lv_obj_set_style_text_align(this->np_title_lbl_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_text(this->np_title_lbl_, "—");
+  lv_obj_set_style_text_color(this->np_title_lbl_, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(this->np_title_lbl_, this->font_large_, &lv_font_montserrat_48);
+
+  this->np_sub_lbl_ = lv_label_create(root);
+  lv_label_set_text(this->np_sub_lbl_, "");
+  lv_obj_set_style_text_color(this->np_sub_lbl_, lv_color_hex(COL_MUTED), 0);
+  this->set_text_font_(this->np_sub_lbl_, this->font_medium_, &lv_font_montserrat_28);
+
+  lv_obj_t *tr = lv_obj_create(root);
+  lv_obj_set_size(tr, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(tr, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(tr, 0, 0);
+  lv_obj_set_style_pad_all(tr, 0, 0);
+  lv_obj_set_style_pad_column(tr, 24, 0);
+  lv_obj_set_style_margin_top(tr, 12, 0);
+  lv_obj_set_flex_flow(tr, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(tr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(tr, LV_OBJ_FLAG_SCROLLABLE);
+
+  auto tbtn = [this, tr](const char *sym, int size, InputEvent ev) -> lv_obj_t * {
+    lv_obj_t *b = lv_button_create(tr);
+    lv_obj_set_size(b, size, size);
+    lv_obj_set_style_radius(b, size / 2, 0);
+    lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(b, 0, 0);
+    lv_obj_t *l = lv_label_create(b);
+    lv_label_set_text(l, sym);
+    lv_obj_center(l);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
+    auto *d = new CbData{this, ev, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    return l;
+  };
+  tbtn(LV_SYMBOL_PREV, 64, InputEvent::NP_PREV);
+  this->np_pp_icon_ = tbtn(LV_SYMBOL_PLAY, 88, InputEvent::NP_PLAY_PAUSE);
+  tbtn(LV_SYMBOL_NEXT, 64, InputEvent::NP_NEXT);
+}
+
+void LvglRenderer::render_now_playing_(const ViewModel &vm) {
+  const Group *g = this->first_launcher_(vm);
+  if (g != nullptr && g->launcher != nullptr && this->np_title_lbl_ != nullptr) {
+    const NowPlaying &np = g->launcher->now_playing();
+    lv_label_set_text(this->np_title_lbl_, np.title.empty() ? "—" : clean_title(np.title).c_str());
+    lv_label_set_text(this->np_sub_lbl_, clean_title(np.artist).c_str());
+    if (this->np_pp_icon_ != nullptr)
+      lv_label_set_text(this->np_pp_icon_, np.playing() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+  }
+  if (this->now_playing_scr_ != nullptr)
+    lv_screen_load(this->now_playing_scr_);
 }
 
 const Card *LvglRenderer::current_card_(const ViewModel &vm) const {
@@ -1328,6 +1452,10 @@ void LvglRenderer::render(const ViewModel &vm) {
 
     case NavState::DASHBOARD:
       this->render_dashboard_(vm);
+      break;
+
+    case NavState::NOW_PLAYING:
+      this->render_now_playing_(vm);
       break;
 
     case NavState::MENU:

@@ -56,6 +56,15 @@ void Controller::enter_group_(int group_index) {
   this->state_ = NavState::GROUP;
 }
 
+LauncherModule *Controller::first_launcher_() {
+  if (this->groups_ == nullptr)
+    return nullptr;
+  for (auto &g : *this->groups_)
+    if (g.is_launcher && g.launcher != nullptr)
+      return g.launcher;
+  return nullptr;
+}
+
 void Controller::handle(InputEvent event, int index) {
   this->last_event_ms_ = millis();
 
@@ -231,6 +240,39 @@ void Controller::handle(InputEvent event, int index) {
           }
           break;
         }
+        case InputEvent::OPEN_NOW_PLAYING:
+          if (LauncherModule *L = this->first_launcher_()) {
+            L->fetch_now_playing();
+            this->state_ = NavState::NOW_PLAYING;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+
+    case NavState::NOW_PLAYING: {
+      LauncherModule *L = this->first_launcher_();
+      switch (event) {
+        case InputEvent::NP_PLAY_PAUSE:
+          if (L != nullptr)
+            L->transport("play_pause");
+          break;
+        case InputEvent::NP_NEXT:
+          if (L != nullptr)
+            L->transport("next");
+          break;
+        case InputEvent::NP_PREV:
+          if (L != nullptr)
+            L->transport("previous");
+          break;
+        case InputEvent::BACK:
+          this->state_ = NavState::DASHBOARD;
+          break;
+        case InputEvent::SLEEP:
+          this->state_ = NavState::IDLE;
+          break;
         default:
           break;
       }

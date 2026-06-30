@@ -63,6 +63,10 @@ class LvglRenderer : public Renderer {
   // Music Library launcher tab: list of favourites (rebuilt only when the module's
   // status/count/level changes), with covers via online_image slots.
   void render_launcher_(int gi, const Group &g);
+  // "Now playing" card (built once, populated from the launcher's NowPlaying).
+  void build_now_playing_();
+  void render_now_playing_(const ViewModel &vm);
+  const Group *first_launcher_(const ViewModel &vm) const;
   // Register on-download finished/error callbacks for every cover slot (once, at build time).
   void register_cover_slots_(const std::vector<Group> &groups);
   // Refresh the LVGL image bound to a cover slot once its download/decode completes.
@@ -142,6 +146,13 @@ class LvglRenderer : public Renderer {
   lv_obj_t *weather_icon_lbl_{nullptr};
   lv_obj_t *weather_temp_lbl_{nullptr};
   lv_obj_t *weather_cond_lbl_{nullptr};
+  lv_obj_t *np_btn_{nullptr};  // header "now playing" button
+
+  // "Now playing" card (opened from the header button).
+  lv_obj_t *now_playing_scr_{nullptr};
+  lv_obj_t *np_title_lbl_{nullptr};
+  lv_obj_t *np_sub_lbl_{nullptr};
+  lv_obj_t *np_pp_icon_{nullptr};  // play/pause glyph (toggles)
   std::vector<lv_obj_t *> tab_btns_;
   std::vector<lv_obj_t *> tab_lbls_;
   std::vector<lv_obj_t *> group_grids_;
