@@ -794,6 +794,7 @@ void LvglRenderer::register_cover_slots_(const std::vector<Group> &groups) {
       this->cover_slot_list_.push_back(slot);
       this->cover_widget_list_.push_back(nullptr);
       slot->add_on_finished_callback([this, slot](bool /*cached*/) { this->on_cover_ready_(slot); });
+      slot->add_on_error_callback([this, slot]() { this->on_cover_error_(slot); });
     }
   }
 #else
@@ -807,11 +808,36 @@ void LvglRenderer::on_cover_ready_(online_image::OnlineImage *slot) {
     if (this->cover_slot_list_[i] == slot && this->cover_widget_list_[i] != nullptr) {
       lv_image_set_src(this->cover_widget_list_[i], slot->get_lv_image_dsc());
       lv_obj_invalidate(this->cover_widget_list_[i]);
-      return;
+      break;
     }
   }
+  this->advance_cover_(slot);
 #else
   (void) slot;
+#endif
+}
+
+void LvglRenderer::on_cover_error_(online_image::OnlineImage *slot) {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  ESP_LOGW(TAG, "cover download failed");
+  this->advance_cover_(slot);
+#else
+  (void) slot;
+#endif
+}
+
+// Kick the next cover once the current one finished/errored (one TLS download at a time).
+void LvglRenderer::advance_cover_(online_image::OnlineImage *finished_slot) {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  if (this->cover_load_idx_ >= this->cover_queue_.size())
+    return;
+  if (this->cover_queue_[this->cover_load_idx_] != finished_slot)
+    return;  // not the slot we're waiting on (stale/duplicate callback)
+  this->cover_load_idx_++;
+  if (this->cover_load_idx_ < this->cover_queue_.size())
+    this->cover_queue_[this->cover_load_idx_]->update();
+#else
+  (void) finished_slot;
 #endif
 }
 
@@ -896,12 +922,14 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // The cover widgets we are about to (re)create were just destroyed: drop stale pointers so
-  // a late download callback can't touch a freed object.
+  // a late download callback can't touch a freed object. Reset the serial download queue too.
   for (auto *slot : g.cover_slots) {
     for (size_t s = 0; s < this->cover_slot_list_.size(); s++)
       if (this->cover_slot_list_[s] == slot)
         this->cover_widget_list_[s] = nullptr;
   }
+  this->cover_queue_.clear();
+  this->cover_load_idx_ = 0;
 #endif
 
   auto add_button = [this, grid](const char *text, const lv_font_t *fb, uint32_t color, InputEvent ev,
@@ -949,7 +977,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
         if (this->cover_slot_list_[s] == slot)
           this->cover_widget_list_[s] = img;
       slot->set_url(item.cover_url);
-      slot->update();
+      this->cover_queue_.push_back(slot);  // downloaded serially after the grid is built
     }
 #endif
     lv_obj_t *l = lv_label_create(b);
@@ -1044,6 +1072,12 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       add_button("Charger plus", &lv_font_montserrat_28, COL_ACCENT, InputEvent::LAUNCHER_LOAD_MORE, -1);
     }
   }
+
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  // Start the serial cover downloads (one at a time; the rest follow via advance_cover_).
+  if (!this->cover_queue_.empty())
+    this->cover_queue_[0]->update();
+#endif
 }
 
 const Card *LvglRenderer::current_card_(const ViewModel &vm) const {

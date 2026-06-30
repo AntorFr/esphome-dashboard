@@ -63,10 +63,13 @@ class LvglRenderer : public Renderer {
   // Music Library launcher tab: list of favourites (rebuilt only when the module's
   // status/count/level changes), with covers via online_image slots.
   void render_launcher_(int gi, const Group &g);
-  // Register on-download-finished callbacks for every cover slot (once, at build time).
+  // Register on-download finished/error callbacks for every cover slot (once, at build time).
   void register_cover_slots_(const std::vector<Group> &groups);
   // Refresh the LVGL image bound to a cover slot once its download/decode completes.
   void on_cover_ready_(online_image::OnlineImage *slot);
+  void on_cover_error_(online_image::OnlineImage *slot);
+  // Covers download one at a time (serialized) to avoid exhausting TLS/socket memory.
+  void advance_cover_(online_image::OnlineImage *finished_slot);
 
   // Apply an esphome font if provided, else the built-in LVGL fallback.
   void set_text_font_(lv_obj_t *obj, font::Font *f, const lv_font_t *fallback);
@@ -147,6 +150,9 @@ class LvglRenderer : public Renderer {
   // Cover slots (flattened across launcher groups) -> currently bound LVGL image (or null).
   std::vector<online_image::OnlineImage *> cover_slot_list_;
   std::vector<lv_obj_t *> cover_widget_list_;
+  // Serialized cover download queue (current grid), advanced as each finishes/errors.
+  std::vector<online_image::OnlineImage *> cover_queue_;
+  size_t cover_load_idx_{0};
 };
 
 }  // namespace ha_dashboard
