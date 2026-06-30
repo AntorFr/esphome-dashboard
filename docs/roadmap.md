@@ -86,10 +86,10 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 > Tout sur le relais ML (état + transport), pas via HA. Maquettes : `music-launcher-mockups.html`.
 > Feature distincte de la card `media_player` HA générique (qui, elle, reste sur HA).
 - [x] **music-library** : `GET /api/v1/quick/{owner}` (PR #1, v0.12.0-beta)
+- [x] **music-library** : children paginé + now-playing + transport complet (shuffle/repeat/volume/power)
+      (PR #2, v0.13.0-beta) — endpoints `/api/v1/ma/*` + `/api/v1/quick/item/{id}/children`
 - [x] Couche 1 : `LauncherModule` + port `MusicLibraryBackend` (`fetch_favorites`/`fetch_children` paginé/`play`) ;
       `activate`/`open_children`/`load_more_children` ; testé (host g++) — commits 31d1597, 01afe02
-- [ ] **music-library (à faire)** : ① `…/children?offset=&limit=` paginé (`has_more`, `cover_url` optionnel) ·
-      ② état now-playing (item/play-pause/position/volume) · ③ transport (pause/next/volume/seek)
 - [ ] Renderer D1001 : `render_launcher()` (grille pochettes via `online_image`) +
       `render_launcher_detail()` (liste paginée, vignette épisode / numéro chapitre) +
       widget média header + écran `render_now_playing()`

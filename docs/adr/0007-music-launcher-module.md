@@ -36,17 +36,18 @@ The module is an on-device twin of the web `/quick` launcher. Rationale: covers 
 either way, music-library already exposes purpose-built endpoints, and we avoid a fragile
 HA automation hop.
 
-Contract (music-library side). `*` = shipped in PR #1 / `v0.12.0-beta`; the rest are
-follow-up endpoints this module needs:
+Contract (music-library side) — **all endpoints now shipped** (`v0.12.0-beta` + `v0.13.0-beta`):
 
 | Step | Call | Notes |
 |------|------|-------|
-| favourites `*` | `GET /api/v1/quick/{owner}` | compact JSON: `id,title,media_type,uri,cover_url,has_children` |
-| cover `*` | `GET /covers/{id}.jpg` | 300×300, decoded on device |
-| play `*` | `POST /api/v1/ma/play?queue_id=&uri=&seek=` | `queue_id` = the device's fixed speaker |
-| episodes/chapters | `GET /api/v1/quick/item/{id}/children?offset=&limit=` | paged: `{items[…], has_more}`; per-item `cover_url` optional (podcast=thumb, audiobook=none) |
-| now-playing state | `GET …queue state…` (TBD) | current item, play/pause, position, volume — for the header widget + screen D |
-| transport | `POST …pause/next/prev/volume/seek…` (TBD) | controls from screen D |
+| favourites | `GET /api/v1/quick/{owner}` | compact JSON: `id,title,media_type,uri,cover_url,has_children` |
+| cover | `GET /covers/{id}.jpg` | 300×300, decoded on device |
+| play | `POST /api/v1/ma/play?queue_id=&uri=&seek=` | `queue_id` = the device's fixed speaker |
+| episodes/chapters | `GET /api/v1/quick/item/{id}/children?offset=&limit=` | paged: `{items[…], has_more}`; per-item `cover_url` optional (podcast=thumb, audiobook=none), chapters carry `seek` |
+| now-playing state | `GET /api/v1/ma/now_playing?queue_id=` | item, play/pause, position, volume, mute, shuffle, repeat, power |
+| transport | `POST /api/v1/ma/{pause,resume,play_pause,stop,next,previous,seek}` | from screen D |
+| modes | `POST /api/v1/ma/shuffle?enabled=` · `/repeat?mode=off\|one\|all` | shuffle / repeat |
+| volume/power | `POST /api/v1/ma/{volume,volume_step,mute,power}` | volume 0..100, step up/down |
 
 **Two independent features, one library.** The dashboard keeps a *generic* `media_player`
 card (HA-bound, works with any player) as a separate feature. The launcher is the *second*
@@ -134,21 +135,14 @@ dashboard:
 - (−) The device holds no auth today; music-library is assumed reachable on the LAN.
   Token/header support is a later concern.
 
-## Open questions — music-library API extensions
+## music-library API — done
 
-The module needs three additions on music-library (today only `/quick` + `/ma/play`
-exist). They are the relay path the module stays on (no HA for state/transport):
-
-1. **Children (paged) — shape decided.** `GET /api/v1/quick/item/{id}/children?offset=&limit=`
-   → `{items[…], has_more}`, each item with `uri`, `title`, optional `cover_url` (podcast
-   episode = thumbnail, audiobook chapter = empty) and possibly `position`. Paging is
-   required (series of hundreds, loaded on scroll). HTML partials
-   (`/media/{id}/episodes|chapters`) are HTMX-only and rejected for the device.
-2. **Now-playing state — shape TBD.** A compact read of the target queue: current item
-   (title, cover), play/pause, position, volume. Polled (~1 s) or pushed (SSE) — TBD.
-3. **Transport — shape TBD.** pause/play, next/prev, set-volume, seek on the target queue.
-
-Each lands as a follow-up PR on music-library; tracked in `roadmap.md`.
+All the relay endpoints this module needs are now shipped (PR #1 `v0.12.0-beta`, PR #2
+`v0.13.0-beta`): favourites, paged children, now-playing state, full transport + shuffle/
+repeat/volume/power (see the contract table above). The module stays entirely on this relay
+(no HA for state/transport). Remaining device-side decision: poll cadence for
+`now_playing` (~1 s while the widget/screen D is visible) vs a future SSE push — kept simple
+(poll) for v1.
 
 See the visual spec in `music-launcher-mockups.html` (5 D1001 screens) and the technical
 analysis that produced this ADR.
