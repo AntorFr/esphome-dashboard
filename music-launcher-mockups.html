@@ -3,27 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maquettes — Module « Histoires & Musique » (D1001, music-library)</title>
+<title>Maquettes — onglet « Histoires & Musique » (D1001, music-library)</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
 <style>
   :root{
     --bg:#0A0A0C; --screen:#0E0E12; --tile:#17171E; --track:#232330;
-    --text:#fff; --muted:#8A8A92;
-    --media:#A06CFF; --play:#3DD68C; --kid1:#FF8FB1; --kid2:#5BC8FF;
+    --text:#fff; --muted:#8A8A92; --line:#232330;
+    --media:#A06CFF; --play:#3DD68C; --amber:#FFB020;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px;line-height:1.45}
   h1{font-size:22px;margin:0 0 4px}
-  .lead{color:var(--muted);max-width:880px;margin:0 0 8px}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 8px;font-size:13px;color:var(--muted)}
-  .legend span{display:inline-flex;align-items:center;gap:6px}
-  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .lead{color:var(--muted);max-width:900px;margin:0 0 8px}
 
   /* Data-flow banner */
-  .flow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 26px;padding:12px 14px;border-radius:12px;background:#13111c;border:1px solid #271f3d;font-size:13px}
+  .flow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 22px;padding:12px 14px;border-radius:12px;background:#13111c;border:1px solid #271f3d;font-size:13px}
   .flow .node{padding:5px 10px;border-radius:8px;background:#1d1830;color:#cdbff0}
   .flow .ar{color:var(--media)}
   .flow code{background:#23232c;border-radius:5px;padding:1px 6px;font-size:12px;color:#dcd2ff}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 8px;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
 
   .card-block{border-top:1px solid #1d1d24;padding:26px 0}
   .card-block h2{font-size:18px;margin:0 0 2px;display:flex;align-items:center;gap:10px;color:var(--media)}
@@ -37,33 +38,36 @@
   .port-frame{background:#1B1B22;border-radius:26px;padding:10px}
   .port{position:relative;width:280px;height:448px;border-radius:18px;background:var(--screen);overflow:hidden;display:flex;flex-direction:column}
 
-  /* top bar */
-  .top{display:flex;align-items:center;gap:8px;padding:14px 16px 10px}
-  .top .back{font-size:20px;color:var(--muted)}
-  .top .t-name{font-size:17px;font-weight:600}
-  .top .t-name .ti{color:var(--media);margin-right:4px}
-  .top .spacer{margin-left:auto}
+  /* header (time / date / weather) — shared D1001 chrome */
+  .hdr{display:flex;align-items:flex-start;padding:14px 16px 8px}
+  .hdr .time{font-size:30px;font-weight:500;line-height:1}
+  .hdr .date{font-size:12px;color:var(--muted);margin-top:2px}
+  .hdr .wx{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+  .hdr .wx .ti{font-size:20px}
 
-  /* profile + speaker selector chips */
-  .selbar{display:flex;gap:8px;padding:0 16px 10px}
-  .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:20px;background:var(--tile);font-size:13px}
-  .chip .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#1a1320}
-  .chip .ti.cv{color:var(--muted);font-size:16px}
-  .chip.speaker{margin-left:auto}
+  /* group tabs row */
+  .tabs{display:flex;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);overflow:hidden}
+  .tab{padding:8px 2px 10px;font-size:14px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:5px}
+  .tab.active{color:#fff;font-weight:600;box-shadow:inset 0 -2px 0 var(--amber)}
+  .tab.active.launch{box-shadow:inset 0 -2px 0 var(--media)}
+  .tab .ti{font-size:16px}
 
-  /* favourites grid */
-  .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 16px 14px;overflow:hidden;align-content:start}
+  /* cover grid (tab content) */
+  .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px;overflow:hidden;align-content:start}
   .ftile{display:flex;flex-direction:column;gap:6px}
   .cover{position:relative;width:100%;aspect-ratio:1;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden}
   .cover .badge{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
-  .cover .play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:rgba(10,10,12,.55);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
   .ftile .ttl{font-size:13px;font-weight:500;line-height:1.2;max-height:2.4em;overflow:hidden}
   .ftile .ty{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
 
-  /* episode list */
-  .eplist{flex:1;display:flex;flex-direction:column;gap:8px;padding:6px 16px 14px;overflow:hidden}
+  /* detail view (full screen, opened on tap) */
+  .dtop{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
+  .dtop .back{width:34px;height:34px;border-radius:10px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted)}
+  .dtop .t-name{font-size:16px;font-weight:600}
+
+  .eplist{flex:1;display:flex;flex-direction:column;gap:8px;padding:2px 16px 14px;overflow:hidden}
   .ephead{display:flex;gap:12px;align-items:center;padding:2px 0 8px}
-  .ephead .cover{width:64px;height:64px;flex:none;font-size:26px}
+  .ephead .cover{width:60px;height:60px;flex:none;font-size:24px}
   .ephead .meta .h{font-size:15px;font-weight:600}
   .ephead .meta .s{font-size:12px;color:var(--muted)}
   .eprow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tile)}
@@ -73,8 +77,7 @@
   .eprow.resume{outline:1.5px solid var(--play)}
   .eprow.resume .n{background:var(--play);color:#06231a}
 
-  /* now-playing sheet */
-  .nowwrap{position:relative}
+  /* now-playing (full screen) */
   .np{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 26px;text-align:center}
   .np .bigcover{width:150px;height:150px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:54px;box-shadow:0 12px 40px rgba(160,108,255,.25)}
   .np .npt{font-size:19px;font-weight:600}
@@ -95,45 +98,37 @@
   .toast .tt b{font-weight:600}
   .toast .ti.ok{color:var(--play);font-size:22px}
 
-  /* menu entry frame */
-  .menugrid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 16px;align-content:start}
-  .mtile{aspect-ratio:1.15;border-radius:16px;background:var(--tile);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--muted)}
-  .mtile .ti{font-size:30px}
-  .mtile.hl{background:linear-gradient(135deg,#2a2040,#1b1530);color:#fff;outline:2px solid var(--media)}
-  .mtile.hl .ti{color:var(--media)}
-
-  .foot{padding:8px 0 14px;text-align:center;color:#6E6E78;font-size:12px}
-
   /* UX notes */
-  .ux{flex:1;min-width:300px;max-width:460px}
+  .ux{flex:1;min-width:300px;max-width:470px}
   .ux h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px}
   .ux table{width:100%;border-collapse:collapse;font-size:13.5px}
   .ux td{padding:5px 8px;border-bottom:1px solid #1a1a21;vertical-align:top}
-  .ux td:first-child{color:var(--muted);white-space:nowrap;width:120px}
+  .ux td:first-child{color:var(--muted);white-space:nowrap;width:130px}
   .ux .q{margin-top:12px;padding:10px 12px;border-radius:10px;background:#1c1606;border:1px solid #3a2e12;font-size:13px}
-  .ux .q b{color:#FFB020}
+  .ux .q b{color:var(--amber)}
 </style>
 </head>
 <body>
-<h1>Module « Histoires &amp; Musique » — maquettes D1001</h1>
-<p class="lead">Lanceur embarqué pour enfants, jumeau du <i>quick launcher</i> de <b>music-library</b>. Accessible par une <b>entrée de menu dédiée</b> (pas une card liée à une entité). Cible : <b>D1001</b> (portrait 800×1280, tactile). Les blocs ambrés <b>« à trancher »</b> sont les choix d'interaction/archi à valider ensemble.</p>
+<h1>Onglet « Musique » — maquettes D1001</h1>
+<p class="lead">Lanceur enfants, branché comme <b>un onglet dédié</b> dans la navigation D1001 existante
+(header + onglets de groupes + grille). Pas d'écran « menu » à part, pas de sélecteur profil/enceinte :
+l'<b>owner</b> et l'<b>enceinte</b> sont figés en YAML par appareil. Cible : D1001 portrait. Bloc ambré = à trancher.</p>
 
 <div class="flow">
   <span class="node">D1001 (ESP32-P4)</span>
   <span class="ar">──①&nbsp;<code>GET /api/v1/quick/{owner}</code>→</span>
-  <span class="node">music-library (FastAPI)</span>
-  <span class="ar">──②&nbsp;covers <code>/covers/{id}.jpg</code></span>
+  <span class="node">music-library</span>
+  <span class="ar">──②&nbsp;<code>/covers/{id}.jpg</code></span>
   <span class="ar">&nbsp;&nbsp;③&nbsp;<code>POST /api/v1/ma/play</code>&nbsp;→</span>
   <span class="node">Music Assistant</span>
-  <span class="ar">→&nbsp;🔊 enceinte</span>
+  <span class="ar">→&nbsp;🔊</span>
 </div>
 
 <div class="legend">
-  <span><i class="dot" style="background:var(--media)"></i> accent module (violet)</span>
+  <span><i class="dot" style="background:var(--media)"></i> onglet lanceur (violet)</span>
+  <span><i class="dot" style="background:var(--amber)"></i> onglet groupe d'entités (ambre)</span>
   <span><i class="dot" style="background:var(--play)"></i> lecture / confirmation</span>
-  <span><i class="dot" style="background:var(--kid1)"></i> profil Léa</span>
-  <span><i class="dot" style="background:var(--kid2)"></i> profil Tom</span>
-  <span style="margin-left:auto">Gestes : tap pochette = lancer · tap podcast/livre = épisodes · swipe ← / back = retour</span>
+  <span style="margin-left:auto">Swipe ← / → = change d'onglet · tap pochette = lance / ouvre épisodes</span>
 </div>
 
 <div id="app"></div>
@@ -145,8 +140,7 @@ var GRAD={
   prince:'linear-gradient(135deg,#ffd27a,#c8862b)',
   disney:'linear-gradient(135deg,#b08cff,#5b3ac8)',
   radio:'linear-gradient(135deg,#7affc0,#2bc88a)',
-  trolls:'linear-gradient(135deg,#ff8f6c,#c83a5b)',
-  pomme:'linear-gradient(135deg,#a0e87a,#4ca82b)'
+  trolls:'linear-gradient(135deg,#ff8f6c,#c83a5b)'
 };
 var TYI={playlist:'ti-playlist',album:'ti-disc',radio:'ti-radio',podcast:'ti-microphone-2',audiobook:'ti-book-2',track:'ti-music'};
 var TYL={playlist:'Playlist',album:'Album',radio:'Radio',podcast:'Podcast',audiobook:'Livre audio',track:'Titre'};
@@ -160,51 +154,51 @@ var FAV=[
   {g:'trolls',emo:'🎬',ttl:'Trolls',ty:'album'}
 ];
 
-function chip(av,name,col){
-  return '<div class="chip"><span class="av" style="background:'+col+'">'+av+'</span>'+name+' <i class="ti ti-chevron-down cv"></i></div>';
-}
-function speakerChip(){
-  return '<div class="chip speaker"><i class="ti ti-speakerphone cv"></i>Chambre <i class="ti ti-chevron-down cv"></i></div>';
-}
 function cover(f,extra){
   return '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo
     + (f.kids?'<div class="badge"><i class="ti '+TYI[f.ty]+'"></i></div>':'')
     + (extra||'') + '</div>';
 }
-
+function header(){
+  return '<div class="hdr"><div><div class="time">14:32</div><div class="date">vendredi 27 juin</div></div>'
+    + '<div class="wx"><i class="ti ti-cloud"></i>19°</div></div>';
+}
+function tabs(){
+  return '<div class="tabs">'
+    + '<div class="tab">Salon</div>'
+    + '<div class="tab">Chambre</div>'
+    + '<div class="tab active launch"><i class="ti ti-music"></i>Musique</div>'
+    + '</div>';
+}
 function frame(label, inner){
   return '<div class="device-wrap"><span class="device-label">'+label+'</span>'
     + '<div class="port-frame"><div class="port">'+inner+'</div></div></div>';
 }
 
-/* A — menu entry */
-function fMenu(){
-  var tiles='';
-  var groups=[['ti-bulb','Salon'],['ti-temperature','Chauffage'],['ti-window','Volets']];
-  tiles+=groups.map(function(g){return '<div class="mtile"><i class="ti '+g[0]+'"></i>'+g[1]+'</div>';}).join('');
-  tiles+='<div class="mtile hl"><i class="ti ti-music"></i>Histoires &amp; Musique</div>';
-  return frame('A · Entrée menu',
-    '<div class="top"><span class="t-name">Menu</span></div>'
-    + '<div class="menugrid">'+tiles+'</div>'
-    + '<div class="foot">tap une tuile pour entrer</div>');
-}
-
-/* B — launcher home */
-function fHome(){
+/* A — launcher tab active: header + tabs + cover grid */
+function fGrid(){
   var tiles=FAV.map(function(f){
-    return '<div class="ftile">'+cover(f,'<div class="play"><i class="ti ti-player-play-filled"></i></div>')
-      + '<div class="ttl">'+f.ttl+'</div>'
+    return '<div class="ftile">'+cover(f)+'<div class="ttl">'+f.ttl+'</div>'
       + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
   }).join('');
-  return frame('B · Favoris (profil Léa)',
-    '<div class="top"><i class="ti ti-chevron-left back"></i><span class="t-name"><i class="ti ti-music"></i>Histoires &amp; Musique</span></div>'
-    + '<div class="selbar">'+chip('L','Léa','var(--kid1)')+speakerChip()+'</div>'
-    + '<div class="grid">'+tiles+'</div>');
+  return frame('A · Onglet « Histoires » actif', header()+tabs()+'<div class="grid">'+tiles+'</div>');
 }
 
-/* C — episode drill-down */
+/* B — one-tap play confirmation (stay on the grid) */
+function fToast(){
+  var tiles=FAV.slice(0,4).map(function(f){
+    return '<div class="ftile">'+cover(f)+'<div class="ttl">'+f.ttl+'</div>'
+      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
+  }).join('');
+  return frame('B · Lecture one-tap (toast)', header()+tabs()+'<div class="grid">'+tiles+'</div>'
+    + '<div class="toast"><div class="tc" style="background:'+GRAD.comptines+'">🎵</div>'
+    + '<div class="tt"><b>Comptines</b><br>lecture sur Enceinte Chambre</div>'
+    + '<i class="ti ti-circle-check-filled ok"></i></div>');
+}
+
+/* C — detail view: episodes (opened by tapping a podcast/audiobook tile) */
 function fEpisodes(){
-  var f={g:'henri',emo:'🐰',ttl:'Henri le Lapin',ty:'podcast'};
+  var f={g:'henri',emo:'🐰'};
   var eps=[
     {n:'▶',t:'12 · La cabane secrète',d:'reprendre · 4:20 / 11 min',resume:true},
     {n:'13',t:'La rivière gelée',d:'12 min'},
@@ -217,20 +211,19 @@ function fEpisodes(){
       + '<span class="et">'+e.t+'<div class="ed">'+e.d+'</div></span>'
       + '<i class="ti ti-player-play-filled" style="color:var(--play)"></i></div>';
   }).join('');
-  return frame('C · Épisodes / chapitres',
-    '<div class="top"><i class="ti ti-chevron-left back"></i><span class="t-name">'+f.ttl+'</span></div>'
+  return frame('C · Vue détail — épisodes',
+    '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">Henri le Lapin</span></div>'
     + '<div class="eplist"><div class="ephead">'+cover(f)
     + '<div class="meta"><div class="h">Henri le Lapin</div><div class="s">Podcast · 16 épisodes</div></div></div>'
     + rows + '</div>');
 }
 
-/* D — now playing */
+/* D — now playing (full screen detail) */
 function fNow(){
-  var f={g:'comptines',emo:'🎵'};
   return frame('D · En lecture',
-    '<div class="top"><i class="ti ti-chevron-left back"></i><span class="t-name">En lecture</span></div>'
+    '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">En lecture</span></div>'
     + '<div class="np">'
-    + '<div class="bigcover" style="background:'+GRAD[f.g]+'">'+f.emo+'</div>'
+    + '<div class="bigcover" style="background:'+GRAD.comptines+'">🎵</div>'
     + '<div><div class="npt">Comptines</div><div class="nps">Playlist · 32 titres</div></div>'
     + '<div class="onspk"><i class="ti ti-speakerphone"></i> sur Enceinte Chambre</div>'
     + '<div class="transport"><div class="tbtn"><i class="ti ti-player-skip-back-filled"></i></div>'
@@ -241,45 +234,35 @@ function fNow(){
     + '</div>');
 }
 
-/* E — one-tap confirmation toast (variant: stay on grid) */
-function fToast(){
-  var tiles=FAV.slice(0,4).map(function(f){
-    return '<div class="ftile">'+cover(f)+'<div class="ttl">'+f.ttl+'</div>'
-      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
-  }).join('');
-  return frame('E · Confirmation (variante)',
-    '<div class="top"><i class="ti ti-chevron-left back"></i><span class="t-name"><i class="ti ti-music"></i>Histoires &amp; Musique</span></div>'
-    + '<div class="selbar">'+chip('L','Léa','var(--kid1)')+speakerChip()+'</div>'
-    + '<div class="grid">'+tiles+'</div>'
-    + '<div class="toast"><div class="tc" style="background:'+GRAD.comptines+'">🎵</div>'
-    + '<div class="tt"><b>Comptines</b><br>lecture sur Enceinte Chambre</div>'
-    + '<i class="ti ti-circle-check-filled ok"></i></div>');
-}
-
 var UX=[
-  ['Tap pochette','playlist/album/radio → <b>POST /ma/play</b> immédiat (one-tap) + toast'],
-  ['Tap podcast/livre','ouvre la liste épisodes/chapitres (écran C)'],
-  ['Tap épisode','play avec <code>seek</code> (reprise au chapitre)'],
-  ['Profil (chip)','change l\'<i>owner</i> → recharge la grille de favoris'],
-  ['Enceinte (chip)','change le <i>queue_id</i> cible'],
-  ['Swipe ← / back','retour menu / écran précédent'],
+  ['Swipe ← / →','change d\'onglet (Salon / Chambre / <b>Musique</b>) — geste D1001 existant'],
+  ['Tap pochette','playlist/album/radio → <b>POST /ma/play</b> immédiat + toast (écran B)'],
+  ['Tap podcast/livre','ouvre la <b>vue détail</b> épisodes/chapitres (écran C)'],
+  ['Tap épisode','play avec <code>seek</code> (reprise)'],
+  ['Retour (détail)','ferme la vue détail → revient à la grille de l\'onglet'],
+  ['Owner / enceinte','figés en YAML par appareil — aucun sélecteur à l\'écran'],
+];
+
+var DECIDED=[
+  ['Libellé onglet','<b>« Musique »</b>'],
+  ['Après lancement','<b>toast</b>, on reste sur la grille (écran B)'],
+  ['Position onglet','définie par l\'<b>ordre dans le YAML</b> — l\'onglet est une entrée de menu déclarée parmi les groupes'],
 ];
 
 function uxBlock(){
   var rows=UX.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('');
+  var dec=DECIDED.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('');
   return '<div class="ux"><h3>Interactions &amp; échanges</h3><table>'+rows+'</table>'
-    + '<div class="q"><b>À trancher #1 — mode d\'échange :</b> REST direct ESP→music-library (recommandé) vs via scripts Home Assistant.</div>'
-    + '<div class="q"><b>À trancher #2 — enceinte cible :</b> figée en YAML par appareil (1-tap pour l\'enfant, recommandé) vs sélecteur à l\'écran (chip).</div>'
-    + '<div class="q"><b>À trancher #3 — profil :</b> figé par appareil (la chambre = 1 enfant) vs sélecteur multi-profils.</div>'
-    + '<div class="q"><b>À trancher #4 — endpoint :</b> ajouter <code>GET /api/v1/quick/{owner}</code> compact côté music-library (recommandé) vs réutiliser <code>/media/select</code>.</div>'
-    + '<div class="q"><b>À trancher #5 — après lancement :</b> écran « En lecture » dédié (D) vs toast + retour grille (E) vs bascule sur la card media_player existante.</div>'
+    + '<h3 style="margin-top:16px">Décidé</h3><table>'+dec+'</table>'
+    + '<div class="q"><b>Reste à trancher — drill-down :</b> endpoint JSON compact à ajouter côté music-library (préféré) vs HTML existant <code>/media/{id}/episodes</code>.</div>'
+    + '<div class="q" style="background:#0f1a14;border-color:#1f3a2b"><b style="color:var(--play)">Écran D (En lecture)</b> = option future (mode « now playing » riche). Le défaut reste le toast.</div>'
     + '</div>';
 }
 
 document.getElementById('app').innerHTML =
-  '<div class="card-block"><h2><i class="ti ti-music"></i>Parcours du module <span class="tag">— entrée menu → favoris → (épisodes) → lecture</span></h2>'
-  + '<div class="row">' + fMenu() + fHome() + fEpisodes() + '</div>'
-  + '<div class="row">' + fNow() + fToast() + uxBlock() + '</div>'
+  '<div class="card-block"><h2><i class="ti ti-music"></i>Parcours du module <span class="tag">— onglet dédié → grille pochettes → (épisodes) → lecture</span></h2>'
+  + '<div class="row">' + fGrid() + fToast() + fEpisodes() + '</div>'
+  + '<div class="row">' + fNow() + uxBlock() + '</div>'
   + '</div>';
 </script>
 </body>

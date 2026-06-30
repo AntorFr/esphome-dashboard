@@ -59,23 +59,36 @@ profile/speaker pickers in v1 (the mockup keeps the chips as a later option).
 - **New port — `MusicLibraryBackend`** (out): `fetch_favorites(owner, cb)`,
   `play(uri, seek)`, `fetch_children(uri, cb)`. The adapter performs HTTP; Layer 1 only
   sees this interface — same separation as the HA backend port.
-- **Renderer**: two new D1001 views — `render_launcher()` (cover grid) and
-  `render_launcher_detail()` (episode/chapter list). New `NavState` values
-  `LAUNCHER` and `LAUNCHER_DETAIL`. Covers render via ESPHome `online_image`
-  (URL → decoded JPEG → LVGL image), so the renderer never touches HTTP.
+- **Menu integration**: the launcher is a **dedicated tab** in the existing D1001
+  `DASHBOARD` chrome (header + group tabs + grid), *not* a separate menu screen. Its tab
+  content is a cover grid instead of the entity tile grid; swiping between tabs is the
+  existing gesture. The kid's profile/speaker are fixed in YAML, so there are no on-screen
+  selectors — the header stays time/date/weather.
+- **Renderer**: two new D1001 views — `render_launcher()` fills the active tab with the
+  cover grid, and `render_launcher_detail()` is a pushed full-screen view (episode/chapter
+  list, then "now playing") mirroring the entity detail view. Covers render via ESPHome
+  `online_image` (URL → decoded JPEG → LVGL image), so the renderer never touches HTTP.
 - **Input**: handled by the existing `InputTouch` (tap tile, tap row, back). No new gestures.
-- After playback starts we can hand off to the existing `media_player` card as the
-  "now playing" surface (mockup screen D), or show a confirmation toast (screen E).
+- After a leaf tile is tapped, the default is a short **confirmation toast** while staying
+  on the grid (kid-friendly, error-tolerant). A richer full-screen "now playing" view is a
+  later option.
 
-Config sketch (final schema deferred to the implementation milestone):
+Config sketch (final schema deferred to the implementation milestone). The launcher is a
+**menu entry declared inside the ordered `groups:` list** via a `type:` discriminator, so
+its **tab position is simply where it sits in YAML** (it can be first, last, or interleaved):
 
 ```yaml
 dashboard:
-  groups: [ ... ]            # entity cards (unchanged)
-  music_library:            # creates one dedicated menu tab on D1001
-    base_url: http://music-library.local:8000
-    owner: lea
-    player: <ma_queue_id>   # fixed target speaker for this device
+  groups:
+    - name: Salon
+      cards: [ ... ]            # regular entity-card group
+    - name: Musique             # tab label
+      type: music_library       # this entry is a launcher, not entity cards
+      base_url: http://music-library.local:8000
+      owner: lea
+      player: <ma_queue_id>     # fixed target speaker for this device
+    - name: Chambre
+      cards: [ ... ]
 ```
 
 ## Consequences
