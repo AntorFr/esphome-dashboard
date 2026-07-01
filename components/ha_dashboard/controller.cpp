@@ -220,6 +220,28 @@ void Controller::handle(InputEvent event, int index) {
           }
           break;
         }
+        case InputEvent::OPEN_SHEET:
+          this->sheet_ci_ = index;  // the renderer shows the sheet; remember the card for actions
+          break;
+        case InputEvent::SHEET_CLOSE:
+          this->sheet_ci_ = -1;
+          break;
+        case InputEvent::SHEET_TEMP_UP:
+        case InputEvent::SHEET_TEMP_DOWN:
+        case InputEvent::SHEET_MODE:
+        case InputEvent::SHEET_PLAY_PAUSE:
+        case InputEvent::SHEET_MEDIA_NEXT:
+        case InputEvent::SHEET_MEDIA_PREV:
+        case InputEvent::SHEET_COVER_OPEN:
+        case InputEvent::SHEET_COVER_STOP:
+        case InputEvent::SHEET_COVER_CLOSE:
+        case InputEvent::SHEET_SET_VALUE: {
+          int gi = this->group_index_;
+          if (this->groups_ && gi < (int) this->groups_->size() && this->sheet_ci_ >= 0 &&
+              this->sheet_ci_ < (int) (*this->groups_)[gi].cards.size())
+            this->sheet_action_((*this->groups_)[gi].cards[this->sheet_ci_], event, index);
+          break;
+        }
         case InputEvent::LAUNCHER_ACTIVATE:
         case InputEvent::LAUNCHER_OPEN_CHILDREN:
         case InputEvent::LAUNCHER_BACK:
@@ -382,6 +404,80 @@ void Controller::primary_action_(Card &c) {
       break;
   }
   ESP_LOGD(TAG, "primary action on '%s'", c.name.c_str());
+}
+
+// Control-sheet button -> the matching HA entity call on the sheet's card.
+void Controller::sheet_action_(Card &c, InputEvent ev, int index) {
+  switch (ev) {
+    case InputEvent::SHEET_TEMP_UP:
+    case InputEvent::SHEET_TEMP_DOWN:
+      if (c.climate != nullptr) {
+        float step = c.climate->get_traits().get_visual_target_temperature_step();
+        if (step <= 0.0f)
+          step = 0.5f;
+        auto call = c.climate->make_call();
+        call.set_target_temperature(c.climate->target_temperature +
+                                    (ev == InputEvent::SHEET_TEMP_UP ? step : -step));
+        call.perform();
+      }
+      break;
+    case InputEvent::SHEET_MODE:
+      if (c.climate != nullptr) {
+        climate::ClimateMode m = climate::CLIMATE_MODE_OFF;
+        if (index == 1)
+          m = climate::CLIMATE_MODE_HEAT;
+        else if (index == 2)
+          m = climate::CLIMATE_MODE_COOL;
+        else if (index == 3)
+          m = climate::CLIMATE_MODE_HEAT_COOL;
+        auto call = c.climate->make_call();
+        call.set_mode(m);
+        call.perform();
+      }
+      break;
+    case InputEvent::SHEET_PLAY_PAUSE:
+      if (c.media != nullptr)
+        c.media->play_pause();
+      break;
+    case InputEvent::SHEET_MEDIA_NEXT:
+      if (c.media != nullptr)
+        c.media->next_track();
+      break;
+    case InputEvent::SHEET_MEDIA_PREV:
+      if (c.media != nullptr)
+        c.media->previous_track();
+      break;
+    case InputEvent::SHEET_COVER_OPEN:
+    case InputEvent::SHEET_COVER_STOP:
+    case InputEvent::SHEET_COVER_CLOSE:
+      if (c.cover != nullptr) {
+        auto call = c.cover->make_call();
+        if (ev == InputEvent::SHEET_COVER_OPEN)
+          call.set_command_open();
+        else if (ev == InputEvent::SHEET_COVER_CLOSE)
+          call.set_command_close();
+        else
+          call.set_command_stop();
+        call.perform();
+      }
+      break;
+    case InputEvent::SHEET_SET_VALUE: {
+      float v = index / 100.0f;
+      if (c.type == CardType::MEDIA_PLAYER && c.media != nullptr) {
+        c.media->set_volume(v);
+      } else if (c.type == CardType::COVER && c.cover != nullptr) {
+        auto call = c.cover->make_call();
+        call.set_position(v);
+        call.perform();
+      } else {  // light stub (no binding yet): optimistic local value
+        c.value_local = v;
+        c.on = v > 0.0f;
+      }
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 static float clamp01(float v) { return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v); }

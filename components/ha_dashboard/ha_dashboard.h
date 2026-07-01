@@ -42,6 +42,7 @@ class HaDashboard : public Component {
   void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
   void set_font_weather(font::Font *f) { this->renderer_.set_font_weather(f); }
   void set_font_icons(font::Font *f) { this->renderer_.set_font_icons(f); }
+  void set_font_icons_lg(font::Font *f) { this->renderer_.set_font_icons_lg(f); }
 
   // Appelés par le codegen (to_code) pour peupler le modèle.
   void add_group(const std::string &name, const std::string &icon);
@@ -50,7 +51,8 @@ class HaDashboard : public Component {
   // Card switch liée à un esphome switch (binding HA réel).
   void add_switch_card(int group_index, switch_::Switch *sw, const std::string &name, uint32_t color,
                        bool has_color);
-  void add_cover_card(int group_index, cover::Cover *cover, const std::string &name, uint32_t color, bool has_color);
+  void add_cover_card(int group_index, cover::Cover *cover, const std::string &name, uint32_t color, bool has_color,
+                      const std::string &cover_kind);
   void add_climate_card(int group_index, climate::Climate *climate, const std::string &name, uint32_t color,
                         bool has_color);
   void add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media, const std::string &name,

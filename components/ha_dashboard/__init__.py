@@ -49,6 +49,7 @@ CONF_ENTITY = "entity"
 CONF_COLOR = "color"
 CONF_SWITCH_ID = "switch_id"
 CONF_COVER_ID = "cover_id"
+CONF_COVER_KIND = "cover_kind"
 CONF_CLIMATE_ID = "climate_id"
 CONF_MEDIA_PLAYER_ID = "media_player_id"
 CONF_BASE_URL = "base_url"
@@ -63,6 +64,7 @@ CONF_FONT_MEDIUM = "font_medium"
 CONF_FONT_LARGE = "font_large"
 CONF_FONT_WEATHER = "font_weather"
 CONF_FONT_ICONS = "font_icons"
+CONF_FONT_ICONS_LG = "font_icons_lg"
 
 PROFILES = ["dial", "reterminal_d1001"]
 
@@ -110,6 +112,8 @@ CARD_SCHEMA = cv.All(
             cv.Optional(CONF_ENTITY): cv.entity_id,
             cv.Optional(CONF_NAME): cv.string,
             cv.Optional(CONF_COLOR): _hex_color,
+            # Cover presentation override (else auto from HA device_class): shutter|garage|gate.
+            cv.Optional(CONF_COVER_KIND): cv.one_of("shutter", "garage", "gate", lower=True),
         }
     ),
     _validate_card,
@@ -176,6 +180,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_FONT_LARGE): lvalid.lv_font,
         cv.Optional(CONF_FONT_WEATHER): lvalid.lv_font,
         cv.Optional(CONF_FONT_ICONS): lvalid.lv_font,
+        cv.Optional(CONF_FONT_ICONS_LG): lvalid.lv_font,
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -219,6 +224,7 @@ async def to_code(config):
         (CONF_FONT_LARGE, var.set_font_large),
         (CONF_FONT_WEATHER, var.set_font_weather),
         (CONF_FONT_ICONS, var.set_font_icons),
+        (CONF_FONT_ICONS_LG, var.set_font_icons_lg),
     ):
         if conf in config:
             cg.add(setter(await cg.get_variable(config[conf])))
@@ -258,7 +264,8 @@ async def to_code(config):
                 cg.add(var.add_switch_card(group_index, obj, name, color, has_color))
             elif CONF_COVER_ID in card:
                 obj = await cg.get_variable(card[CONF_COVER_ID])
-                cg.add(var.add_cover_card(group_index, obj, name, color, has_color))
+                cg.add(var.add_cover_card(group_index, obj, name, color, has_color,
+                                          card.get(CONF_COVER_KIND, "")))
             elif CONF_CLIMATE_ID in card:
                 obj = await cg.get_variable(card[CONF_CLIMATE_ID])
                 cg.add(var.add_climate_card(group_index, obj, name, color, has_color))

@@ -42,6 +42,7 @@ class LvglRenderer : public Renderer {
   void set_font_large(font::Font *f) { this->font_large_ = f; }
   void set_font_weather(font::Font *f) { this->font_weather_ = f; }
   void set_font_icons(font::Font *f) { this->font_icons_ = f; }
+  void set_font_icons_lg(font::Font *f) { this->font_icons_lg_ = f; }
   // Button-hold return gauge (driven from the component while the encoder button is held).
   void set_return_progress(float p) { this->render_return_(p); }
 
@@ -66,6 +67,18 @@ class LvglRenderer : public Renderer {
   // D1001 dashboard (tabs + tile grid).
   void build_dashboard_(const std::vector<Group> &groups);
   void render_dashboard_(const ViewModel &vm);
+
+ public:
+  // Classic-card control sheet ("more-info" modal, opened from a tile). Called by the tile/icon
+  // callbacks (open) and the sheet's own buttons (close). Public so the static LVGL cbs reach it.
+  void show_sheet_(int card_index);
+  void hide_sheet_();
+
+ protected:
+  void build_sheet_content_(const Card &c);  // (re)build the sheet body for a card
+  void refresh_sheet_();                      // update the sheet's live values (called on render)
+  // Set an MDI card/type icon on a label (font_icons_lg_ if available, else LVGL symbol fallback).
+  void set_card_icon_(lv_obj_t *label, const Card &c, uint32_t color);
   // Music Library launcher tab: list of favourites (rebuilt only when the module's
   // status/count/level changes), with covers via online_image slots.
   void render_launcher_(int gi, const Group &g);
@@ -148,6 +161,7 @@ class LvglRenderer : public Renderer {
   font::Font *font_large_{nullptr};
   font::Font *font_weather_{nullptr};
   font::Font *font_icons_{nullptr};
+  font::Font *font_icons_lg_{nullptr};  // larger MDI set for classic-card tile/sheet icons
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};
@@ -180,6 +194,22 @@ class LvglRenderer : public Renderer {
   // groups), with a render signature to skip rebuilds when nothing changed.
   std::vector<lv_obj_t *> launcher_grids_;
   std::vector<long> launcher_sig_;
+  int active_group_{0};  // group currently shown on the dashboard (for the control sheet)
+
+  // Control sheet (more-info modal on the top layer). Built once; content rebuilt per open.
+  lv_obj_t *sheet_scrim_{nullptr};
+  lv_obj_t *sheet_root_{nullptr};
+  lv_obj_t *sheet_body_{nullptr};       // content container (cleaned/rebuilt per card)
+  lv_obj_t *sheet_title_{nullptr};
+  lv_obj_t *sheet_icon_{nullptr};
+  const Card *sheet_card_{nullptr};     // card the sheet is showing (null = closed)
+  // Live widgets refreshed from the card state:
+  lv_obj_t *sheet_value_lbl_{nullptr};  // climate target temp
+  lv_obj_t *sheet_sub_lbl_{nullptr};    // climate current / media artist
+  lv_obj_t *sheet_pp_icon_{nullptr};    // media play/pause glyph
+  lv_obj_t *sheet_slider_{nullptr};     // volume / position / brightness
+  lv_obj_t *sheet_modes_[4]{nullptr, nullptr, nullptr, nullptr};  // climate mode buttons
+
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
 
   // Episode-thumbnail recycling (current detail list): every row has an image, but only the

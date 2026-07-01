@@ -63,3 +63,20 @@ font:
       - "\U000F02D7"  # help-circle (fallback)
       - "\U000F057E"  # volume-high (now-playing, unmuted)
       - "\U000F0E08"  # volume-variant-off (now-playing, muted = slashed speaker)
+  # Larger MDI set for classic-card tile/sheet icons (tiles ~44px vs the 28px menu icons).
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_icons_lg
+    size: 44
+    bpp: 4
+    glyphs:
+      - "\U000F0425"  # power (switch)
+      - "\U000F0335"  # lightbulb (light)
+      - "\U000F111C"  # window-shutter (cover: shutter/garage — up/down)
+      - "\U000F0299"  # gate (cover: gate — left/right)
+      - "\U000F04C3"  # speaker (media)
+      - "\U000F0393"  # thermostat (climate)
+      - "\U000F0238"  # fire (climate: heat)
+      - "\U000F0717"  # snowflake (climate: cool)
+      - "\U000F057E"  # volume-high (media sheet)

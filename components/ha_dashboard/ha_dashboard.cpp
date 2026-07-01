@@ -64,12 +64,13 @@ static Card &push_card_(std::vector<Group> &groups, int gi, CardType type, const
 }
 
 void HaDashboard::add_cover_card(int group_index, cover::Cover *cover, const std::string &name, uint32_t color,
-                                 bool has_color) {
+                                 bool has_color, const std::string &cover_kind) {
   if (group_index < 0 || group_index >= (int) this->groups_.size())
     return;
   Card &c = push_card_(this->groups_, group_index, CardType::COVER,
                        !name.empty() ? name : std::string("Cover"), color, has_color);
   c.cover = cover;
+  c.cover_kind = cover_kind;
 }
 
 void HaDashboard::add_climate_card(int group_index, climate::Climate *climate, const std::string &name, uint32_t color,

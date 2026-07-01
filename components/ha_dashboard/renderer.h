@@ -48,6 +48,21 @@ enum class InputEvent : uint8_t {
   NP_MUTE,                 // now playing: toggle mute (tap the volume icon)
   NP_SHUFFLE,              // now playing: toggle shuffle
   NP_REPEAT,               // now playing: cycle repeat mode
+
+  // Classic-card control sheet (D1001 "more-info" modal). Actions apply to the card the sheet
+  // was opened on (tracked by the controller).
+  OPEN_SHEET,              // open the control sheet for a card (index = card in the active group)
+  SHEET_CLOSE,             // close the control sheet
+  SHEET_TEMP_UP,           // climate: target temperature +
+  SHEET_TEMP_DOWN,         // climate: target temperature -
+  SHEET_MODE,              // climate: set mode (index = 0 off / 1 heat / 2 cool / 3 auto)
+  SHEET_PLAY_PAUSE,        // media: play/pause
+  SHEET_MEDIA_NEXT,        // media: next track
+  SHEET_MEDIA_PREV,        // media: previous track
+  SHEET_COVER_OPEN,        // cover: open
+  SHEET_COVER_STOP,        // cover: stop
+  SHEET_COVER_CLOSE,       // cover: close
+  SHEET_SET_VALUE,         // slider (index = 0..100): volume (media) / position (cover) / brightness (light)
 };
 
 // Instantané de l'état de navigation passé au renderer.

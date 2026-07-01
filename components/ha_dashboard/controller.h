@@ -35,6 +35,7 @@ class Controller {
  protected:
   void render_();
   void primary_action_(Card &card);      // tap/toggle action depending on the card type
+  void sheet_action_(Card &card, InputEvent ev, int index);  // control-sheet button -> entity call
   void adjust_(Card &card, int dir);     // encoder rotate: stage an optimistic value change (+/-)
   void commit_pending_(Card &card);      // push the staged value to HA (after debounce / on leave)
   Card *current_card_();                  // focused card in the current group, or null
@@ -57,6 +58,7 @@ class Controller {
   uint32_t last_event_ms_{0};
   uint32_t launcher_retry_ms_{0};  // throttle auto-retry of a failed launcher load
   uint32_t np_poll_ms_{0};         // throttle now-playing refresh while its card is open
+  int sheet_ci_{-1};               // card the control sheet is open on (-1 = closed)
   uint32_t debounce_ms_{350};  // encoder -> HA commit delay (optimistic preview meanwhile)
 };
 

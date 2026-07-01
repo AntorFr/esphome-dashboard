@@ -24,6 +24,10 @@ enum class CardType : uint8_t {
   CLIMATE = 4,
 };
 
+// Cover presentation: SHUTTER/GARAGE move up-down; GATE moves left-right. Resolved from the
+// cover's HA device_class (garage/gate/shutter/blind/…), overridable via YAML `cover_kind`.
+enum class CoverKind : uint8_t { SHUTTER = 0, GARAGE = 1, GATE = 2 };
+
 // Définition logique d'une card. Le binding HA se fait via des objets ESPHome :
 // switch (plateforme homeassistant) / cover+climate (homeassistant_addon) /
 // media_player (homeassistant_addon, classe custom).
@@ -33,6 +37,7 @@ struct Card {
   std::string name;
   uint32_t color{0};       // override couleur (0xRRGGBB) ; sinon défaut par domaine
   bool has_color{false};
+  std::string cover_kind;  // "shutter|garage|gate" YAML override ; vide = auto (device_class)
 
   switch_::Switch *sw{nullptr};
   cover::Cover *cover{nullptr};

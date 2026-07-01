@@ -42,13 +42,78 @@ struct CbData {
 // Conserve les CbData vivantes pour toute la durée de vie (pas de free).
 static std::vector<CbData *> g_cbdata;
 
+static uint32_t accent_for(const Card &c);    // defined below
+static const char *icon_for(const Card &c);   // defined below (LVGL symbol fallback)
+
+// MDI glyphs (embedded in ha_font_icons_lg) for classic-card icons + climate modes.
+static const char *const MDI_POWER = "\U000F0425";
+static const char *const MDI_LIGHT = "\U000F0335";
+static const char *const MDI_SHUTTER = "\U000F111C";  // cover: shutter/garage (up/down)
+static const char *const MDI_GATE = "\U000F0299";     // cover: gate (left/right)
+static const char *const MDI_SPEAKER = "\U000F04C3";
+static const char *const MDI_THERMOSTAT = "\U000F0393";
+static const char *const MDI_FIRE = "\U000F0238";
+static const char *const MDI_SNOW = "\U000F0717";
+
+// Effective cover presentation: YAML `cover_kind` override, else the HA device_class.
+static int cover_kind_of(const Card &c) {
+  const std::string &k = c.cover_kind;
+  if (k == "garage")
+    return (int) CoverKind::GARAGE;
+  if (k == "gate")
+    return (int) CoverKind::GATE;
+  if (k == "shutter")
+    return (int) CoverKind::SHUTTER;
+  if (c.cover != nullptr) {  // auto from device_class
+    char buf[esphome::MAX_DEVICE_CLASS_LENGTH] = {0};
+    c.cover->get_device_class_to(buf);
+    std::string dc(buf);
+    if (dc == "garage")
+      return (int) CoverKind::GARAGE;
+    if (dc == "gate")
+      return (int) CoverKind::GATE;
+  }
+  return (int) CoverKind::SHUTTER;
+}
+
+// The MDI glyph for a card's type icon (cover depends on its kind).
+static const char *card_mdi_glyph(const Card &c) {
+  switch (c.type) {
+    case CardType::SWITCH:
+      return MDI_POWER;
+    case CardType::LIGHT:
+      return MDI_LIGHT;
+    case CardType::COVER:
+      return cover_kind_of(c) == (int) CoverKind::GATE ? MDI_GATE : MDI_SHUTTER;
+    case CardType::MEDIA_PLAYER:
+      return MDI_SPEAKER;
+    case CardType::CLIMATE:
+    default:
+      return MDI_THERMOSTAT;
+  }
+}
+
 static void btn_event_cb(lv_event_t *e) {
   auto *d = static_cast<CbData *>(lv_event_get_user_data(e));
-  if (d != nullptr && d->renderer != nullptr) {
-    d->renderer->emit(d->event, d->index);
-    if (!d->toast.empty())
-      d->renderer->show_toast(d->toast);
-  }
+  if (d == nullptr || d->renderer == nullptr)
+    return;
+  d->renderer->emit(d->event, d->index);
+  if (!d->toast.empty())
+    d->renderer->show_toast(d->toast);
+  // The control sheet is a renderer overlay: show/hide it here (the controller only tracks
+  // which card the sheet acts on).
+  if (d->event == InputEvent::OPEN_SHEET)
+    d->renderer->show_sheet_(d->index);
+  else if (d->event == InputEvent::SHEET_CLOSE)
+    d->renderer->hide_sheet_();
+}
+
+// Control-sheet slider (volume / position / brightness): emit the value once released.
+static void sheet_slider_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  auto *slider = static_cast<lv_obj_t *>(lv_event_get_target(e));
+  if (self != nullptr && slider != nullptr)
+    self->emit(InputEvent::SHEET_SET_VALUE, (int) lv_slider_get_value(slider));
 }
 
 // Format seconds as "m:ss" (or "h:mm:ss" past an hour) for the now-playing progress times.
@@ -160,6 +225,258 @@ void LvglRenderer::show_toast(const std::string &text) {
   } else {
     lv_timer_reset(this->toast_timer_);
     lv_timer_resume(this->toast_timer_);
+  }
+}
+
+// A transparent, gap-14 horizontal row inside the sheet body.
+static lv_obj_t *sheet_row_(lv_obj_t *parent) {
+  lv_obj_t *r = lv_obj_create(parent);
+  lv_obj_set_size(r, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(r, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(r, 0, 0);
+  lv_obj_set_style_pad_all(r, 0, 0);
+  lv_obj_set_style_pad_column(r, 18, 0);
+  lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(r, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+  return r;
+}
+
+void LvglRenderer::show_sheet_(int card_index) {
+  if (this->model_ == nullptr || this->active_group_ < 0 || this->active_group_ >= (int) this->model_->size())
+    return;
+  const Group &g = (*this->model_)[this->active_group_];
+  if (card_index < 0 || card_index >= (int) g.cards.size())
+    return;
+  const Card &c = g.cards[card_index];
+
+  if (this->sheet_root_ == nullptr) {
+    this->sheet_scrim_ = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(this->sheet_scrim_);
+    lv_obj_set_size(this->sheet_scrim_, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_color(this->sheet_scrim_, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(this->sheet_scrim_, LV_OPA_50, 0);
+    lv_obj_add_flag(this->sheet_scrim_, LV_OBJ_FLAG_CLICKABLE);
+    auto *sc = new CbData{this, InputEvent::SHEET_CLOSE, -1};
+    g_cbdata.push_back(sc);
+    lv_obj_add_event_cb(this->sheet_scrim_, btn_event_cb, LV_EVENT_CLICKED, sc);
+
+    this->sheet_root_ = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(this->sheet_root_, lv_pct(100), lv_pct(84));
+    lv_obj_align(this->sheet_root_, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_color(this->sheet_root_, lv_color_hex(0x16161C), 0);
+    lv_obj_set_style_border_width(this->sheet_root_, 0, 0);
+    lv_obj_set_style_radius(this->sheet_root_, 28, 0);
+    lv_obj_set_style_pad_all(this->sheet_root_, 28, 0);
+    lv_obj_set_style_pad_row(this->sheet_root_, 12, 0);
+    lv_obj_set_flex_flow(this->sheet_root_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(this->sheet_root_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(this->sheet_root_, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *hdr = lv_obj_create(this->sheet_root_);
+    lv_obj_set_width(hdr, lv_pct(100));
+    lv_obj_set_height(hdr, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(hdr, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(hdr, 0, 0);
+    lv_obj_set_style_pad_all(hdr, 0, 0);
+    lv_obj_set_style_pad_column(hdr, 14, 0);
+    lv_obj_set_flex_flow(hdr, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(hdr, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
+    this->sheet_icon_ = lv_label_create(hdr);
+    this->sheet_title_ = lv_label_create(hdr);
+    lv_obj_set_flex_grow(this->sheet_title_, 1);
+    lv_obj_set_style_text_color(this->sheet_title_, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(this->sheet_title_, this->font_large_, &lv_font_montserrat_48);
+    lv_obj_t *close = lv_button_create(hdr);
+    lv_obj_set_size(close, 64, 64);
+    lv_obj_set_style_radius(close, 32, 0);
+    lv_obj_set_style_bg_color(close, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_shadow_width(close, 0, 0);
+    lv_obj_t *cl = lv_label_create(close);
+    lv_label_set_text(cl, LV_SYMBOL_CLOSE);
+    lv_obj_center(cl);
+    lv_obj_set_style_text_font(cl, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(cl, lv_color_hex(COL_MUTED), 0);
+    auto *dc = new CbData{this, InputEvent::SHEET_CLOSE, -1};
+    g_cbdata.push_back(dc);
+    lv_obj_add_event_cb(close, btn_event_cb, LV_EVENT_CLICKED, dc);
+
+    this->sheet_body_ = lv_obj_create(this->sheet_root_);
+    lv_obj_set_width(this->sheet_body_, lv_pct(100));
+    lv_obj_set_flex_grow(this->sheet_body_, 1);
+    lv_obj_set_style_bg_opa(this->sheet_body_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(this->sheet_body_, 0, 0);
+    lv_obj_set_style_pad_all(this->sheet_body_, 0, 0);
+    lv_obj_set_style_pad_row(this->sheet_body_, 24, 0);
+    lv_obj_set_flex_flow(this->sheet_body_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(this->sheet_body_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(this->sheet_body_, LV_OBJ_FLAG_SCROLLABLE);
+  }
+
+  this->sheet_card_ = &c;
+  this->set_card_icon_(this->sheet_icon_, c, accent_for(c));
+  lv_obj_set_style_text_font(this->sheet_icon_, this->font_icons_lg_ != nullptr
+                                                   ? this->font_icons_lg_->get_lv_font()
+                                                   : &lv_font_montserrat_28, 0);
+  lv_label_set_text(this->sheet_title_, c.name.c_str());
+  this->build_sheet_content_(c);
+  this->refresh_sheet_();
+  lv_obj_clear_flag(this->sheet_scrim_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(this->sheet_root_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(this->sheet_scrim_);
+  lv_obj_move_foreground(this->sheet_root_);
+}
+
+void LvglRenderer::hide_sheet_() {
+  this->sheet_card_ = nullptr;
+  if (this->sheet_scrim_ != nullptr)
+    lv_obj_add_flag(this->sheet_scrim_, LV_OBJ_FLAG_HIDDEN);
+  if (this->sheet_root_ != nullptr)
+    lv_obj_add_flag(this->sheet_root_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void LvglRenderer::build_sheet_content_(const Card &c) {
+  lv_obj_clean(this->sheet_body_);
+  this->sheet_value_lbl_ = this->sheet_sub_lbl_ = this->sheet_pp_icon_ = this->sheet_slider_ = nullptr;
+  for (int i = 0; i < 4; i++)
+    this->sheet_modes_[i] = nullptr;
+  const uint32_t accent = accent_for(c);
+
+  // A round icon/text button in the sheet. Returns the glyph label (for later refresh).
+  auto sbtn = [this](lv_obj_t *parent, const char *glyph, const lv_font_t *font, bool primary,
+                     InputEvent ev) -> lv_obj_t * {
+    lv_obj_t *b = lv_button_create(parent);
+    int sz = primary ? 118 : 92;
+    lv_obj_set_size(b, sz, sz);
+    lv_obj_set_style_radius(b, sz / 2, 0);
+    lv_obj_set_style_bg_color(b, lv_color_hex(primary ? 0x3DD68C : COL_TILE), 0);
+    lv_obj_set_style_shadow_width(b, 0, 0);
+    lv_obj_t *l = lv_label_create(b);
+    lv_label_set_text(l, glyph);
+    lv_obj_center(l);
+    lv_obj_set_style_text_font(l, font, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x06281A : COL_TEXT), 0);
+    auto *d = new CbData{this, ev, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    return l;
+  };
+  auto make_slider = [this, accent](uint32_t icon_col, const char *icon, const lv_font_t *ifont) {
+    lv_obj_t *row = sheet_row_(this->sheet_body_);
+    lv_obj_set_width(row, lv_pct(90));
+    lv_obj_t *ic = lv_label_create(row);
+    lv_label_set_text(ic, icon);
+    lv_obj_set_style_text_font(ic, ifont, 0);
+    lv_obj_set_style_text_color(ic, lv_color_hex(icon_col), 0);
+    this->sheet_slider_ = lv_slider_create(row);
+    lv_obj_set_flex_grow(this->sheet_slider_, 1);
+    lv_obj_set_height(this->sheet_slider_, 14);
+    lv_slider_set_range(this->sheet_slider_, 0, 100);
+    lv_obj_set_style_bg_color(this->sheet_slider_, lv_color_hex(0x3A3A44), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(this->sheet_slider_, lv_color_hex(accent), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(this->sheet_slider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(this->sheet_slider_, 10, LV_PART_KNOB);
+    lv_obj_add_event_cb(this->sheet_slider_, sheet_slider_cb, LV_EVENT_RELEASED, this);
+  };
+
+  if (c.type == CardType::CLIMATE) {
+    lv_obj_t *row = sheet_row_(this->sheet_body_);
+    lv_obj_set_style_pad_column(row, 34, 0);
+    sbtn(row, LV_SYMBOL_MINUS, &lv_font_montserrat_48, false, InputEvent::SHEET_TEMP_DOWN);
+    this->sheet_value_lbl_ = lv_label_create(row);
+    lv_obj_set_style_text_color(this->sheet_value_lbl_, lv_color_hex(accent), 0);
+    this->set_text_font_(this->sheet_value_lbl_, this->font_large_, &lv_font_montserrat_48);
+    sbtn(row, LV_SYMBOL_PLUS, &lv_font_montserrat_48, false, InputEvent::SHEET_TEMP_UP);
+    this->sheet_sub_lbl_ = lv_label_create(this->sheet_body_);
+    lv_obj_set_style_text_color(this->sheet_sub_lbl_, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(this->sheet_sub_lbl_, this->font_medium_, &lv_font_montserrat_28);
+    // modes: off / heat / cool / auto
+    lv_obj_t *mr = sheet_row_(this->sheet_body_);
+    const lv_font_t *mdi = this->font_icons_lg_ != nullptr ? this->font_icons_lg_->get_lv_font()
+                                                           : &lv_font_montserrat_48;
+    struct M { const char *g; const lv_font_t *f; };
+    M ms[4] = {{LV_SYMBOL_POWER, &lv_font_montserrat_48}, {MDI_FIRE, mdi}, {MDI_SNOW, mdi},
+               {LV_SYMBOL_REFRESH, &lv_font_montserrat_48}};
+    for (int i = 0; i < 4; i++) {
+      lv_obj_t *b = lv_button_create(mr);
+      lv_obj_set_size(b, 96, 96);
+      lv_obj_set_style_radius(b, 18, 0);
+      lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+      lv_obj_set_style_shadow_width(b, 0, 0);
+      lv_obj_set_style_border_width(b, 3, 0);
+      lv_obj_set_style_border_color(b, lv_color_hex(COL_TILE), 0);
+      lv_obj_t *l = lv_label_create(b);
+      lv_label_set_text(l, ms[i].g);
+      lv_obj_center(l);
+      lv_obj_set_style_text_font(l, ms[i].f, 0);
+      lv_obj_set_style_text_color(l, lv_color_hex(COL_MUTED), 0);
+      auto *d = new CbData{this, InputEvent::SHEET_MODE, i};
+      g_cbdata.push_back(d);
+      lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+      this->sheet_modes_[i] = b;
+    }
+  } else if (c.type == CardType::MEDIA_PLAYER) {
+    this->sheet_sub_lbl_ = lv_label_create(this->sheet_body_);
+    lv_obj_set_style_text_color(this->sheet_sub_lbl_, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(this->sheet_sub_lbl_, this->font_medium_, &lv_font_montserrat_28);
+    lv_obj_t *tr = sheet_row_(this->sheet_body_);
+    lv_obj_set_style_pad_column(tr, 30, 0);
+    sbtn(tr, LV_SYMBOL_PREV, &lv_font_montserrat_48, false, InputEvent::SHEET_MEDIA_PREV);
+    this->sheet_pp_icon_ = sbtn(tr, LV_SYMBOL_PAUSE, &lv_font_montserrat_48, true, InputEvent::SHEET_PLAY_PAUSE);
+    sbtn(tr, LV_SYMBOL_NEXT, &lv_font_montserrat_48, false, InputEvent::SHEET_MEDIA_NEXT);
+    make_slider(COL_MUTED, LV_SYMBOL_VOLUME_MAX, &lv_font_montserrat_28);
+  } else if (c.type == CardType::COVER) {
+    const bool gate = cover_kind_of(c) == (int) CoverKind::GATE;
+    lv_obj_t *tr = sheet_row_(this->sheet_body_);
+    lv_obj_set_style_pad_column(tr, 26, 0);
+    sbtn(tr, gate ? LV_SYMBOL_LEFT : LV_SYMBOL_UP, &lv_font_montserrat_48, false, InputEvent::SHEET_COVER_OPEN);
+    sbtn(tr, LV_SYMBOL_STOP, &lv_font_montserrat_28, false, InputEvent::SHEET_COVER_STOP);
+    sbtn(tr, gate ? LV_SYMBOL_RIGHT : LV_SYMBOL_DOWN, &lv_font_montserrat_48, false, InputEvent::SHEET_COVER_CLOSE);
+    make_slider(accent, LV_SYMBOL_SETTINGS, &lv_font_montserrat_28);
+  } else {  // LIGHT (brightness)
+    make_slider(accent, LV_SYMBOL_CHARGE, &lv_font_montserrat_28);
+  }
+}
+
+void LvglRenderer::refresh_sheet_() {
+  if (this->sheet_card_ == nullptr)
+    return;
+  const Card &c = *this->sheet_card_;
+  char buf[24];
+  if (c.type == CardType::CLIMATE && this->sheet_value_lbl_ != nullptr) {
+    float target = c.climate != nullptr ? c.climate->target_temperature : 0.0f;
+    float cur = c.climate != nullptr ? c.climate->current_temperature : 0.0f;
+    std::snprintf(buf, sizeof(buf), "%.1f°", target);
+    lv_label_set_text(this->sheet_value_lbl_, buf);
+    std::snprintf(buf, sizeof(buf), "actuel %.1f°", cur);
+    lv_label_set_text(this->sheet_sub_lbl_, buf);
+    int cur_mode = 0;  // 0 off / 1 heat / 2 cool / 3 auto
+    if (c.climate != nullptr) {
+      switch (c.climate->mode) {
+        case climate::CLIMATE_MODE_HEAT: cur_mode = 1; break;
+        case climate::CLIMATE_MODE_COOL: cur_mode = 2; break;
+        case climate::CLIMATE_MODE_HEAT_COOL:
+        case climate::CLIMATE_MODE_AUTO: cur_mode = 3; break;
+        default: cur_mode = 0; break;
+      }
+    }
+    for (int i = 0; i < 4; i++)
+      if (this->sheet_modes_[i] != nullptr)
+        lv_obj_set_style_border_color(this->sheet_modes_[i],
+                                      lv_color_hex(i == cur_mode ? accent_for(c) : COL_TILE), 0);
+  } else if (c.type == CardType::MEDIA_PLAYER) {
+    if (this->sheet_pp_icon_ != nullptr)
+      lv_label_set_text(this->sheet_pp_icon_, c.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+    if (this->sheet_sub_lbl_ != nullptr && c.media != nullptr) {
+      const std::string &t = c.media->get_media_title();
+      const std::string &a = c.media->get_media_artist();
+      lv_label_set_text(this->sheet_sub_lbl_, (a.empty() ? t : (t.empty() ? a : t + " — " + a)).c_str());
+    }
+    if (this->sheet_slider_ != nullptr)
+      lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
+  } else if (this->sheet_slider_ != nullptr) {  // cover / light
+    lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
   }
 }
 
@@ -849,6 +1166,19 @@ static uint32_t accent_for(const Card &c) {
   return c.type == CardType::SWITCH ? 0x3DD68C : 0xFFB020;
 }
 
+// Set a card's type icon on `label`: MDI (font_icons_lg_) when available, else the built-in
+// LVGL symbol at montserrat_48 (keeps the Dial — which has no large MDI font — working).
+void LvglRenderer::set_card_icon_(lv_obj_t *label, const Card &c, uint32_t color) {
+  if (this->font_icons_lg_ != nullptr) {
+    lv_label_set_text(label, card_mdi_glyph(c));
+    lv_obj_set_style_text_font(label, this->font_icons_lg_->get_lv_font(), 0);
+  } else {
+    lv_label_set_text(label, icon_for(c));
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_48, 0);
+  }
+  lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
+}
+
 static void format_state(const Card &c, char *buf, size_t n) {
   if (!c.available()) {
     std::snprintf(buf, n, "indispo");
@@ -1085,15 +1415,43 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       lv_obj_clear_flag(toprow, LV_OBJ_FLAG_SCROLLABLE);
       lv_obj_add_flag(toprow, LV_OBJ_FLAG_EVENT_BUBBLE);  // let taps reach the tile button
 
-      t.icon = lv_label_create(toprow);
-      lv_label_set_text(t.icon, icon_for(card));
-      lv_obj_set_style_text_font(t.icon, &lv_font_montserrat_48, 0);  // LVGL symbol font
+      // All types except switch have a control sheet (more-info). The icon opens it.
+      const bool has_sheet = card.type != CardType::SWITCH;
+      const bool is_media = card.type == CardType::MEDIA_PLAYER;
+      uint32_t icon_col = card.is_on() ? accent_for(card) : COL_MUTED;
 
-      t.state = lv_label_create(toprow);
-      char sbuf[24];
-      format_state(card, sbuf, sizeof(sbuf));
-      lv_label_set_text(t.state, sbuf);
-      this->set_text_font_(t.state, this->font_small_, &lv_font_montserrat_20);
+      t.icon = lv_label_create(toprow);
+      this->set_card_icon_(t.icon, card, icon_col);
+      if (has_sheet) {  // icon = tap target that opens the control sheet (consumes the click)
+        lv_obj_add_flag(t.icon, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_style_pad_all(t.icon, 8, 0);
+        auto *di = new CbData{this, InputEvent::OPEN_SHEET, (int) ci};
+        g_cbdata.push_back(di);
+        lv_obj_add_event_cb(t.icon, btn_event_cb, LV_EVENT_CLICKED, di);
+      }
+
+      if (is_media) {
+        // Play/pause quick button (right) — direct action, does NOT open the sheet.
+        lv_obj_t *pb = lv_button_create(toprow);
+        lv_obj_set_size(pb, 60, 60);
+        lv_obj_set_style_radius(pb, 30, 0);
+        lv_obj_set_style_bg_color(pb, lv_color_hex(0x3DD68C), 0);
+        lv_obj_set_style_shadow_width(pb, 0, 0);
+        t.state = lv_label_create(pb);  // reused to refresh the play/pause glyph
+        lv_label_set_text(t.state, card.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+        lv_obj_center(t.state);
+        lv_obj_set_style_text_color(t.state, lv_color_hex(0x06281A), 0);
+        lv_obj_set_style_text_font(t.state, &lv_font_montserrat_28, 0);
+        auto *dp = new CbData{this, InputEvent::TOGGLE, (int) ci};  // TOGGLE = play_pause for media
+        g_cbdata.push_back(dp);
+        lv_obj_add_event_cb(pb, btn_event_cb, LV_EVENT_CLICKED, dp);
+      } else {
+        t.state = lv_label_create(toprow);
+        char sbuf[24];
+        format_state(card, sbuf, sizeof(sbuf));
+        lv_label_set_text(t.state, sbuf);
+        this->set_text_font_(t.state, this->font_small_, &lv_font_montserrat_20);
+      }
 
       lv_obj_t *name = lv_label_create(tile);
       lv_label_set_text(name, card.name.c_str());
@@ -1112,7 +1470,10 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
         lv_bar_set_value(t.bar, 0, LV_ANIM_OFF);
       }
 
-      auto *d = new CbData{this, InputEvent::TOGGLE, (int) ci};
+      // Tile body tap: media/climate open the sheet; switch/light/cover do the primary action.
+      InputEvent tile_ev = (is_media || card.type == CardType::CLIMATE) ? InputEvent::OPEN_SHEET
+                                                                        : InputEvent::TOGGLE;
+      auto *d = new CbData{this, tile_ev, (int) ci};
       g_cbdata.push_back(d);
       lv_obj_add_event_cb(tile, btn_event_cb, LV_EVENT_CLICKED, d);
       tiles.push_back(t);
@@ -1255,6 +1616,7 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
   if (vm.groups == nullptr)
     return;
   int active = vm.group_index;
+  this->active_group_ = active;  // for the control sheet (resolve which group's card)
 
   // Tabs: active = white label + accent underline; others muted, no underline.
   for (size_t i = 0; i < this->tab_btns_.size(); i++) {
@@ -1293,10 +1655,15 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
         const Tile &t = this->group_tiles_[gi][ci];
         uint32_t col = c.is_on() ? accent_for(c) : COL_MUTED;
         lv_obj_set_style_text_color(t.icon, lv_color_hex(col), 0);
-        char sbuf[24];
-        format_state(c, sbuf, sizeof(sbuf));
-        lv_label_set_text(t.state, sbuf);
-        lv_obj_set_style_text_color(t.state, lv_color_hex(col), 0);
+        if (c.type == CardType::MEDIA_PLAYER) {
+          // t.state is the play/pause button glyph (dark on green) — no text/colour override.
+          lv_label_set_text(t.state, c.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+        } else {
+          char sbuf[24];
+          format_state(c, sbuf, sizeof(sbuf));
+          lv_label_set_text(t.state, sbuf);
+          lv_obj_set_style_text_color(t.state, lv_color_hex(col), 0);
+        }
         if (t.bar != nullptr) {
           lv_bar_set_value(t.bar, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
           lv_obj_set_style_bg_color(t.bar, lv_color_hex(c.is_on() ? accent_for(c) : COL_MUTED), LV_PART_INDICATOR);
@@ -1306,6 +1673,8 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
       lv_obj_add_flag(this->group_grids_[gi], LV_OBJ_FLAG_HIDDEN);
     }
   }
+
+  this->refresh_sheet_();  // keep the control sheet (if open) in sync with the card state
 
   if (this->dashboard_scr_ != nullptr)
     lv_screen_load(this->dashboard_scr_);

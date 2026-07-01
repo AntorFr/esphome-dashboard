@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maquettes — types de cartes (Dial rond / D1001 portrait)</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<title>Maquettes — types de cartes (Dial rond / D1001 tuiles)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
 <style>
   :root{
-    --bg:#0A0A0C; --screen:#0E0E12; --tile:#17171E; --track:#232330;
-    --text:#fff; --muted:#8A8A92; --iconoff:#5F5E5A;
-    --light:#FFB020; --cover:#4F8CFF; --media:#A06CFF; --switch:#3DD68C; --climate:#03A964;
+    --bg:#0A0A0C; --screen:#0E0E12; --tile:#2C2C38; --track:#232330;
+    --text:#fff; --muted:#8A8A92; --iconoff:#6b6b73;
+    --light:#FFB020; --cover:#577EFF; --media:#A06CFF; --switch:#3DD68C; --climate:#03A964;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px;line-height:1.45}
   h1{font-size:22px;margin:0 0 4px}
-  .lead{color:var(--muted);max-width:820px;margin:0 0 8px}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 26px;font-size:13px;color:var(--muted)}
+  .lead{color:var(--muted);max-width:920px;margin:0 0 8px}.lead b{color:#cfd0d6}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 22px;font-size:13px;color:var(--muted)}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
   .card-block{border-top:1px solid #1d1d24;padding:26px 0}
   .card-block h2{font-size:18px;margin:0 0 2px;display:flex;align-items:center;gap:10px}
-  .card-block h2 .ti{font-size:22px}
+  .card-block h2 .mdi{font-size:22px}
   .card-block .tag{color:var(--muted);font-weight:400;font-size:13px}
-  .row{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;margin-top:18px}
+  .row{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start;margin-top:18px}
   .device-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
   .device-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 
@@ -30,258 +30,315 @@
   .round-frame{background:#1B1B22;border-radius:50%;padding:10px}
   .round{position:relative;width:240px;height:240px;border-radius:50%;background:var(--screen);overflow:hidden}
   .round svg{position:absolute;inset:0}
-  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;padding:0 36px}
-  .center .ic{font-size:30px;line-height:1}
-  .center .val{font-size:34px;font-weight:500;line-height:1}
-  .center .val.small{font-size:24px}
-  .center .name{font-size:13px}
+  .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:0 34px}
+  .center .ic{font-size:74px;line-height:1}            /* icône prépondérante */
+  .center .val{font-size:40px;font-weight:600;line-height:1.05}
+  .center .val.mid{font-size:30px}
+  .center .name{font-size:16px;font-weight:500;margin-top:2px}
+  .center .status{font-size:13px;color:var(--muted)}   /* status atténué + petit */
+  .center.top{justify-content:flex-start;padding-top:34px;gap:4px}  /* cartes à boutons : contenu en haut */
   .center .sub{font-size:12px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:10px;background:#23232c}
-  .dots{position:absolute;left:0;right:0;bottom:24px;display:flex;justify-content:center;gap:6px}
+  .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:10px;background:#23232c;margin-top:2px}
+  .dots{position:absolute;left:0;right:0;bottom:22px;display:flex;justify-content:center;gap:6px}
   .dots i{width:6px;height:6px;border-radius:3px;background:#3A3A44}
   .dots i.on{width:16px;background:#fff}
-  .hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#6E6E78;font-size:11px;opacity:.7}
-  .btnrow{position:absolute;left:0;right:0;bottom:40px;display:flex;justify-content:center;gap:14px}
-  .rbtn{width:38px;height:38px;border-radius:50%;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:18px}
-  .rbtn.lg{width:44px;height:44px;font-size:22px}
+  .hint{position:absolute;left:0;right:0;bottom:6px;text-align:center;color:#6E6E78;font-size:11px;opacity:.7}
+  .btnrow{position:absolute;left:0;right:0;bottom:50px;display:flex;justify-content:center;gap:16px}
+  .rbtn{width:40px;height:40px;border-radius:50%;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:20px}
+  .rbtn.lg{width:48px;height:48px;font-size:24px}
   .rbtn.sel{outline:2px solid currentColor}
-  .sidebtn{position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .rbtn.stop{font-size:16px}
+  /* climate mode sub-menu overlay */
+  .submenu{position:absolute;inset:0;background:rgba(8,8,12,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+  .submenu .sm-title{font-size:14px;color:var(--muted)}
+  .submenu .sm-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}   /* modes en carré 2×2 */
+  .sm-mode{width:64px;height:60px;border-radius:16px;background:var(--tile);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:24px;color:var(--muted)}
+  .sm-mode.sel{color:#fff;outline:2px solid var(--climate)}
+  .sm-mode .l{font-size:11px}
+  .sm-exit{margin-top:4px;font-size:12px;color:#6E6E78;display:flex;align-items:center;gap:6px}
 
-  /* Portrait D1001 detail */
-  .port-frame{background:#1B1B22;border-radius:26px;padding:10px}
-  .port{position:relative;width:268px;height:452px;border-radius:18px;background:var(--screen);overflow:hidden;display:flex;flex-direction:column}
-  .port .top{display:flex;align-items:center;gap:10px;padding:16px 18px 6px}
-  .port .top .ti{font-size:22px;color:var(--muted)}
-  .port .top .t-name{font-size:18px;font-weight:500}
-  .port .top .t-state{margin-left:auto;font-size:13px;color:var(--muted)}
-  .port .body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 22px}
-  .port .big{font-size:46px;font-weight:600;line-height:1}
-  .port .bigicon{font-size:54px}
-  .port .pmuted{color:var(--muted);font-size:14px}
-  .slider{width:100%;height:14px;border-radius:7px;background:var(--track);position:relative;margin:6px 0}
-  .slider .fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px}
-  .slider .knob{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
-  .toggle{width:104px;height:52px;border-radius:26px;position:relative;background:var(--track)}
-  .toggle.on{background:var(--switch)}
-  .toggle .tk{position:absolute;top:4px;width:44px;height:44px;border-radius:50%;background:#fff;transition:.2s}
-  .toggle .tk.on{left:56px}.toggle .tk.off{left:4px}
-  .prow{display:flex;gap:14px;align-items:center;justify-content:center;padding:6px 0}
-  .pbtn{min-width:60px;height:48px;padding:0 12px;border-radius:14px;background:var(--tile);display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px}
-  .pbtn .ti{font-size:20px}
-  .pbtn.sel{outline:2px solid currentColor}
-  .modes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding-bottom:6px}
-  .mbtn{width:52px;height:48px;border-radius:14px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--muted)}
-  .mbtn.sel{color:var(--text)}
-  .port .foot{padding:10px 0 16px;text-align:center;color:#6E6E78;font-size:12px}
-  .albumart{width:120px;height:120px;border-radius:14px;background:linear-gradient(135deg,#3a2b52,#1d1730);display:flex;align-items:center;justify-content:center;font-size:40px;color:#A06CFF}
+  /* D1001 tiles */
+  .port-frame{background:#1B1B22;border-radius:24px;padding:8px}
+  .screenwrap{overflow:hidden;border-radius:16px}
+  .screen{background:var(--screen);transform-origin:top left}
+  .d-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 20px 8px}
+  .d-hdr .clk{font-size:46px;font-weight:600;line-height:1}
+  .d-hdr .dt{color:var(--muted);font-size:20px;margin-top:6px}
+  .d-hdr .wx .l1{font-size:30px;text-align:right}.d-hdr .wx .l2{color:var(--muted);font-size:18px;text-align:right;margin-top:2px}
+  .d-tabs{display:flex;gap:10px;padding:6px 16px 14px}
+  .d-tab{flex:1;text-align:center;padding:14px 0;border-radius:12px;background:#1A1A22;color:var(--muted);font-size:24px}
+  .d-tab.on{background:var(--tile);color:#fff}
+  .d-tab.on .bar{display:block;height:4px;width:46px;background:var(--light);border-radius:3px;margin:8px auto 0}
+  .d-tab .bar{display:none}
+  .d-grid{display:flex;flex-wrap:wrap;gap:14px;padding:4px 16px 20px}
+  .tile{width:356px;height:170px;background:var(--tile);border-radius:16px;padding:18px;display:flex;flex-direction:column;justify-content:space-between}
+  .tile .ttop{display:flex;justify-content:space-between;align-items:center}
+  .tile .tic{font-size:52px;line-height:1}
+  .tile .tstate{font-size:20px;color:var(--muted)}
+  .tile .tname{font-size:28px;font-weight:500}
+  .tile .tbar{height:8px;border-radius:4px;background:#26262F;position:relative;margin-top:2px}
+  .tile .tbar .tfill{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+  .tile.solo{width:320px;height:150px}
+  .tile.solo .tic{font-size:44px}.tile.solo .tstate{font-size:18px}.tile.solo .tname{font-size:24px}
+  /* icône = zone tap qui ouvre la feuille de contrôle (subtil fond rond) */
+  .ticbtn{width:64px;height:64px;border-radius:14px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:44px;line-height:1}
+  .tile.solo .ticbtn{width:58px;height:58px;font-size:38px}
+  /* action rapide sur la tuile (ex. play/pause) — sans ouvrir la feuille */
+  .tqrow{display:flex;align-items:center;gap:14px}
+  .tqrow .tbar{flex:1;margin-top:0}
+  .tqbtn{width:58px;height:58px;border-radius:50%;background:#3DD68C;color:#06281a;display:flex;align-items:center;justify-content:center;font-size:28px;flex:0 0 auto}
+  .tile.solo .tqbtn{width:52px;height:52px;font-size:24px}
 
-  /* UX notes */
-  .ux{flex:1;min-width:280px;max-width:430px}
+  /* Large control sheet (HA "more-info" style — takes most of the screen, modal over the grid) */
+  .big-sheet{position:absolute;left:0;right:0;bottom:0;top:150px;background:#16161c;border-radius:28px 28px 0 0;
+    padding:30px 30px 26px;display:flex;flex-direction:column;box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+  .bs-grip{width:60px;height:6px;border-radius:3px;background:#3A3A44;margin:-14px auto 12px}
+  .bs-top{display:flex;align-items:center;gap:14px}
+  .bs-ic{font-size:38px}.bs-name{font-size:30px;font-weight:600}.bs-loc{font-size:20px;color:var(--muted)}
+  .bs-close{margin-left:auto;width:60px;height:60px;border-radius:50%;background:#2C2C38;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--muted)}
+  .bs-art{width:290px;height:290px;border-radius:20px;margin:22px auto 10px;background:linear-gradient(135deg,#3a2b52,#1d1730);display:flex;align-items:center;justify-content:center;font-size:96px;color:#A06CFF}
+  .bs-title{text-align:center;font-size:36px;font-weight:600}.bs-sub{text-align:center;font-size:24px;color:var(--muted);margin-top:4px}
+  .bs-prog{display:flex;align-items:center;gap:16px;margin:24px 4px}
+  .bs-prog .t{font-size:20px;color:var(--muted)}
+  .bs-bar{flex:1;height:10px;border-radius:5px;background:#2C2C38;position:relative}.bs-bar .f{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+  .bs-transport{display:flex;gap:30px;align-items:center;justify-content:center;margin:8px 0 18px}
+  .bs-tb{width:92px;height:92px;border-radius:50%;background:#2C2C38;display:flex;align-items:center;justify-content:center;font-size:42px;color:#fff}
+  .bs-tb.primary{width:126px;height:126px;background:#3DD68C;color:#06281a;font-size:58px}
+  .bs-row{display:flex;align-items:center;gap:18px;margin-top:12px}
+  .bs-row .ic{font-size:36px;color:var(--muted)}
+  .bs-slider{flex:1;height:14px;border-radius:7px;background:#2C2C38;position:relative}
+  .bs-slider .f{position:absolute;left:0;top:0;bottom:0;border-radius:7px}.bs-slider .k{position:absolute;top:50%;width:32px;height:32px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
+  .bs-temp{display:flex;align-items:center;justify-content:center;gap:36px;margin:44px 0 20px}
+  .bs-tbtn{width:104px;height:104px;border-radius:50%;background:#2C2C38;display:flex;align-items:center;justify-content:center;font-size:52px}
+  .bs-bigtemp{font-size:104px;font-weight:700;line-height:1}.bs-cur{text-align:center;font-size:24px;color:var(--muted)}
+  .bs-modes{display:flex;gap:16px;justify-content:center;margin-top:30px}
+  .bs-mode{flex:1;max-width:150px;height:100px;border-radius:20px;background:#2C2C38;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:38px;color:var(--muted)}
+  .bs-mode.sel{color:#fff;outline:3px solid var(--climate)}.bs-mode .lbl{font-size:19px}
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+
+  .ux{flex:1;min-width:280px;max-width:440px}
   .ux h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px}
   .ux table{width:100%;border-collapse:collapse;font-size:13.5px}
   .ux td{padding:5px 8px;border-bottom:1px solid #1a1a21;vertical-align:top}
-  .ux td:first-child{color:var(--muted);white-space:nowrap;width:130px}
+  .ux td:first-child{color:var(--muted);white-space:nowrap;width:150px}
   .ux .q{margin-top:12px;padding:10px 12px;border-radius:10px;background:#1c1606;border:1px solid #3a2e12;font-size:13px}
   .ux .q b{color:var(--light)}
-  kbd{background:#23232c;border-radius:5px;padding:1px 6px;font-size:12px}
 </style>
 </head>
 <body>
-<h1>Maquettes des types de cartes</h1>
-<p class="lead">Rendu d'une même carte logique sur les deux écrans : <b>Dial</b> (rond 240×240, gestes tactiles + molette + bouton) et <b>D1001</b> (vue détail portrait, ouverte au tap sur une tuile). Les blocs ambrés <b>« à trancher »</b> sont les choix d'interaction à valider ensemble.</p>
+<h1>Maquettes des types de cartes — v2</h1>
+<p class="lead"><b>Dial</b> : rond 240×240, une carte plein écran (gestes + molette + bouton). Icône <b>prépondérante</b>, status petit, anneau qui ne chevauche plus les points.
+<b>D1001</b> : <b>tuile</b> dans la grille d'onglet ; tap = action primaire, contrôles avancés via feuille de contrôle. Blocs ambrés = <b>« à trancher »</b>.</p>
 <div class="legend">
   <span><i class="dot" style="background:var(--switch)"></i> switch</span>
   <span><i class="dot" style="background:var(--light)"></i> light</span>
   <span><i class="dot" style="background:var(--cover)"></i> cover</span>
   <span><i class="dot" style="background:var(--media)"></i> media</span>
   <span><i class="dot" style="background:var(--climate)"></i> climate</span>
-  <span style="margin-left:auto">Gestes communs : slide ←/→ = carte ±, slide ↑ / maintien = menu, dots = pagination</span>
 </div>
 
 <div id="app"></div>
+<div id="sheets"></div>
 
 <script>
-var SWEEP=300, START=150;
+var START=125, SWEEP=250;  // wider bottom gap so the ring clears the pagination dots
 function polar(cx,cy,r,deg){var a=deg*Math.PI/180;return {x:cx+r*Math.sin(a),y:cy-r*Math.cos(a)};}
 function arcPath(cx,cy,r,from,to){var span=Math.abs(to-from);if(span<0.3)return '';var steps=Math.max(2,Math.round(span/3)),d='';for(var i=0;i<=steps;i++){var deg=from+(to-from)*i/steps,p=polar(cx,cy,r,deg);d+=(i?'L':'M')+p.x.toFixed(1)+' '+p.y.toFixed(1);}return d;}
-
-// Round value arc (open bottom). full=true => closed ring (switch).
-function roundArc(frac, accent, full){
-  var track = full ? circlePath(120,120,90) : arcPath(120,120,90,START,START-SWEEP);
-  var fillEnd = full ? null : START-SWEEP*frac;
-  var fill = full ? (frac>0?circlePath(120,120,90):'') : (frac>0?arcPath(120,120,90,START,fillEnd):'');
+function ring(frac, accent){
+  var track=arcPath(120,120,92,START,START-SWEEP);
+  var fill=frac>0?arcPath(120,120,92,START,START-SWEEP*frac):'';
   return '<svg width="240" height="240" viewBox="0 0 240 240">'
-    +'<path d="'+track+'" fill="none" stroke="#232330" stroke-width="14" stroke-linecap="round"/>'
-    +(fill?'<path d="'+fill+'" fill="none" stroke="'+accent+'" stroke-width="14" stroke-linecap="round"/>':'')
-    +'</svg>';
+    +'<path d="'+track+'" fill="none" stroke="#232330" stroke-width="12" stroke-linecap="round"/>'
+    +(fill?'<path d="'+fill+'" fill="none" stroke="'+accent+'" stroke-width="12" stroke-linecap="round"/>':'')+'</svg>';
 }
-function circlePath(cx,cy,r){return arcPath(cx,cy,r,0.01,359.99);}
+function dots(){return '<div class="dots"><i></i><i class="on"></i><i></i></div><div class="hint">▲ menu</div>';}
+function frame(inner){return '<div class="round-frame"><div class="round">'+inner+dots()+'</div></div>';}
 
-var ICON={switch:'ti-plug',light:'ti-bulb',cover:'ti-window',media:'ti-music',climate:'ti-temperature'};
+/* ---- Dial per type ---- */
+function dialSwitch(c){
+  // Ring kept as coded: open coloured arc when ON (stops before the dots), grey track when OFF.
+  var col=c.on?c.accent:'var(--iconoff)';
+  return frame(ring(c.on?1:0, c.accent)
+    +'<div class="center"><i class="ic mdi '+c.mdi+'" style="color:'+col+'"></i>'
+    +'<div class="name" style="color:'+col+'">'+c.name+'</div>'
+    +'<div class="status">'+(c.on?'Allumé':'Éteint')+'</div></div>');
+}
+function dialLight(c){
+  return frame(ring(c.frac,c.accent)
+    +'<div class="center"><i class="ic mdi mdi-lightbulb" style="color:'+c.accent+'"></i>'
+    +'<div class="val mid" style="margin-top:2px">'+c.val+'</div>'
+    +'<div class="name" style="color:'+c.accent+'">'+c.name+'</div></div>');
+}
+function dialCover(c, dir){
+  // focus = Ouvrir / Stop / Fermer. dir: 'ud' (volet/garage) or 'lr' (portail). No ring (% not needed).
+  var openIc = dir==='lr'?'mdi-arrow-expand-horizontal':'mdi-arrow-up';
+  var closeIc= dir==='lr'?'mdi-arrow-collapse-horizontal':'mdi-arrow-down';
+  var big = dir==='lr'?'mdi-gate':(c.gm?'mdi-garage-variant':'mdi-window-shutter');
+  return frame('<div class="center top">'
+      +'<i class="ic mdi '+big+'" style="color:'+c.accent+';font-size:58px"></i>'
+      +'<div class="name" style="color:'+c.accent+'">'+c.name+'</div>'
+      +'<div class="status">'+(dir==='lr'?'Fermé':'Ouvert · '+c.val)+'</div></div>'
+    +'<div class="btnrow" style="color:'+c.accent+'">'
+      +'<div class="rbtn"><i class="mdi '+openIc+'"></i></div>'
+      +'<div class="rbtn sel stop"><i class="mdi mdi-stop"></i></div>'
+      +'<div class="rbtn"><i class="mdi '+closeIc+'"></i></div></div>');
+}
+function dialMedia(c){
+  // play/pause = grande icône centrale (tap). Titre sacrifié (écran trop petit). Bas = ⏮ ⏭.
+  return frame(ring(c.frac,c.accent)
+    +'<div class="center top" style="padding-top:46px"><i class="ic mdi mdi-pause" style="color:'+c.accent+';font-size:78px"></i>'
+    +'<div class="name" style="color:'+c.accent+'">'+c.name+'</div></div>'
+    +'<div class="btnrow" style="color:'+c.accent+'">'
+    +'<div class="rbtn"><i class="mdi mdi-skip-previous"></i></div>'
+    +'<div class="rbtn"><i class="mdi mdi-skip-next"></i></div></div>');
+}
+function dialClimate(c, submenu){
+  // Sous-menu : modes en carré 2×2 ; sortie = tap sur un mode (choisit + ferme) ou ▲ retour.
+  var overlay = submenu ? '<div class="submenu"><div class="sm-title">Mode</div><div class="sm-grid">'
+      +'<div class="sm-mode"><i class="mdi mdi-power"></i><span class="l">Éteint</span></div>'
+      +'<div class="sm-mode sel"><i class="mdi mdi-fire" style="color:'+c.accent+'"></i><span class="l">Chauffe</span></div>'
+      +'<div class="sm-mode"><i class="mdi mdi-snowflake"></i><span class="l">Froid</span></div>'
+      +'<div class="sm-mode"><i class="mdi mdi-autorenew"></i><span class="l">Auto</span></div></div>'
+      +'<div class="sm-exit"><i class="mdi mdi-gesture-tap"></i> tap un mode · ▲ retour</div></div>' : '';
+  // Bouton « Modes » calé plus bas ; contenu central en haut -> pas de superposition avec le chip.
+  var modeBtn = '<div class="btnrow" style="color:'+c.accent+'">'
+      +'<div class="rbtn"><i class="mdi mdi-tune-variant"></i></div></div>';
+  // Contenu compact et centré (nom petit / cible / chip) : reste dans l'anneau, sans toucher
+  // ni l'arc (haut) ni le bouton Modes (bas).
+  return frame(ring(c.frac,c.accent)
+    +'<div class="center top" style="padding-top:52px;gap:3px">'
+    +'<div class="name" style="color:'+c.accent+';font-size:14px">'+c.name+'</div>'
+    +'<div class="val" style="font-size:34px">'+c.val+'</div>'
+    +'<div class="chip" style="color:'+c.accent+'"><i class="mdi mdi-fire"></i> actuel 19.4°</div></div>'
+    + modeBtn + overlay);
+}
+
+/* ---- D1001 tile ---- */
+function tileHTML(c, solo){
+  var t=c.tile, iconColor=t.on?c.accent:'var(--iconoff)';
+  var bar=t.bar?'<div class="tbar"><div class="tfill" style="width:'+(c.frac*100)+'%;background:'+(t.on?c.accent:'var(--muted)')+'"></div></div>':'';
+  if(c.type==='media'){
+    // icône (tap = feuille de contrôle) à gauche + bouton play/pause direct à droite ; nom + barre volume.
+    return '<div class="tile'+(solo?' solo':'')+'">'
+      +'<div class="ttop"><div class="ticbtn" style="color:'+iconColor+'"><i class="mdi '+c.mdi+'"></i></div>'
+      +'<div class="tqbtn"><i class="mdi mdi-pause"></i></div></div>'
+      +'<div style="display:flex;flex-direction:column;gap:8px"><div class="tname">'+c.name+'</div>'+bar+'</div></div>';
+  }
+  return '<div class="tile'+(solo?' solo':'')+'">'
+    +'<div class="ttop"><i class="tic mdi '+c.mdi+'" style="color:'+iconColor+'"></i><span class="tstate">'+t.state+'</span></div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px"><div class="tname">'+c.name+'</div>'+bar+'</div></div>';
+}
 
 var CARDS=[
-{
-  type:'switch', accent:'var(--switch)', hex:'#3DD68C', icon:'ti-plug', title:'switch / input_boolean / light (on-off)',
-  frac:1, full:true, ic:'ti-plug', val:'Allumé', name:'Fer à souder', valSmall:false,
-  ux:[
-    ['Tap centre','Toggle on/off'],
-    ['Molette','— (rien à régler)'],
-    ['Anneau','Plein quand ON (vert), gris quand OFF'],
-    ['slide ←/→','carte préc/suiv'],
-    ['slide ↑ / maintien','retour menu'],
-  ],
-  q:'<b>À trancher :</b> sur OFF, anneau gris complet ou vide ? (proposé : gris complet, icône/texte atténués)',
-  square:{kind:'toggle', state:'Allumé'}
-},
-{
-  type:'light', accent:'var(--light)', hex:'#FFB020', icon:'ti-bulb', title:'light (luminosité réglable)',
-  frac:0.6, ic:'ti-bulb', val:'60%', name:'Plafonnier',
-  ux:[
-    ['Tap centre','Toggle on/off'],
-    ['Molette','Luminosité (aperçu immédiat, envoi HA après ~0,35 s)'],
-    ['Arc','= luminosité ; teinte = couleur live de la lampe (RGB)'],
-    ['slide / maintien','nav cartes / menu'],
-  ],
-  q:'<b>À trancher :</b> couleur RGB <u>affichée</u> mais non réglable (V1). Réglage de couleur = plus tard ?',
-  square:{kind:'slider', big:'60%', sub:'Plafonnier · allumé', swatch:true}
-},
-{
-  type:'cover', accent:'var(--cover)', hex:'#4F8CFF', icon:'ti-window', title:'cover (volet / portail)',
-  frac:0.4, ic:'ti-window', val:'40%', name:'Portail',
-  buttons:[{ic:'ti-chevron-up',sel:false},{ic:'ti-square',sel:true},{ic:'ti-chevron-down',sel:false}],
-  ux:[
-    ['Boutons','Ouvrir ▲ / Stop ■ / Fermer ▼ (tap)'],
-    ['Molette','Position fine (aperçu + envoi différé)'],
-    ['Arc','= position courante (0–100%)'],
-    ['Tap centre','Stop'],
-    ['slide / maintien','nav cartes / menu'],
-  ],
-  q:'<b>À trancher :</b> 3 boutons Ouvrir/Stop/Fermer (repris de esp-dial) <u>+</u> molette pour la position fine — OK ? Ou molette seule + tap=toggle ?',
-  square:{kind:'cover', big:'40%', sub:'Portail · arrêté'}
-},
-{
-  type:'media', accent:'var(--media)', hex:'#A06CFF', icon:'ti-music', title:'media_player',
-  frac:0.7, ic:'ti-player-play', val:'', name:'', sub:'Daft Punk — Get Lucky',
-  centerTitle:'Get Lucky', centerSub:'Daft Punk',
-  transport:[{ic:'ti-player-skip-back'},{ic:'ti-player-pause',lg:true},{ic:'ti-player-skip-forward'}],
-  ux:[
-    ['Tap centre','Play / Pause'],
-    ['Boutons ⏮ ⏭','Piste préc / suiv'],
-    ['Molette','Volume (aperçu + envoi différé)'],
-    ['Arc','= volume'],
-    ['slide / maintien','nav cartes / menu'],
-  ],
-  q:'<b>À trancher :</b> afficher titre+artiste au centre (au lieu de %). Transport ⏮⏯⏭ en bas. OK ? Mute = ?',
-  square:{kind:'media', sub:'Daft Punk — Get Lucky'}
-},
-{
-  type:'climate', accent:'var(--climate)', hex:'#03A964', icon:'ti-temperature', title:'climate (thermostat)',
-  frac:0.55, ic:'ti-temperature', val:'21.5°', name:'Chauffage', sub:'actuel 19.4°',
-  chip:'<i class="ti ti-flame"></i> chauffe',
-  ux:[
-    ['Molette','Température cible (aperçu + envoi différé)'],
-    ['Tap centre','Change de mode (off → chauffe → froid → auto)'],
-    ['Arc','= cible entre min/max ; couleur selon action'],
-    ['Centre','cible en grand, température actuelle dessous'],
-    ['slide / maintien','nav cartes / menu'],
-  ],
-  q:'<b>À trancher :</b> tap centre = cycle de mode, OU un bouton mode dédié ? Indicateur d\'action (chauffe/refroidit/inactif) par couleur d\'arc.',
-  square:{kind:'climate', big:'21.5°', sub:'actuel 19.4° · chauffe'}
-},
+{ type:'switch', accent:'var(--switch)', mdi:'mdi-power-plug', title:'switch / input_boolean (on-off)',
+  on:true, name:'Fer à souder', frac:1, tile:{state:'Allumé',on:true,bar:false},
+  dial:function(c){return dialSwitch(c);},
+  ux:[['Icône','Prépondérante ; couleur = état (vert ON / gris OFF)'],['Status','Petit, atténué (« Allumé »)'],['Anneau','Supprimé (inutile pour un simple on/off)'],['Dial · tap','Toggle'],['D1001 · tap','Toggle']],
+  q:'<b>OK ?</b> Plus d\'anneau sur le switch — grande icône colorée + « Allumé » en petit.' },
+
+{ type:'light', accent:'var(--light)', mdi:'mdi-lightbulb', title:'light (luminosité)',
+  on:true, name:'Plafonnier', val:'60%', frac:0.6, tile:{state:'60%',on:true,bar:true},
+  dial:function(c){return dialLight(c);},
+  ux:[['Dial · molette','Luminosité (aperçu + envoi différé)'],['Anneau','= luminosité ; teinte = couleur live RGB'],['D1001 · tap','Toggle ; luminosité via feuille de contrôle']],
+  q:'' },
+
+{ type:'cover', accent:'var(--cover)', mdi:'mdi-window-shutter', title:'cover — deux sens (volet/garage vs portail)',
+  on:true, name:'Volet salon', val:'40%', frac:0.4, tile:{state:'Ouvert',on:true,bar:false},
+  dialTwo:true,
+  ux:[['Focus','Ouvrir / Stop / Fermer (le % passe en arrière-plan)'],['Volet / garage','Sens haut/bas — icône mdi-window-shutter / mdi-garage-variant'],['Portail','Sens gauche/droite — icône mdi-gate'],['Dial · boutons','▲/◀ Ouvrir · ■ Stop · ▼/▶ Fermer'],['D1001 · tap','Ouvre/ferme (toggle) ; boutons + position dans la feuille']],
+  q:'<b>Décidé :</b> <u>auto</u> depuis le <code>device_class</code> HA du cover (shutter/garage/gate/awning…) si accessible côté ESPHome ; sinon repli sur un champ YAML <code>cover_kind: shutter|garage|gate</code>. Le sens (haut-bas / gauche-droite) + l\'icône MDI en découlent.' },
+
+{ type:'media', accent:'var(--media)', mdi:'mdi-speaker', title:'media_player',
+  on:true, name:'Enceinte', val:'', frac:0.7, tile:{state:'Lecture',on:true,bar:true},
+  dial:function(c){return dialMedia(c);},
+  ux:[['Dial · play/pause','Grande icône centrale (tap) ; titre sacrifié'],['Dial · bas','⏮ précédent / ⏭ suivant'],['D1001 · bouton ▶ ','Play/Pause direct sur la tuile (sans ouvrir la feuille)'],['D1001 · tap icône','Ouvre la feuille de contrôle (menu intégral)'],['Anneau / barre','= volume']],
+  q:'<b>Décidé :</b> la tuile media a un <b>bouton ▶ direct</b> (action la plus fréquente) ; <b>tap sur l\'icône = feuille de contrôle</b> complète. La feuille reprend le <b>même esprit que la carte « now-playing » du module Musique</b> (cohérence).' },
+
+{ type:'climate', accent:'var(--climate)', mdi:'mdi-thermostat', title:'climate (thermostat)',
+  on:true, name:'Chauffage', val:'21.5°', frac:0.55, tile:{state:'21.5°',on:true,bar:true},
+  dialTwoClim:true,
+  ux:[['Molette','Température cible (aperçu + envoi différé)'],['Bouton « Modes »','Ouvre le sous-menu (carré 2×2 : off / chauffe / froid / auto)'],['Sortie sous-menu','Tap un mode = choisir + fermer ; ▲ (slide-up / bouton) = retour'],['Anneau','= cible ; couleur selon action']],
+  q:'<b>À trancher :</b> sortie du sous-menu = tap sur un mode (applique + ferme) + geste retour ▲. Modes en <b>carré 2×2</b> (plus lisibles). Bouton « Modes » calé bas → ne chevauche plus l\'état « chauffe ».' },
 ];
 
-function roundCard(c){
-  var center;
-  if(c.type==='media'){
-    center='<div class="center"><i class="ic ti '+c.transport[1].ic+'" style="color:'+c.accent+'"></i>'
-      +'<div class="val small">'+c.centerTitle+'</div><div class="sub">'+c.centerSub+'</div></div>';
-  } else if(c.type==='climate'){
-    center='<div class="center"><div class="val">'+c.val+'</div><div class="sub">'+c.sub+'</div>'
-      +'<div class="chip" style="color:'+c.accent+'">'+c.chip+'</div></div>';
-  } else {
-    center='<div class="center"><i class="ic ti '+c.ic+'" style="color:'+c.accent+'"></i>'
-      +'<div class="val'+(c.valSmall?' small':'')+'">'+c.val+'</div>'
-      +'<div class="name" style="color:'+c.accent+'">'+c.name+'</div></div>';
-  }
-  var extra='';
-  if(c.buttons){
-    extra='<div class="btnrow" style="color:'+c.accent+'">'+c.buttons.map(function(b){
-      return '<div class="rbtn'+(b.sel?' sel':'')+'"><i class="ti '+b.ic+'"></i></div>';}).join('')+'</div>';
-  }
-  if(c.transport){
-    extra='<div class="btnrow" style="color:'+c.accent+'">'+c.transport.map(function(b){
-      return '<div class="rbtn'+(b.lg?' lg':'')+'"><i class="ti '+b.ic+'"></i></div>';}).join('')+'</div>';
-  }
-  return '<div class="round-frame"><div class="round">'
-    + roundArc(c.frac, c.accent, c.full)
-    + center + extra
-    + '<div class="dots"><i></i><i class="on"></i><i></i></div>'
-    + '<div class="hint"><i class="ti ti-chevron-up"></i> menu</div>'
-    + '</div></div>';
+/* ---- D1001 large control sheet (HA more-info style) ---- */
+function miniDash(){
+  return '<div class="d-hdr"><div><div class="clk">9:41</div><div class="dt">mercredi 1 juillet</div></div>'
+    +'<div class="wx"><div class="l1">☀️ 24°</div></div></div>'
+    +'<div class="d-tabs"><div class="d-tab">⚙</div><div class="d-tab on">⌂<span class="bar"></span></div><div class="d-tab">🔧</div></div>'
+    +'<div class="d-grid"><div class="tile" style="height:150px"></div><div class="tile" style="height:150px"></div></div>';
 }
-
-function portCard(c){
-  var s=c.square, body='';
-  if(s.kind==='toggle'){
-    body='<i class="bigicon ti '+c.icon+'" style="color:'+c.accent+'"></i>'
-      +'<div class="toggle on"><div class="tk on"></div></div>'
-      +'<div class="pmuted">'+s.state+'</div>';
-  } else if(s.kind==='slider'){
-    body='<i class="bigicon ti '+c.icon+'" style="color:'+c.accent+'"></i><div class="big">'+s.big+'</div>'
-      +slider(c.frac,c.accent)
-      +'<div class="prow"><div class="pbtn"><i class="ti ti-power"></i></div>'
-      +(s.swatch?'<div class="pbtn" style="gap:8px">couleur <span style="width:18px;height:18px;border-radius:50%;background:'+c.accent+'"></span></div>':'')+'</div>'
-      +'<div class="pmuted">'+s.sub+'</div>';
-  } else if(s.kind==='cover'){
-    body='<i class="bigicon ti '+c.icon+'" style="color:'+c.accent+'"></i><div class="big">'+s.big+'</div>'
-      +slider(c.frac,c.accent)
-      +'<div class="prow" style="color:'+c.accent+'">'
-      +'<div class="pbtn"><i class="ti ti-chevron-up"></i> Ouvrir</div>'
-      +'<div class="pbtn sel"><i class="ti ti-square"></i></div>'
-      +'<div class="pbtn"><i class="ti ti-chevron-down"></i> Fermer</div></div>'
-      +'<div class="pmuted">'+s.sub+'</div>';
-  } else if(s.kind==='media'){
-    body='<div class="albumart"><i class="ti ti-music"></i></div>'
-      +'<div class="big" style="font-size:20px">Get Lucky</div><div class="pmuted">Daft Punk</div>'
-      +'<div class="prow" style="color:'+c.accent+'">'
-      +'<div class="pbtn"><i class="ti ti-player-skip-back"></i></div>'
-      +'<div class="pbtn sel"><i class="ti ti-player-pause"></i></div>'
-      +'<div class="pbtn"><i class="ti ti-player-skip-forward"></i></div></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;width:100%"><i class="ti ti-volume" style="color:var(--muted)"></i>'+slider(c.frac,c.accent)+'</div>';
-  } else if(s.kind==='climate'){
-    body='<div class="big">'+s.big+'</div><div class="pmuted">'+s.sub+'</div>'
-      +slider(c.frac,c.accent)
-      +'<div class="modes">'
-      +'<div class="mbtn"><i class="ti ti-power"></i></div>'
-      +'<div class="mbtn sel" style="color:'+c.accent+'"><i class="ti ti-flame"></i></div>'
-      +'<div class="mbtn"><i class="ti ti-snowflake"></i></div>'
-      +'<div class="mbtn"><i class="ti ti-refresh"></i></div></div>';
-  }
-  var state=(c.type==='media')?'':'<div class="t-state">'+(c.square.tag||'')+'</div>';
-  return '<div class="port-frame"><div class="port">'
-    +'<div class="top"><i class="ti ti-chevron-left"></i><span class="t-name">'+(c.name||c.centerTitle||c.type)+'</span></div>'
-    +'<div class="body">'+body+'</div>'
-    +'<div class="foot">‹ glisser / retour</div>'
-    +'</div></div>';
+function bigSheetFrame(inner){
+  var scale=0.46,W=800,H=1300;
+  return '<div class="port-frame"><div class="screenwrap" style="width:'+(W*scale)+'px;height:'+(H*scale)+'px">'
+    +'<div class="screen" style="width:'+W+'px;height:'+H+'px;transform:scale('+scale+');position:relative">'
+    +'<div style="opacity:.4">'+miniDash()+'</div><div class="scrim"></div>'
+    +'<div class="big-sheet">'+inner+'</div>'
+    +'</div></div></div>';
 }
-function slider(frac,accent){
-  return '<div class="slider"><div class="fill" style="width:'+(frac*100)+'%;background:'+accent+'"></div>'
-    +'<div class="knob" style="left:'+(frac*100)+'%"></div></div>';
+function mediaSheet(){
+  return '<div class="bs-grip"></div>'
+    +'<div class="bs-top"><i class="bs-ic mdi mdi-speaker" style="color:var(--media)"></i>'
+    +'<div><div class="bs-name">Enceinte</div><div class="bs-loc">Salon</div></div>'
+    +'<div class="bs-close"><i class="mdi mdi-close"></i></div></div>'
+    +'<div class="bs-art"><i class="mdi mdi-music"></i></div>'
+    +'<div class="bs-title">Get Lucky</div><div class="bs-sub">Daft Punk</div>'
+    +'<div class="bs-prog"><span class="t">1:23</span><div class="bs-bar"><div class="f" style="width:32%;background:var(--media)"></div></div><span class="t">4:08</span></div>'
+    +'<div class="bs-transport"><div class="bs-tb"><i class="mdi mdi-skip-previous"></i></div>'
+    +'<div class="bs-tb primary"><i class="mdi mdi-pause"></i></div>'
+    +'<div class="bs-tb"><i class="mdi mdi-skip-next"></i></div></div>'
+    +'<div class="bs-row"><i class="ic mdi mdi-volume-high"></i><div class="bs-slider"><div class="f" style="width:70%;background:var(--media)"></div><div class="k" style="left:70%"></div></div></div>';
 }
-
-function uxTable(c){
-  var rows=c.ux.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('');
-  return '<div class="ux"><h3>Interactions</h3><table>'+rows+'</table>'
-    +(c.q?'<div class="q">'+c.q+'</div>':'')+'</div>';
+function climateSheet(){
+  return '<div class="bs-grip"></div>'
+    +'<div class="bs-top"><i class="bs-ic mdi mdi-thermostat" style="color:var(--climate)"></i>'
+    +'<div><div class="bs-name">Chauffage</div><div class="bs-loc">Salon · chauffe</div></div>'
+    +'<div class="bs-close"><i class="mdi mdi-close"></i></div></div>'
+    +'<div class="bs-temp"><div class="bs-tbtn"><i class="mdi mdi-minus"></i></div>'
+    +'<div><div class="bs-bigtemp" style="color:var(--climate)">21.5°</div></div>'
+    +'<div class="bs-tbtn"><i class="mdi mdi-plus"></i></div></div>'
+    +'<div class="bs-cur">actuel 19.4°</div>'
+    +'<div class="bs-modes">'
+    +'<div class="bs-mode"><i class="mdi mdi-power"></i><span class="lbl">Éteint</span></div>'
+    +'<div class="bs-mode sel"><i class="mdi mdi-fire" style="color:var(--climate)"></i><span class="lbl">Chauffe</span></div>'
+    +'<div class="bs-mode"><i class="mdi mdi-snowflake"></i><span class="lbl">Froid</span></div>'
+    +'<div class="bs-mode"><i class="mdi mdi-autorenew"></i><span class="lbl">Auto</span></div></div>';
 }
+document.getElementById('sheets').innerHTML =
+  '<div class="card-block"><h2 style="color:#cfd0d6"><i class="mdi mdi-card-text-outline"></i>Feuille de contrôle '
+  +'<span class="tag">— style HA « more-info » : grande feuille modale par-dessus la grille (actions avancées)</span></h2>'
+  +'<div class="row">'
+  +'<div class="device-wrap"><span class="device-label">media — feuille</span>'+bigSheetFrame(mediaSheet())+'</div>'
+  +'<div class="device-wrap"><span class="device-label">climate — feuille</span>'+bigSheetFrame(climateSheet())+'</div>'
+  +'<div class="ux"><h3>Principe</h3><table>'
+  +'<tr><td>Tuile</td><td>Action primaire au tap (play/pause, toggle…) — reste dans la grille.</td></tr>'
+  +'<tr><td>Ouverture feuille</td><td>Appui long sur la tuile (ou poignée « ⋯ ») — <i>à trancher</i>.</td></tr>'
+  +'<tr><td>Feuille</td><td>Grande, monte par-dessus la grille (grille grisée derrière), coins arrondis + poignée. Contrôles complets : transport + progression + volume ; cible ± + modes ; ouvrir/stop/fermer + position.</td></tr>'
+  +'<tr><td>Fermeture</td><td>✕ / glisser vers le bas / tap sur le fond grisé.</td></tr>'
+  +'<tr><td>Actions rapides</td><td>Certaines tuiles ont un bouton direct (ex. ▶ media) pour éviter d\'ouvrir la feuille ; l\'<b>icône</b> ouvre la feuille.</td></tr>'
+  +'<tr><td>Cohérence Musique</td><td>La feuille media = <b>même esprit que la carte « now-playing »</b> du module Music Lib (jaquette, transport, progression, volume, mute).</td></tr>'
+  +'</table><div class="q"><b>Validé :</b> grande feuille (pas juste le bas), façon HA more-info. Réutilise et généralise le pattern « now-playing » du module Musique.</div></div>'
+  +'</div></div>';
 
 document.getElementById('app').innerHTML = CARDS.map(function(c){
+  var dialCol;
+  if(c.dialTwo){
+    dialCol='<div style="display:flex;gap:18px">'
+      +'<div class="device-wrap"><span class="device-label">Volet / garage</span>'+dialCover(c,'ud')+'</div>'
+      +'<div class="device-wrap"><span class="device-label">Portail</span>'+dialCover(Object.assign({},c,{name:'Portail'}),'lr')+'</div></div>';
+  } else if(c.dialTwoClim){
+    dialCol='<div style="display:flex;gap:18px">'
+      +'<div class="device-wrap"><span class="device-label">Carte</span>'+dialClimate(c,false)+'</div>'
+      +'<div class="device-wrap"><span class="device-label">Sous-menu modes</span>'+dialClimate(c,true)+'</div></div>';
+  } else {
+    dialCol='<div class="device-wrap"><span class="device-label">Dial (rond)</span>'+c.dial(c)+'</div>';
+  }
   return '<div class="card-block">'
-    +'<h2 style="color:'+c.accent+'"><i class="ti '+c.icon+'"></i>'+c.type+' <span class="tag">— '+c.title+'</span></h2>'
-    +'<div class="row">'
-    +'<div class="device-wrap"><span class="device-label">Dial (rond)</span>'+roundCard(c)+'</div>'
-    +'<div class="device-wrap"><span class="device-label">D1001 (détail)</span>'+portCard(c)+'</div>'
-    +uxTable(c)
+    +'<h2 style="color:'+c.accent+'"><i class="mdi '+c.mdi+'"></i>'+c.type+' <span class="tag">— '+c.title+'</span></h2>'
+    +'<div class="row">'+dialCol
+    +'<div class="device-wrap"><span class="device-label">D1001 (tuile)</span>'+tileHTML(c,true)+'</div>'
+    +'<div class="ux"><h3>Interactions</h3><table>'+c.ux.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('')+'</table>'
+    +(c.q?'<div class="q">'+c.q+'</div>':'')+'</div>'
     +'</div></div>';
 }).join('');
 </script>
