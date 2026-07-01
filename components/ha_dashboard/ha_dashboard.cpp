@@ -115,6 +115,11 @@ void HaDashboard::add_launcher_group(const std::string &name, const std::string 
   this->launchers_.push_back(std::move(launcher));
 }
 
+void HaDashboard::add_launcher_player_name(const std::string &name) {
+  if (!this->groups_.empty() && this->groups_.back().is_launcher)
+    this->groups_.back().player_name = name;
+}
+
 void HaDashboard::add_launcher_cover_slot(online_image::OnlineImage *slot) {
   // Attach to the launcher group just added (codegen calls this right after add_launcher_group).
   if (!this->groups_.empty() && this->groups_.back().is_launcher)

@@ -113,11 +113,12 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
       dédié (la ligne n'est plus cliquable → glisser scrolle).
 - [x] **Widget now-playing** : slider de volume absolu (`/api/v1/ma/volume`, event `NP_SET_VOLUME`),
       play/pause plus gros et vert.
+- [x] **Pull-to-refresh** (2026-07-01) : over-scroll en haut de « Histoires » → `LauncherModule::load`
+      (niveau grille only). Rechargement des covers forcé pour un feedback visible malgré le
+      fetch bloquant.
+- [x] **Toast de confirmation de lancement** (2026-07-01) : au tap « ▶ Lecture », toast éphémère
+      (2,5 s, top-layer) « ♪ <titre> · lecture sur <enceinte> » (nom via `player_name` en YAML).
 - [ ] Now-playing : barre de **progression** lecture (différée par design)
-- [ ] **Pull-to-refresh** (demandé 2026-07-01) : glisser vers le bas en haut de la liste
-      « Histoires » → recharger les favoris (`LauncherModule::load`)
-- [ ] **Toast de confirmation de lancement** (mockup « B · Lecture one-tap ») : au tap « ▶ Lecture »,
-      pop-up éphémère « 🎵 <titre> — lecture sur <enceinte> »
 - [ ] **Recyclage des vignettes au scroll** : seuls les ~9 premiers épisodes ont une miniature
       (limité par le pool `thumb_slots`) ; recycler les slots selon la position de scroll
 

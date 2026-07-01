@@ -112,6 +112,8 @@ struct Group {
   // driven by `launcher`. See ADR-0007. `launcher` is owned by HaDashboard.
   bool is_launcher{false};
   LauncherModule *launcher{nullptr};
+  // Friendly speaker name for the launch-confirmation toast (e.g. "Enceinte Salle à manger").
+  std::string player_name;
   // Grid cover slots: one per favourite index (350px), declared in YAML. Dedicated to the
   // grid so they are never repurposed by the detail view — returning to the grid is instant
   // (the covers are still loaded, no re-download, no resize flash).

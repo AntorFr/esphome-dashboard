@@ -54,6 +54,7 @@ CONF_MEDIA_PLAYER_ID = "media_player_id"
 CONF_BASE_URL = "base_url"
 CONF_OWNER = "owner"
 CONF_PLAYER = "player"
+CONF_PLAYER_NAME = "player_name"
 CONF_HTTP_REQUEST_ID = "http_request_id"
 CONF_COVER_SLOTS = "cover_slots"
 CONF_THUMB_SLOTS = "thumb_slots"
@@ -140,6 +141,7 @@ GROUP_SCHEMA = cv.All(
             cv.Optional(CONF_BASE_URL): cv.string,
             cv.Optional(CONF_OWNER): cv.string,
             cv.Optional(CONF_PLAYER): cv.string,
+            cv.Optional(CONF_PLAYER_NAME): cv.string,  # friendly name for the launch toast
             cv.Optional(CONF_HTTP_REQUEST_ID): cv.use_id(http_request.HttpRequestComponent),
             # Grid cover slots (one per favourite, 350px) — optional.
             cv.Optional(CONF_COVER_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
@@ -237,6 +239,8 @@ async def to_code(config):
             for slot_id in group.get(CONF_COVER_SLOTS, []):
                 slot = await cg.get_variable(slot_id)
                 cg.add(var.add_launcher_cover_slot(slot))
+            if CONF_PLAYER_NAME in group:
+                cg.add(var.add_launcher_player_name(group[CONF_PLAYER_NAME]))
             for slot_id in group.get(CONF_THUMB_SLOTS, []):
                 slot = await cg.get_variable(slot_id)
                 cg.add(var.add_launcher_thumb_slot(slot))

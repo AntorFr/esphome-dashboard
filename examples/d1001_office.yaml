@@ -166,5 +166,6 @@ ha_dashboard:
       base_url: "http://music-library.berard.me"
       owner: "Sébastien"
       player: "RINCON_B8E937D6A3F601400"  # Sonos Salle à manger
+      player_name: "Salle à manger"       # shown in the launch-confirmation toast
       cover_slots: [cov0, cov1, cov2, cov3, cov4, cov5, cov6, cov7, cov8, cov9]
       thumb_slots: [thm0, thm1, thm2, thm3, thm4, thm5, thm6, thm7, thm8, thm9]

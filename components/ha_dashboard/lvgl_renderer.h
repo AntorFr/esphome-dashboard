@@ -26,6 +26,9 @@ class LvglRenderer : public Renderer {
   // Pull-to-refresh hook (called by the launcher list's scroll callback): arm on top
   // over-scroll, fire LAUNCHER_REFRESH when the scroll settles.
   void on_launcher_scroll(lv_obj_t *grid, bool ended);
+  // Show a transient launch-confirmation toast (auto-hides after a couple of seconds).
+  void show_toast(const std::string &text);
+  void hide_toast_();  // called by the toast's auto-hide timer
 
   // Update the dashboard header clock (called by the component from a time source).
   void set_clock(const char *time_str, const char *date_str);
@@ -175,6 +178,13 @@ class LvglRenderer : public Renderer {
   std::vector<lv_obj_t *> launcher_grids_;
   std::vector<long> launcher_sig_;
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
+
+  // Launch-confirmation toast (floats on the top layer, auto-hides via a timer). Two lines:
+  // title + "lecture sur <speaker>" (the two halves are passed newline-separated).
+  lv_obj_t *toast_{nullptr};
+  lv_obj_t *toast_lbl_{nullptr};
+  lv_obj_t *toast_sub_{nullptr};
+  lv_timer_t *toast_timer_{nullptr};
   // Cover/thumbnail slots (flattened across launcher groups, both pools) -> currently bound
   // LVGL image (or null). cover_url_list_ = the URL a slot has actually FINISHED loading
   // (committed in on_cover_ready_); cover_pending_url_ = the URL last requested. A reload is

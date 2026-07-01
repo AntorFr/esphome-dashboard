@@ -61,6 +61,8 @@ class HaDashboard : public Component {
   void add_launcher_group(const std::string &name, const std::string &icon,
                           http_request::HttpRequestComponent *http, const std::string &base_url,
                           const std::string &owner, const std::string &queue_id);
+  // Friendly speaker name (launch toast) for the most recently added launcher group.
+  void add_launcher_player_name(const std::string &name);
   // Register a grid cover slot (online_image) for the most recently added launcher group.
   void add_launcher_cover_slot(online_image::OnlineImage *slot);
   // Register a detail thumbnail slot (header / episode thumbnails) for that launcher group.

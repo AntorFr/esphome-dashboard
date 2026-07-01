@@ -37,14 +37,18 @@ struct CbData {
   LvglRenderer *renderer;
   InputEvent event;
   int index;
+  std::string toast;  // optional launch-confirmation toast text (empty = no toast)
 };
 // Conserve les CbData vivantes pour toute la durée de vie (pas de free).
 static std::vector<CbData *> g_cbdata;
 
 static void btn_event_cb(lv_event_t *e) {
   auto *d = static_cast<CbData *>(lv_event_get_user_data(e));
-  if (d != nullptr && d->renderer != nullptr)
+  if (d != nullptr && d->renderer != nullptr) {
     d->renderer->emit(d->event, d->index);
+    if (!d->toast.empty())
+      d->renderer->show_toast(d->toast);
+  }
 }
 
 // Volume slider: emit the absolute value once the finger lifts (RELEASED only fires on user
@@ -66,6 +70,86 @@ static void launcher_scroll_cb(lv_event_t *e) {
     return;
   self->on_launcher_scroll(grid, lv_event_get_code(e) == LV_EVENT_SCROLL_END);
 }
+// Auto-hide the toast when its timer fires (one-shot per show: pause after hiding).
+static void toast_hide_cb(lv_timer_t *t) {
+  auto *self = static_cast<LvglRenderer *>(lv_timer_get_user_data(t));
+  if (self != nullptr)
+    self->hide_toast_();
+}
+
+void LvglRenderer::hide_toast_() {
+  if (this->toast_ != nullptr)
+    lv_obj_add_flag(this->toast_, LV_OBJ_FLAG_HIDDEN);
+  if (this->toast_timer_ != nullptr)
+    lv_timer_pause(this->toast_timer_);
+}
+
+void LvglRenderer::show_toast(const std::string &text) {
+  // Build the toast once, on the top layer so it floats above whatever screen is loaded.
+  if (this->toast_ == nullptr) {
+    this->toast_ = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(this->toast_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(this->toast_, 760, 0);
+    lv_obj_align(this->toast_, LV_ALIGN_BOTTOM_MID, 0, -60);
+    lv_obj_set_style_bg_color(this->toast_, lv_color_hex(0x23232C), 0);
+    lv_obj_set_style_bg_opa(this->toast_, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(this->toast_, 0, 0);
+    lv_obj_set_style_radius(this->toast_, 22, 0);
+    lv_obj_set_style_pad_hor(this->toast_, 32, 0);
+    lv_obj_set_style_pad_ver(this->toast_, 26, 0);
+    lv_obj_set_style_pad_column(this->toast_, 22, 0);
+    lv_obj_set_style_shadow_width(this->toast_, 30, 0);
+    lv_obj_set_style_shadow_opa(this->toast_, LV_OPA_50, 0);
+    lv_obj_set_flex_flow(this->toast_, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(this->toast_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(this->toast_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(this->toast_, LV_OBJ_FLAG_IGNORE_LAYOUT);  // keep our manual align
+
+    // Big green music-note icon (built-in symbol font has one: LV_SYMBOL_AUDIO).
+    lv_obj_t *ic = lv_label_create(this->toast_);
+    lv_label_set_text(ic, LV_SYMBOL_AUDIO);
+    lv_obj_set_style_text_font(ic, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_color(ic, lv_color_hex(0x3DD68C), 0);
+
+    // Text column: title (large) + "lecture sur <speaker>" (muted).
+    lv_obj_t *col = lv_obj_create(this->toast_);
+    lv_obj_set_size(col, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(col, 0, 0);
+    lv_obj_set_style_pad_all(col, 0, 0);
+    lv_obj_set_style_pad_row(col, 4, 0);
+    lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+
+    this->toast_lbl_ = lv_label_create(col);
+    lv_obj_set_style_text_color(this->toast_lbl_, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(this->toast_lbl_, this->font_medium_, &lv_font_montserrat_28);
+    this->toast_sub_ = lv_label_create(col);
+    lv_obj_set_style_text_color(this->toast_sub_, lv_color_hex(COL_MUTED), 0);
+    this->set_text_font_(this->toast_sub_, this->font_small_, &lv_font_montserrat_20);
+  }
+
+  // Split "title\nsubtitle"; hide the subtitle line when there's no speaker.
+  const size_t nl = text.find('\n');
+  lv_label_set_text(this->toast_lbl_, text.substr(0, nl).c_str());
+  if (nl == std::string::npos) {
+    lv_obj_add_flag(this->toast_sub_, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_label_set_text(this->toast_sub_, text.substr(nl + 1).c_str());
+    lv_obj_clear_flag(this->toast_sub_, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  lv_obj_clear_flag(this->toast_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(this->toast_);
+  if (this->toast_timer_ == nullptr) {
+    this->toast_timer_ = lv_timer_create(toast_hide_cb, 3800, this);
+  } else {
+    lv_timer_reset(this->toast_timer_);
+    lv_timer_resume(this->toast_timer_);
+  }
+}
+
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
   if (ended) {
     if (this->pull_armed_) {
@@ -1281,7 +1365,10 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_label_set_text(pl, LV_SYMBOL_PLAY " Lecture");
     lv_obj_set_style_text_color(pl, lv_color_hex(0x06281A), 0);
     lv_obj_set_style_text_font(pl, &lv_font_montserrat_28, 0);
-    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
+    std::string toast = clean_title(item.title);
+    if (!g.player_name.empty())
+      toast += "\nlecture sur " + g.player_name;  // second line in the toast
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx, toast};
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
 
@@ -1362,7 +1449,10 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_center(pl);
     lv_obj_set_style_text_color(pl, lv_color_hex(0x06281A), 0);
     lv_obj_set_style_text_font(pl, &lv_font_montserrat_28, 0);
-    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx};
+    std::string toast = clean_title(item.title);
+    if (!g.player_name.empty())
+      toast += "\nlecture sur " + g.player_name;  // second line in the toast
+    auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx, toast};
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
   };
