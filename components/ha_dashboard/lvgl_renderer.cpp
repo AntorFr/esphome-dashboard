@@ -1126,6 +1126,10 @@ void LvglRenderer::build_card_view_() {
 
   // Media transport buttons (prev/next): real clickable objects, so they consume the tap
   // and never fight the screen gesture engine. Shown only for media cards (render_card_view_).
+  // Both buttons sit low and centred as a pair (in the arc's bottom opening, above the dots)
+  // so they don't overlap the value/volume ring — matches the mockup.
+  int btn_dx = (int) (0.145f * this->w_);
+  int btn_dy = (int) (-0.205f * this->h_);
   struct {
     lv_obj_t **slot;
     lv_obj_t **lbl_slot;
@@ -1136,15 +1140,15 @@ void LvglRenderer::build_card_view_() {
     int dx;
   } mbtns[] = {
       {&this->card_prev_btn_, &this->card_prev_lbl_, &this->card_prev_cb_, LV_SYMBOL_PREV,
-       InputEvent::MEDIA_PREV, LV_ALIGN_LEFT_MID, (int) (0.085f * this->w_)},
+       InputEvent::MEDIA_PREV, LV_ALIGN_BOTTOM_MID, -btn_dx},
       {&this->card_next_btn_, &this->card_next_lbl_, &this->card_next_cb_, LV_SYMBOL_NEXT,
-       InputEvent::MEDIA_NEXT, LV_ALIGN_RIGHT_MID, (int) (-0.085f * this->w_)},
+       InputEvent::MEDIA_NEXT, LV_ALIGN_BOTTOM_MID, btn_dx},
   };
   int btn_sz = (int) (0.18f * this->w_);
   for (auto &m : mbtns) {
     lv_obj_t *b = lv_button_create(this->card_scr_);
     lv_obj_set_size(b, btn_sz, btn_sz);
-    lv_obj_align(b, m.align, m.dx, 0);
+    lv_obj_align(b, m.align, m.dx, btn_dy);
     lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
     lv_obj_set_style_border_width(b, 0, 0);
