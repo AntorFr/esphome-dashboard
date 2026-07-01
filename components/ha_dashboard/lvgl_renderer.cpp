@@ -49,11 +49,11 @@ static const char *icon_for(const Card &c);   // defined below (LVGL symbol fall
 static const char *const MDI_POWER = "\U000F0425";
 static const char *const MDI_LIGHT = "\U000F0335";
 static const char *const MDI_SHUTTER = "\U000F111C";       // cover shutter — closed
-static const char *const MDI_SHUTTER_OPEN = "\U000F111D";  // cover shutter — open
-static const char *const MDI_GARAGE = "\U000F06D8";        // cover garage — closed
-static const char *const MDI_GARAGE_OPEN = "\U000F06D9";   // cover garage — open
+static const char *const MDI_SHUTTER_OPEN = "\U000F111E";  // cover shutter — open
+static const char *const MDI_GARAGE = "\U000F06D9";        // cover garage — closed
+static const char *const MDI_GARAGE_OPEN = "\U000F06DA";   // cover garage — open
 static const char *const MDI_GATE = "\U000F0299";          // cover gate — closed
-static const char *const MDI_GATE_OPEN = "\U000F169B";     // cover gate — open
+static const char *const MDI_GATE_OPEN = "\U000F116A";     // cover gate — open
 static const char *const MDI_SPEAKER = "\U000F04C3";
 static const char *const MDI_THERMOSTAT = "\U000F0393";
 static const char *const MDI_FIRE = "\U000F0238";
