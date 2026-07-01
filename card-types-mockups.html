@@ -224,8 +224,10 @@ function tileHTML(c, solo){
       +'<div class="tqbtn"><i class="mdi mdi-pause"></i></div></div>'
       +'<div style="display:flex;flex-direction:column;gap:8px"><div class="tname">'+c.name+'</div>'+bar+'</div></div>';
   }
+  // cover: the tile icon follows the position — open vs closed glyph (shutter/garage/gate).
+  var tic = (c.type==='cover' && t.on) ? 'mdi-window-shutter-open' : c.mdi;
   return '<div class="tile'+(solo?' solo':'')+'">'
-    +'<div class="ttop"><i class="tic mdi '+c.mdi+'" style="color:'+iconColor+'"></i><span class="tstate">'+t.state+'</span></div>'
+    +'<div class="ttop"><i class="tic mdi '+tic+'" style="color:'+iconColor+'"></i><span class="tstate">'+t.state+'</span></div>'
     +'<div style="display:flex;flex-direction:column;gap:8px"><div class="tname">'+c.name+'</div>'+bar+'</div></div>';
 }
 
@@ -245,7 +247,7 @@ var CARDS=[
 { type:'cover', accent:'var(--cover)', mdi:'mdi-window-shutter', title:'cover — deux sens (volet/garage vs portail)',
   on:true, name:'Volet salon', val:'40%', frac:0.4, tile:{state:'Ouvert',on:true,bar:false},
   dialTwo:true,
-  ux:[['Focus','Ouvrir / Stop / Fermer (le % passe en arrière-plan)'],['Volet / garage','Sens haut/bas — icône mdi-window-shutter / mdi-garage-variant'],['Portail','Sens gauche/droite — icône mdi-gate'],['Dial · boutons','▲/◀ Ouvrir · ■ Stop · ▼/▶ Fermer'],['D1001 · tap','Ouvre/ferme (toggle) ; boutons + position dans la feuille']],
+  ux:[['Focus','Ouvrir / Stop / Fermer (le % passe en arrière-plan)'],['Volet / garage','Sens haut/bas — icône mdi-window-shutter / mdi-garage'],['Portail','Sens gauche/droite — icône mdi-gate'],['Dial · boutons','▲/◀ Ouvrir · ■ Stop · ▼/▶ Fermer'],['D1001 · tap','Ouvre/ferme (toggle) direct sur la tuile'],['D1001 · icône tuile','Reflète l\'état : glyphe ouvert vs fermé (volet-ouvert / garage-open / portail-ouvert)'],['D1001 · feuille','Ouvrir / Stop / Fermer + slider de position']],
   q:'<b>Décidé :</b> <u>auto</u> depuis le <code>device_class</code> HA du cover (shutter/garage/gate/awning…) si accessible côté ESPHome ; sinon repli sur un champ YAML <code>cover_kind: shutter|garage|gate</code>. Le sens (haut-bas / gauche-droite) + l\'icône MDI en découlent.' },
 
 { type:'media', accent:'var(--media)', mdi:'mdi-speaker', title:'media_player',
@@ -304,12 +306,24 @@ function climateSheet(){
     +'<div class="bs-mode"><i class="mdi mdi-snowflake"></i><span class="lbl">Froid</span></div>'
     +'<div class="bs-mode"><i class="mdi mdi-autorenew"></i><span class="lbl">Auto</span></div></div>';
 }
+function coverSheet(){
+  return '<div class="bs-grip"></div>'
+    +'<div class="bs-top"><i class="bs-ic mdi mdi-window-shutter-open" style="color:var(--cover)"></i>'
+    +'<div><div class="bs-name">Volet salon</div><div class="bs-loc">Salon · ouvert 40%</div></div>'
+    +'<div class="bs-close"><i class="mdi mdi-close"></i></div></div>'
+    +'<div class="bs-art"><i class="mdi mdi-window-shutter-open" style="font-size:120px;color:var(--cover)"></i></div>'
+    +'<div class="bs-transport"><div class="bs-tb"><i class="mdi mdi-arrow-up"></i></div>'
+    +'<div class="bs-tb"><i class="mdi mdi-stop"></i></div>'
+    +'<div class="bs-tb"><i class="mdi mdi-arrow-down"></i></div></div>'
+    +'<div class="bs-row"><i class="ic mdi mdi-tune-vertical"></i><div class="bs-slider"><div class="f" style="width:40%;background:var(--cover)"></div><div class="k" style="left:40%"></div></div></div>';
+}
 document.getElementById('sheets').innerHTML =
   '<div class="card-block"><h2 style="color:#cfd0d6"><i class="mdi mdi-card-text-outline"></i>Feuille de contrôle '
   +'<span class="tag">— style HA « more-info » : grande feuille modale par-dessus la grille (actions avancées)</span></h2>'
   +'<div class="row">'
   +'<div class="device-wrap"><span class="device-label">media — feuille</span>'+bigSheetFrame(mediaSheet())+'</div>'
   +'<div class="device-wrap"><span class="device-label">climate — feuille</span>'+bigSheetFrame(climateSheet())+'</div>'
+  +'<div class="device-wrap"><span class="device-label">cover — feuille</span>'+bigSheetFrame(coverSheet())+'</div>'
   +'<div class="ux"><h3>Principe</h3><table>'
   +'<tr><td>Tuile</td><td>Action primaire au tap (play/pause, toggle…) — reste dans la grille.</td></tr>'
   +'<tr><td>Ouverture feuille</td><td>Appui long sur la tuile (ou poignée « ⋯ ») — <i>à trancher</i>.</td></tr>'

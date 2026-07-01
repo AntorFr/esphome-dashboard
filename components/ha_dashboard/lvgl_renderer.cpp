@@ -48,8 +48,12 @@ static const char *icon_for(const Card &c);   // defined below (LVGL symbol fall
 // MDI glyphs (embedded in ha_font_icons_lg) for classic-card icons + climate modes.
 static const char *const MDI_POWER = "\U000F0425";
 static const char *const MDI_LIGHT = "\U000F0335";
-static const char *const MDI_SHUTTER = "\U000F111C";  // cover: shutter/garage (up/down)
-static const char *const MDI_GATE = "\U000F0299";     // cover: gate (left/right)
+static const char *const MDI_SHUTTER = "\U000F111C";       // cover shutter — closed
+static const char *const MDI_SHUTTER_OPEN = "\U000F111D";  // cover shutter — open
+static const char *const MDI_GARAGE = "\U000F06D8";        // cover garage — closed
+static const char *const MDI_GARAGE_OPEN = "\U000F06D9";   // cover garage — open
+static const char *const MDI_GATE = "\U000F0299";          // cover gate — closed
+static const char *const MDI_GATE_OPEN = "\U000F169B";     // cover gate — open
 static const char *const MDI_SPEAKER = "\U000F04C3";
 static const char *const MDI_THERMOSTAT = "\U000F0393";
 static const char *const MDI_FIRE = "\U000F0238";
@@ -83,8 +87,18 @@ static const char *card_mdi_glyph(const Card &c) {
       return MDI_POWER;
     case CardType::LIGHT:
       return MDI_LIGHT;
-    case CardType::COVER:
-      return cover_kind_of(c) == (int) CoverKind::GATE ? MDI_GATE : MDI_SHUTTER;
+    case CardType::COVER: {
+      // Icon reflects the position: fully closed vs (partially) open, per cover kind.
+      const bool open = c.is_on();  // cover: position > 0
+      switch (cover_kind_of(c)) {
+        case (int) CoverKind::GATE:
+          return open ? MDI_GATE_OPEN : MDI_GATE;
+        case (int) CoverKind::GARAGE:
+          return open ? MDI_GARAGE_OPEN : MDI_GARAGE;
+        default:
+          return open ? MDI_SHUTTER_OPEN : MDI_SHUTTER;
+      }
+    }
     case CardType::MEDIA_PLAYER:
       return MDI_SPEAKER;
     case CardType::CLIMATE:
@@ -1665,6 +1679,8 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
         const Tile &t = this->group_tiles_[gi][ci];
         uint32_t col = c.is_on() ? accent_for(c) : COL_MUTED;
         lv_obj_set_style_text_color(t.icon, lv_color_hex(col), 0);
+        if (c.type == CardType::COVER && this->font_icons_lg_ != nullptr)
+          lv_label_set_text(t.icon, card_mdi_glyph(c));  // open/closed glyph follows position
         if (c.type == CardType::MEDIA_PLAYER) {
           // t.state is the play/pause button glyph (dark on green) — no text/colour override.
           lv_label_set_text(t.state, c.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
