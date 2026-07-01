@@ -168,6 +168,9 @@ class LvglRenderer : public Renderer {
   lv_obj_t *np_repeat_lbl_{nullptr};
   lv_obj_t *np_vol_lbl_{nullptr};
   lv_obj_t *np_vol_slider_{nullptr};  // absolute volume slider (0..100)
+  lv_obj_t *np_progress_{nullptr};    // playback position bar
+  lv_obj_t *np_time_lbl_{nullptr};    // elapsed time
+  lv_obj_t *np_dur_lbl_{nullptr};     // total duration
   online_image::OnlineImage *np_cover_slot_{nullptr};  // dedicated slot for the now-playing art
   std::vector<lv_obj_t *> tab_btns_;
   std::vector<lv_obj_t *> tab_lbls_;

@@ -51,6 +51,19 @@ static void btn_event_cb(lv_event_t *e) {
   }
 }
 
+// Format seconds as "m:ss" (or "h:mm:ss" past an hour) for the now-playing progress times.
+static std::string fmt_time(int total_s) {
+  if (total_s < 0)
+    total_s = 0;
+  int h = total_s / 3600, m = (total_s % 3600) / 60, s = total_s % 60;
+  char buf[16];
+  if (h > 0)
+    snprintf(buf, sizeof(buf), "%d:%02d:%02d", h, m, s);
+  else
+    snprintf(buf, sizeof(buf), "%d:%02d", m, s);
+  return buf;
+}
+
 // Volume slider: emit the absolute value once the finger lifts (RELEASED only fires on user
 // interaction, not on programmatic lv_slider_set_value -> no feedback loop with render).
 static void np_vol_slider_cb(lv_event_t *e) {
@@ -1624,6 +1637,36 @@ void LvglRenderer::build_now_playing_() {
   lv_obj_set_style_text_color(this->np_sub_lbl_, lv_color_hex(COL_MUTED), 0);
   this->set_text_font_(this->np_sub_lbl_, this->font_medium_, &lv_font_montserrat_28);
 
+  // Playback progress: [elapsed] [====bar====] [total].
+  lv_obj_t *pr = lv_obj_create(root);
+  lv_obj_set_width(pr, lv_pct(86));
+  lv_obj_set_height(pr, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(pr, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(pr, 0, 0);
+  lv_obj_set_style_pad_all(pr, 0, 0);
+  lv_obj_set_style_pad_column(pr, 14, 0);
+  lv_obj_set_style_margin_top(pr, 20, 0);
+  lv_obj_set_flex_flow(pr, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(pr, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(pr, LV_OBJ_FLAG_SCROLLABLE);
+
+  this->np_time_lbl_ = lv_label_create(pr);
+  lv_label_set_text(this->np_time_lbl_, "0:00");
+  lv_obj_set_style_text_color(this->np_time_lbl_, lv_color_hex(COL_MUTED), 0);
+  this->set_text_font_(this->np_time_lbl_, this->font_small_, &lv_font_montserrat_20);
+
+  this->np_progress_ = lv_bar_create(pr);
+  lv_obj_set_flex_grow(this->np_progress_, 1);
+  lv_obj_set_height(this->np_progress_, 8);
+  lv_bar_set_range(this->np_progress_, 0, 1000);
+  lv_obj_set_style_bg_color(this->np_progress_, lv_color_hex(0x3A3A44), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(this->np_progress_, lv_color_hex(0x3DD68C), LV_PART_INDICATOR);
+
+  this->np_dur_lbl_ = lv_label_create(pr);
+  lv_label_set_text(this->np_dur_lbl_, "0:00");
+  lv_obj_set_style_text_color(this->np_dur_lbl_, lv_color_hex(COL_MUTED), 0);
+  this->set_text_font_(this->np_dur_lbl_, this->font_small_, &lv_font_montserrat_20);
+
   lv_obj_t *tr = lv_obj_create(root);
   lv_obj_set_size(tr, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(tr, LV_OPA_TRANSP, 0);
@@ -1743,6 +1786,13 @@ void LvglRenderer::render_now_playing_(const ViewModel &vm) {
       lv_obj_set_style_text_color(this->np_repeat_lbl_,
                                   lv_color_hex(np.repeat != "off" && !np.repeat.empty() ? COL_ACCENT : COL_MUTED),
                                   0);
+    // Playback progress bar + elapsed/total times.
+    if (this->np_progress_ != nullptr) {
+      int v = np.duration_s > 0 ? (int) ((long) np.position_s * 1000 / np.duration_s) : 0;
+      lv_bar_set_value(this->np_progress_, v < 0 ? 0 : (v > 1000 ? 1000 : v), LV_ANIM_OFF);
+      lv_label_set_text(this->np_time_lbl_, fmt_time(np.position_s).c_str());
+      lv_label_set_text(this->np_dur_lbl_, fmt_time(np.duration_s).c_str());
+    }
     // Reflect the current volume on the slider (RELEASED-only callback -> no feedback loop).
     if (this->np_vol_slider_ != nullptr && np.volume >= 0)
       lv_slider_set_value(this->np_vol_slider_, np.volume, LV_ANIM_OFF);

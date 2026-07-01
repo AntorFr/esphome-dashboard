@@ -303,6 +303,9 @@ void Controller::handle(InputEvent event, int index) {
         default:
           break;
       }
+      // Push the next auto-refresh out by the full interval so it doesn't read a not-yet-updated
+      // MA state right after a control tap (the optimistic UI already shows the new state).
+      this->np_poll_ms_ = millis();
       break;
     }
   }
@@ -323,6 +326,15 @@ void Controller::tick(uint32_t now_ms) {
         g.launcher->load();
       }
     }
+  }
+
+  // While the now-playing card is open, refresh its state (position/volume/…) every couple of
+  // seconds so the progress bar advances. Async fetch -> no loop stall; doesn't count as user
+  // activity (the inactivity timeout still applies).
+  if (this->state_ == NavState::NOW_PLAYING && now_ms - this->np_poll_ms_ >= 2000) {
+    this->np_poll_ms_ = now_ms;
+    if (LauncherModule *L = this->first_launcher_())
+      L->fetch_now_playing();
   }
 
   // Commit a staged (debounced) adjustment once the encoder has been quiet long enough.
