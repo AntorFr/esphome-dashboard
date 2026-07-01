@@ -144,8 +144,12 @@ class LvglRenderer : public Renderer {
   lv_obj_t *card_hint_{nullptr};    // "^ menu" chevron hint
   lv_obj_t *ret_l_{nullptr};        // return gauge: left arc
   lv_obj_t *ret_r_{nullptr};        // return gauge: right arc
-  lv_obj_t *card_prev_btn_{nullptr};  // media: previous track (shown only for media cards)
-  lv_obj_t *card_next_btn_{nullptr};  // media: next track
+  lv_obj_t *card_prev_btn_{nullptr};  // media prev / cover open (left side button)
+  lv_obj_t *card_next_btn_{nullptr};  // media next / cover close (right side button)
+  lv_obj_t *card_prev_lbl_{nullptr};  // glyph of the left button (swapped per card type)
+  lv_obj_t *card_next_lbl_{nullptr};  // glyph of the right button
+  struct CbData *card_prev_cb_{nullptr};  // left button's callback data (event swapped per type)
+  struct CbData *card_next_cb_{nullptr};  // right button's callback data
 
   // Carousel gesture state.
   bool gest_drag_{false};

@@ -137,7 +137,13 @@ void Controller::handle(InputEvent event, int index) {
         case InputEvent::SELECT:
           if (Card *c = this->current_card_()) {
             this->commit_pending_(*c);
-            this->primary_action_(*c);
+            if (c->type == CardType::COVER && c->cover != nullptr) {
+              auto call = c->cover->make_call();  // Dial: tap centre on a cover = stop
+              call.set_command_stop();
+              call.perform();
+            } else {
+              this->primary_action_(*c);
+            }
           }
           break;
         case InputEvent::MEDIA_PREV:
@@ -149,6 +155,18 @@ void Controller::handle(InputEvent event, int index) {
           if (Card *c = this->current_card_())
             if (c->type == CardType::MEDIA_PLAYER && c->media != nullptr)
               c->media->next_track();
+          break;
+        case InputEvent::COVER_OPEN:
+        case InputEvent::COVER_CLOSE:
+          if (Card *c = this->current_card_())
+            if (c->type == CardType::COVER && c->cover != nullptr) {
+              auto call = c->cover->make_call();
+              if (event == InputEvent::COVER_OPEN)
+                call.set_command_open();
+              else
+                call.set_command_close();
+              call.perform();
+            }
           break;
         case InputEvent::BACK:
           if (Card *c = this->current_card_())

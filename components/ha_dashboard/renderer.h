@@ -32,6 +32,8 @@ enum class InputEvent : uint8_t {
   ENCODER_CW,    // encoder clockwise — context-dependent (menu rotate / card adjust)
   ENCODER_CCW,   // encoder counter-clockwise
   MEDIA_PREV,    // media player: previous track
+  COVER_OPEN,    // cover: open (Dial side button)
+  COVER_CLOSE,   // cover: close (Dial side button)
   MEDIA_NEXT,    // media player: next track
   LAUNCHER_ACTIVATE,       // music launcher: tap a favourite/row -> play (index = item)
   LAUNCHER_OPEN_CHILDREN,  // music launcher: tap the list button -> drill into episodes (index = tile)

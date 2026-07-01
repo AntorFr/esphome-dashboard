@@ -1128,13 +1128,17 @@ void LvglRenderer::build_card_view_() {
   // and never fight the screen gesture engine. Shown only for media cards (render_card_view_).
   struct {
     lv_obj_t **slot;
+    lv_obj_t **lbl_slot;
+    CbData **cb_slot;
     const char *sym;
     InputEvent ev;
     lv_align_t align;
     int dx;
   } mbtns[] = {
-      {&this->card_prev_btn_, LV_SYMBOL_PREV, InputEvent::MEDIA_PREV, LV_ALIGN_LEFT_MID, (int) (0.085f * this->w_)},
-      {&this->card_next_btn_, LV_SYMBOL_NEXT, InputEvent::MEDIA_NEXT, LV_ALIGN_RIGHT_MID, (int) (-0.085f * this->w_)},
+      {&this->card_prev_btn_, &this->card_prev_lbl_, &this->card_prev_cb_, LV_SYMBOL_PREV,
+       InputEvent::MEDIA_PREV, LV_ALIGN_LEFT_MID, (int) (0.085f * this->w_)},
+      {&this->card_next_btn_, &this->card_next_lbl_, &this->card_next_cb_, LV_SYMBOL_NEXT,
+       InputEvent::MEDIA_NEXT, LV_ALIGN_RIGHT_MID, (int) (-0.085f * this->w_)},
   };
   int btn_sz = (int) (0.18f * this->w_);
   for (auto &m : mbtns) {
@@ -1154,6 +1158,8 @@ void LvglRenderer::build_card_view_() {
     g_cbdata.push_back(d);
     lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
     *m.slot = b;
+    *m.lbl_slot = lbl;
+    *m.cb_slot = d;
   }
 
   lv_obj_add_event_cb(this->card_scr_, carousel_gesture_cb, LV_EVENT_ALL, this);
@@ -2381,15 +2387,33 @@ void LvglRenderer::render_card_view_(const ViewModel &vm) {
                                  LV_PART_INDICATOR);
     }
   }
-  // Media transport buttons only on media cards.
+  // Side buttons: media = prev/next; cover = open/close (direction-aware, tap centre = stop).
   bool is_media = (c != nullptr && c->type == CardType::MEDIA_PLAYER);
-  for (lv_obj_t *b : {this->card_prev_btn_, this->card_next_btn_}) {
-    if (b == nullptr)
-      continue;
-    if (is_media)
-      lv_obj_remove_flag(b, LV_OBJ_FLAG_HIDDEN);
-    else
-      lv_obj_add_flag(b, LV_OBJ_FLAG_HIDDEN);
+  bool is_cover = (c != nullptr && c->type == CardType::COVER);
+  if (this->card_prev_btn_ != nullptr && this->card_next_btn_ != nullptr) {
+    if (is_media || is_cover) {
+      if (is_cover) {
+        bool gate = cover_kind_of(*c) == (int) CoverKind::GATE;
+        lv_label_set_text(this->card_prev_lbl_, gate ? LV_SYMBOL_LEFT : LV_SYMBOL_UP);
+        lv_label_set_text(this->card_next_lbl_, gate ? LV_SYMBOL_RIGHT : LV_SYMBOL_DOWN);
+        if (this->card_prev_cb_ != nullptr)
+          this->card_prev_cb_->event = InputEvent::COVER_OPEN;
+        if (this->card_next_cb_ != nullptr)
+          this->card_next_cb_->event = InputEvent::COVER_CLOSE;
+      } else {
+        lv_label_set_text(this->card_prev_lbl_, LV_SYMBOL_PREV);
+        lv_label_set_text(this->card_next_lbl_, LV_SYMBOL_NEXT);
+        if (this->card_prev_cb_ != nullptr)
+          this->card_prev_cb_->event = InputEvent::MEDIA_PREV;
+        if (this->card_next_cb_ != nullptr)
+          this->card_next_cb_->event = InputEvent::MEDIA_NEXT;
+      }
+      lv_obj_remove_flag(this->card_prev_btn_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(this->card_next_btn_, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(this->card_prev_btn_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(this->card_next_btn_, LV_OBJ_FLAG_HIDDEN);
+    }
   }
   // Pagination dots for the current group.
   if (this->card_dots_ != nullptr && vm.groups != nullptr && vm.group_index >= 0 &&
