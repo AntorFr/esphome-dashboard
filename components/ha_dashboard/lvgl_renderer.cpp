@@ -2368,7 +2368,11 @@ void LvglRenderer::render_card_view_(const ViewModel &vm) {
     format_state(*c, buf, sizeof(buf));
     lv_label_set_text(this->card_value_, buf);
     if (this->card_icon_ != nullptr) {
-      lv_label_set_text(this->card_icon_, icon_for(*c));
+      // Media: the centre icon is the play/pause control (tap centre = play/pause); the title
+      // is dropped on the round screen. Other types show their type icon.
+      lv_label_set_text(this->card_icon_, c->type == CardType::MEDIA_PLAYER
+                                              ? (c->is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY)
+                                              : icon_for(*c));
       lv_obj_set_style_text_color(this->card_icon_, lv_color_hex(col), 0);
     }
     if (this->card_arc_ != nullptr) {

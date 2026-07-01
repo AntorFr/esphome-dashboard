@@ -392,7 +392,19 @@ void Controller::primary_action_(Card &c) {
         c.media->play_pause();
       break;
     case CardType::CLIMATE:
-      // No on/off toggle for climate; adjusted via detail/encoder (later).
+      // Dial: tap centre cycles the mode (off -> heat -> cool -> auto). (D1001 uses the sheet.)
+      if (c.climate != nullptr) {
+        climate::ClimateMode next = climate::CLIMATE_MODE_OFF;
+        switch (c.climate->mode) {
+          case climate::CLIMATE_MODE_OFF: next = climate::CLIMATE_MODE_HEAT; break;
+          case climate::CLIMATE_MODE_HEAT: next = climate::CLIMATE_MODE_COOL; break;
+          case climate::CLIMATE_MODE_COOL: next = climate::CLIMATE_MODE_HEAT_COOL; break;
+          default: next = climate::CLIMATE_MODE_OFF; break;
+        }
+        auto call = c.climate->make_call();
+        call.set_mode(next);
+        call.perform();
+      }
       break;
     case CardType::SWITCH:
     case CardType::LIGHT:
