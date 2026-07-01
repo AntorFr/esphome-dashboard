@@ -107,6 +107,16 @@ static const char *card_mdi_glyph(const Card &c) {
   }
 }
 
+// The quick-button glyph for a cover: the TARGET action (arrow), not the current state.
+// Matches primary_action_ (closes when mostly open, else opens); direction follows the kind.
+static const char *cover_action_glyph(const Card &c) {
+  const bool will_close = c.value() > 0.5f;
+  const bool gate = cover_kind_of(c) == (int) CoverKind::GATE;
+  if (gate)
+    return will_close ? LV_SYMBOL_RIGHT : LV_SYMBOL_LEFT;
+  return will_close ? LV_SYMBOL_DOWN : LV_SYMBOL_UP;
+}
+
 static void btn_event_cb(lv_event_t *e) {
   auto *d = static_cast<CbData *>(lv_event_get_user_data(e));
   if (d == nullptr || d->renderer == nullptr)
@@ -1442,6 +1452,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       // All types except switch have a control sheet (more-info). The icon opens it.
       const bool has_sheet = card.type != CardType::SWITCH;
       const bool is_media = card.type == CardType::MEDIA_PLAYER;
+      const bool is_cover = card.type == CardType::COVER;
       uint32_t icon_col = card.is_on() ? accent_for(card) : COL_MUTED;
 
       t.icon = lv_label_create(toprow);
@@ -1454,19 +1465,22 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
         lv_obj_add_event_cb(t.icon, btn_event_cb, LV_EVENT_CLICKED, di);
       }
 
-      if (is_media) {
-        // Play/pause quick button (right) — direct action, does NOT open the sheet.
+      if (is_media || is_cover) {
+        // Quick action button (right) — direct primary action, does NOT open the sheet.
+        // Its glyph shows the TARGET action (media play/pause; cover open/close direction),
+        // while the tile icon on the left shows the CURRENT state.
         lv_obj_t *pb = lv_button_create(toprow);
         lv_obj_set_size(pb, 60, 60);
         lv_obj_set_style_radius(pb, 30, 0);
-        lv_obj_set_style_bg_color(pb, lv_color_hex(0x3DD68C), 0);
+        lv_obj_set_style_bg_color(pb, lv_color_hex(is_media ? 0x3DD68C : accent_for(card)), 0);
         lv_obj_set_style_shadow_width(pb, 0, 0);
-        t.state = lv_label_create(pb);  // reused to refresh the play/pause glyph
-        lv_label_set_text(t.state, card.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+        t.state = lv_label_create(pb);  // reused to refresh the action glyph on render
+        lv_label_set_text(t.state, is_media ? (card.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY)
+                                            : cover_action_glyph(card));
         lv_obj_center(t.state);
-        lv_obj_set_style_text_color(t.state, lv_color_hex(0x06281A), 0);
+        lv_obj_set_style_text_color(t.state, lv_color_hex(is_media ? 0x06281A : 0xFFFFFF), 0);
         lv_obj_set_style_text_font(t.state, &lv_font_montserrat_28, 0);
-        auto *dp = new CbData{this, InputEvent::TOGGLE, (int) ci};  // TOGGLE = play_pause for media
+        auto *dp = new CbData{this, InputEvent::TOGGLE, (int) ci};  // primary action (play_pause / open-close)
         g_cbdata.push_back(dp);
         lv_obj_add_event_cb(pb, btn_event_cb, LV_EVENT_CLICKED, dp);
       } else {
@@ -1494,9 +1508,11 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
         lv_bar_set_value(t.bar, 0, LV_ANIM_OFF);
       }
 
-      // Tile body tap: media/climate open the sheet; switch/light/cover do the primary action.
-      InputEvent tile_ev = (is_media || card.type == CardType::CLIMATE) ? InputEvent::OPEN_SHEET
-                                                                        : InputEvent::TOGGLE;
+      // Tile body tap: types with a quick button (media/cover) + climate open the sheet;
+      // switch/light do the primary action directly.
+      InputEvent tile_ev = (is_media || is_cover || card.type == CardType::CLIMATE)
+                               ? InputEvent::OPEN_SHEET
+                               : InputEvent::TOGGLE;
       auto *d = new CbData{this, tile_ev, (int) ci};
       g_cbdata.push_back(d);
       lv_obj_add_event_cb(tile, btn_event_cb, LV_EVENT_CLICKED, d);
@@ -1684,6 +1700,9 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
         if (c.type == CardType::MEDIA_PLAYER) {
           // t.state is the play/pause button glyph (dark on green) — no text/colour override.
           lv_label_set_text(t.state, c.is_on() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+        } else if (c.type == CardType::COVER) {
+          // t.state is the quick-button glyph (white on accent): show the target action.
+          lv_label_set_text(t.state, cover_action_glyph(c));
         } else {
           char sbuf[24];
           format_state(c, sbuf, sizeof(sbuf));
