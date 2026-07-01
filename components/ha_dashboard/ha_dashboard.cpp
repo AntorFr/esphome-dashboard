@@ -365,6 +365,11 @@ void HaDashboard::loop() {
   this->build_if_ready_();
   if (!this->built_)
     return;
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  // Deliver any completed launcher HTTP requests (ran on the worker task) on the main loop.
+  for (auto &b : this->ml_backends_)
+    b->process_pending();
+#endif
   this->poll_encoder_();
   this->poll_button_();
   this->update_clock_();
