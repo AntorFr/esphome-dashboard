@@ -118,6 +118,9 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
       fetch bloquant.
 - [x] **Toast de confirmation de lancement** (2026-07-01) : au tap « ▶ Lecture », toast éphémère
       (2,5 s, top-layer) « ♪ <titre> · lecture sur <enceinte> » (nom via `player_name` en YAML).
+- [x] **Fetch HTTP non bloquant** (2026-07-01) : chaque requête launcher tourne sur une tâche
+      FreeRTOS (`HttpMusicLibrary` worker + files) ; résultat livré sur la boucle
+      (`process_pending`). Plus de gel LVGL ; l'indicateur de chargement s'affiche enfin.
 - [ ] Now-playing : barre de **progression** lecture (différée par design)
 - [ ] **Recyclage des vignettes au scroll** : seuls les ~9 premiers épisodes ont une miniature
       (limité par le pool `thumb_slots`) ; recycler les slots selon la position de scroll
