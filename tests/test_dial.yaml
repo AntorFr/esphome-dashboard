@@ -1,0 +1,46 @@
+# Validation schéma/codegen pour le M5Stack Dial.
+#   esphome config tests/test_dial.yaml
+esphome:
+  name: test-dial
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+packages:
+  board: !include ../packages/boards/m5stack_dial.yaml
+  fonts: !include ../packages/fonts/montserrat_fr.yaml
+
+logger:
+
+# api (+ network) requis : ha_dashboard tire homeassistant_addon (cover/climate/media).
+wifi:
+  ssid: "test-ssid"
+  password: "test-password"
+api:
+
+switch:
+  - platform: template
+    id: sw_salon_prise
+    optimistic: true
+  - platform: template
+    id: sw_cuisine_prise
+    optimistic: true
+
+ha_dashboard:
+  profile: dial
+  encoder: dial_encoder
+  encoder_button: dial_button
+  font_small: ha_font_small
+  font_medium: ha_font_medium
+  font_large: ha_font_large
+  groups:
+    - name: Salon
+      icon: sofa
+      cards:
+        - { type: light, entity: light.salon_plafond }
+        - { type: switch, switch_id: sw_salon_prise, name: "Prise salon" }
+    - name: Cuisine
+      cards:
+        - { type: switch, switch_id: sw_cuisine_prise, name: "Prise cuisine", color: "#FF8800" }

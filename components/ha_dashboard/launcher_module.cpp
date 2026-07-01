@@ -1,0 +1,199 @@
+// LAYER 1 — LauncherModule implementation. See launcher_module.h / ADR-0007.
+#include "launcher_module.h"
+
+namespace esphome {
+namespace ha_dashboard {
+
+void LauncherModule::load() {
+  this->level_ = LauncherLevel::GRID;
+  this->children_.clear();
+  this->detail_title_.clear();
+  this->children_id_.clear();
+  this->children_has_more_ = false;
+  this->children_loading_more_ = false;
+
+  if (this->backend_ == nullptr) {
+    this->status_ = LauncherStatus::ERROR;
+    this->notify_();
+    return;
+  }
+
+  this->status_ = LauncherStatus::LOADING;
+  this->notify_();
+
+  const uint32_t gen = ++this->gen_;
+  this->backend_->fetch_favorites(this->owner_, [this, gen](bool ok, std::vector<QuickItem> items) {
+    if (gen != this->gen_)
+      return;  // a newer request superseded this one
+    if (!ok) {
+      this->status_ = LauncherStatus::ERROR;
+    } else {
+      this->favorites_ = std::move(items);
+      this->status_ = this->favorites_.empty() ? LauncherStatus::EMPTY : LauncherStatus::READY;
+    }
+    this->notify_();
+  });
+}
+
+void LauncherModule::activate(int index) {
+  const std::vector<QuickItem> &list = this->items();
+  if (index < 0 || index >= static_cast<int>(list.size()))
+    return;
+  // Play the item. For a podcast/audiobook tile this is the parent uri, which Music
+  // Assistant resumes from the saved position; for a detail row it is that episode (own uri)
+  // or chapter (book uri + seek offset).
+  if (this->backend_ != nullptr)
+    this->backend_->play(list[index].uri, list[index].seek);
+}
+
+void LauncherModule::open_children(int index) {
+  if (this->level_ != LauncherLevel::GRID)
+    return;
+  if (index < 0 || index >= static_cast<int>(this->favorites_.size()))
+    return;
+  const QuickItem item = this->favorites_[index];  // copy: list may change during the fetch
+  if (!item.has_children)
+    return;
+
+  this->level_ = LauncherLevel::DETAIL;
+  this->detail_title_ = item.title;
+  this->detail_index_ = index;
+  this->children_id_ = item.id;
+  this->children_.clear();
+  this->children_has_more_ = false;
+  this->children_loading_more_ = false;
+  this->status_ = LauncherStatus::LOADING;
+  this->notify_();
+
+  if (this->backend_ == nullptr) {
+    this->status_ = LauncherStatus::ERROR;
+    this->notify_();
+    return;
+  }
+
+  const uint32_t gen = ++this->gen_;
+  this->backend_->fetch_children(
+      this->children_id_,0, PAGE_SIZE,
+      [this, gen](bool ok, std::vector<QuickItem> items, bool has_more) {
+        if (gen != this->gen_)
+          return;
+        if (!ok) {
+          this->status_ = LauncherStatus::ERROR;
+        } else {
+          this->children_ = std::move(items);
+          this->children_has_more_ = has_more;
+          this->status_ = this->children_.empty() ? LauncherStatus::EMPTY : LauncherStatus::READY;
+        }
+        this->notify_();
+      });
+}
+
+void LauncherModule::load_more_children() {
+  if (this->level_ != LauncherLevel::DETAIL)
+    return;
+  if (!this->children_has_more_ || this->children_loading_more_)
+    return;
+  if (this->backend_ == nullptr)
+    return;
+
+  this->children_loading_more_ = true;
+  this->notify_();  // let the renderer show a spinner row
+
+  const int offset = static_cast<int>(this->children_.size());
+  const uint32_t gen = this->gen_;  // same session: no bump, page belongs to this drill
+  this->backend_->fetch_children(
+      this->children_id_,offset, PAGE_SIZE,
+      [this, gen](bool ok, std::vector<QuickItem> items, bool has_more) {
+        if (gen != this->gen_)
+          return;  // user navigated away / reopened -> drop this page
+        this->children_loading_more_ = false;
+        if (ok) {
+          this->children_.insert(this->children_.end(), items.begin(), items.end());
+          this->children_has_more_ = has_more;
+          if (!this->children_.empty())
+            this->status_ = LauncherStatus::READY;
+        }
+        // On error we keep what we have; has_more stays true so a later scroll can retry.
+        this->notify_();
+      });
+}
+
+void LauncherModule::fetch_now_playing() {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->fetch_now_playing([this](bool ok, NowPlaying np) {
+    this->now_playing_ = ok ? std::move(np) : NowPlaying{};
+    this->notify_();
+  });
+}
+
+void LauncherModule::transport(const std::string &cmd) {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->transport(cmd);
+  this->fetch_now_playing();  // refresh state after the command
+}
+
+void LauncherModule::volume_step(const std::string &direction) {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->volume_step(direction);
+  this->fetch_now_playing();
+}
+
+void LauncherModule::set_volume(int level) {
+  if (this->backend_ == nullptr)
+    return;
+  this->backend_->set_volume(level);
+  this->fetch_now_playing();
+}
+
+// mute / shuffle / repeat update the local state OPTIMISTICALLY and do NOT re-fetch: Music
+// Assistant's now_playing snapshot lags a command by a beat, so an immediate refetch reads
+// back the *previous* value and makes the icon trail one tap behind. The device is the only
+// mutator here, so the optimistic value is authoritative.
+void LauncherModule::toggle_mute() {
+  if (this->backend_ == nullptr)
+    return;
+  this->now_playing_.muted = !this->now_playing_.muted;
+  this->backend_->set_mute(this->now_playing_.muted);
+  this->notify_();
+}
+
+void LauncherModule::toggle_shuffle() {
+  if (this->backend_ == nullptr)
+    return;
+  this->now_playing_.shuffle = !this->now_playing_.shuffle;
+  this->backend_->set_shuffle(this->now_playing_.shuffle);
+  this->notify_();
+}
+
+void LauncherModule::cycle_repeat() {
+  if (this->backend_ == nullptr)
+    return;
+  const std::string &r = this->now_playing_.repeat;
+  const char *next = (r == "off") ? "all" : (r == "all") ? "one" : "off";
+  this->now_playing_.repeat = next;
+  this->backend_->set_repeat(next);
+  this->notify_();
+}
+
+bool LauncherModule::back() {
+  if (this->level_ != LauncherLevel::DETAIL)
+    return false;  // already on the grid -> caller closes the module
+
+  // Invalidate any in-flight children/page fetch and return to the favourites grid.
+  ++this->gen_;
+  this->level_ = LauncherLevel::GRID;
+  this->children_.clear();
+  this->detail_title_.clear();
+  this->children_id_.clear();
+  this->children_has_more_ = false;
+  this->children_loading_more_ = false;
+  this->status_ = this->favorites_.empty() ? LauncherStatus::EMPTY : LauncherStatus::READY;
+  this->notify_();
+  return true;
+}
+
+}  // namespace ha_dashboard
+}  // namespace esphome

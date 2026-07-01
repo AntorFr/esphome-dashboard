@@ -1,0 +1,40 @@
+# Exemple générique — M5Stack Dial (cartes binaires).
+# En production : { source: github://AntorFR/esphome-dashboard } + secrets.yaml.
+esphome:
+  name: salon-dial
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+packages:
+  board: !include ../packages/boards/m5stack_dial.yaml
+
+logger:
+
+# Exemple autonome : switches `template`. Pour un binding HA réel + wifi/api,
+# voir examples/dial_office.yaml.
+switch:
+  - platform: template
+    id: sw_prise_salon
+    optimistic: true
+  - platform: template
+    id: sw_prise_cuisine
+    optimistic: true
+
+ha_dashboard:
+  profile: dial
+  language: fr
+  inactivity_timeout: 30s
+  encoder: dial_encoder
+  encoder_button: dial_button
+  groups:
+    - name: Salon
+      icon: sofa
+      cards:
+        - { type: switch, switch_id: sw_prise_salon, name: "Prise salon" }
+    - name: Cuisine
+      icon: kitchen
+      cards:
+        - { type: switch, switch_id: sw_prise_cuisine, name: "Prise cuisine" }

@@ -1,0 +1,61 @@
+# Montserrat + MDI fonts sized for the M5Stack Dial (round 240x240). Same glyph ids as
+# montserrat_fr.yaml (the 800x1280 D1001 variant) but much smaller — the D1001 sizes are
+# ~2x too big on the Dial. Include THIS package on the Dial, the other on the D1001.
+font:
+  - file: "gfonts://Montserrat"
+    id: ha_font_small
+    size: 14
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  - file: "gfonts://Montserrat@500"
+    id: ha_font_medium
+    size: 20
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  - file: "gfonts://Montserrat@600"
+    id: ha_font_large
+    size: 38
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  # Material Design Icons — weather pictograms (header / idle).
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_weather
+    size: 26
+    bpp: 4
+    glyphs:
+      - "\U000F0590"  # weather-cloudy
+      - "\U000F0591"  # weather-fog
+      - "\U000F0592"  # weather-hail
+      - "\U000F0593"  # weather-lightning
+      - "\U000F0594"  # weather-night
+      - "\U000F0595"  # weather-partly-cloudy
+      - "\U000F0596"  # weather-pouring
+      - "\U000F0597"  # weather-rainy
+      - "\U000F0598"  # weather-snowy
+      - "\U000F0599"  # weather-sunny
+      - "\U000F059D"  # weather-windy
+      - "\U000F059E"  # weather-windy-variant
+      - "\U000F067E"  # weather-lightning-rainy
+      - "\U000F067F"  # weather-snowy-rainy
+      - "\U000F0F31"  # weather-night-partly-cloudy
+      - "\U000F0026"  # alert (exceptional / fallback)
+  # Material Design Icons — group/menu icons (subset only = tiny storage).
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_icons
+    size: 22
+    bpp: 4
+    glyphs:
+      - "\U000F0493"  # cog (settings)
+      - "\U000F0425"  # power
+      - "\U000F04C3"  # speaker
+      - "\U000F0393"  # thermostat
+      - "\U000F0299"  # gate
+      - "\U000F04B9"  # sofa
+      - "\U000F0A70"  # silverware-fork-knife (kitchen)
+      - "\U000F0335"  # lightbulb
+      - "\U000F111C"  # window-shutter (cover)
+      - "\U000F02D7"  # help-circle (fallback)

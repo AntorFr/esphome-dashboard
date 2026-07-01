@@ -1,0 +1,20 @@
+# Référence locale non-gitée (clones de libs d'inspiration : esphome-dial, etc.)
+/reference/
+
+# macOS
+.DS_Store
+
+# ESPHome build artifacts
+.esphome/
+*.bin
+secrets.yaml
+
+# Python / tooling
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/

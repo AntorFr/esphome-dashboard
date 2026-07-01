@@ -1,0 +1,131 @@
+# Seeed reTerminal D1001 — ESP32-P4 (+ ESP32-C6 WiFi/BLE via SDIO).
+# Écran MIPI-DSI 800x1280 portrait (modèle intégré SEEED-RETERMINAL-D1001).
+# Brochage extrait du SCHÉMA OFFICIEL Seeed (reTerminal D1001_sch.pdf, rev v01).
+#
+# ⚠️ TACTILE : le contrôleur est un GSL3670 (SiLead) — NON SUPPORTÉ par ESPHome
+#    (aucune plateforme touchscreen gsl/silead). L'écran + le WiFi fonctionnent, mais
+#    la navigation tactile nécessitera un composant externe GSL3670 (TODO).
+#    Voir docs/lessons-learned.md.
+# Enable the Montserrat font sizes used by the LVGL renderer (built in C++, so the lvgl
+# component can't auto-detect them). Build flags are read by lvgl's lv_conf.h generator.
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DLV_FONT_MONTSERRAT_16=1"
+      - "-DLV_FONT_MONTSERRAT_20=1"
+      - "-DLV_FONT_MONTSERRAT_28=1"
+      - "-DLV_FONT_MONTSERRAT_40=1"
+      - "-DLV_FONT_MONTSERRAT_48=1"
+
+esp32:
+  board: esp32-p4-evboard
+  cpu_frequency: 360MHz
+  # reTerminal D1001 has 32 MB onboard QSPI flash (+ 32 MB PSRAM), per Seeed specs. Declaring
+  # the real size gives a large app partition (the default 4 MB assumption caps the app at
+  # ~1.84 MB, which the firmware exceeds once the Music Library launcher / http_request + TLS
+  # is included). 32 MB OTA requires enabling IDF experimental features (below).
+  flash_size: 32MB
+  framework:
+    type: esp-idf
+    advanced:
+      enable_idf_experimental_features: true
+
+# PSRAM à pleine vitesse (200 MHz) : indispensable pour alimenter le scanout MIPI-DSI
+# 800x1280 sans underrun (sinon écran noir / corrompu). Vitesses P4 : 20/100/200 MHz.
+psram:
+  speed: 200MHZ
+
+# LDO interne alimentant le PHY MIPI-DSI du P4 (canal 3, 2.5V).
+esp_ldo:
+  - id: ldo_mipi_phy
+    channel: 3
+    voltage: 2.5V
+
+# WiFi/BLE via le co-processeur ESP32-C6 sur SDIO (le P4 n'a pas de PHY radio).
+# Pins schéma : CMD=GPIO6, CLK=GPIO11, D0..D3=GPIO7/8/9/10, C6_CHIP_PU(reset)=GPIO13.
+# Le bloc `wifi:` (credentials) reste dans la config device.
+esp32_hosted:
+  type: sdio
+  variant: ESP32C6
+  reset_pin: GPIO13
+  cmd_pin: GPIO6
+  clk_pin: GPIO11
+  d0_pin: GPIO7
+  d1_pin: GPIO8
+  d2_pin: GPIO9
+  d3_pin: GPIO10
+  active_high: true
+  sdio_frequency: 20MHz
+
+# I2C "système" (I2C1 du schéma) : IO expander, RTC, IMU, codec, ADC, chargeur.
+i2c:
+  - id: i2c_sys
+    sda: GPIO20
+    scl: GPIO21
+    frequency: 400kHz
+    scan: false
+  # I2C "écran/caméra" (I2C0 du schéma) : touch GSL3670 (0x40) + caméra.
+  - id: i2c_panel
+    sda: GPIO37
+    scl: GPIO38
+    frequency: 400kHz
+    scan: false
+
+# IO expander XL9535 @ 0x20 (sur I2C système) : pilote enable/reset de l'écran
+# (et reset tactile EXP_GPO12). Référencé par le modèle d'écran ci-dessous.
+xl9535:
+  - id: d1001_expander
+    i2c_id: i2c_sys
+    address: 0x20
+
+# LCD backlight boost driver (EN/PWM = net LCD_PWM = GPIO14). Without driving it the
+# panel power/scanout can be on yet the screen stays black. ALWAYS_ON at full brightness.
+output:
+  - platform: ledc
+    id: d1001_bl_pwm
+    pin: GPIO14
+    frequency: 2000Hz
+light:
+  - platform: monochromatic
+    id: d1001_backlight
+    output: d1001_bl_pwm
+    restore_mode: ALWAYS_ON
+    internal: true
+
+display:
+  - platform: mipi_dsi
+    id: d1001_display
+    model: SEEED-RETERMINAL-D1001
+    update_interval: never
+    enable_pin:
+      - xl9535: d1001_expander
+        number: 0          # LCD_PWR_EN (EXP_GPO0)
+      - xl9535: d1001_expander
+        number: 7          # alim/backlight (EXP_GPO7)
+    reset_pin:
+      xl9535: d1001_expander
+      number: 2            # LCD_RST (EXP_GPO2)
+
+# Tactile GSL3670 via le composant officiel (clydebarrow, modèle seeed-reterminal-d1001 :
+# firmware binaire dédié + reset/init corrects). Cf. external_components ci-dessous.
+touchscreen:
+  - platform: gsl3670
+    id: d1001_touch
+    model: seeed-reterminal-d1001
+    i2c_id: i2c_panel
+    # Use the official model defaults (interrupt 16, calibration, transform, firmware).
+    # Only the reset needs our XL9535 hub id; the correct reset line is pin 14 (not 12).
+    reset_pin:
+      xl9535: d1001_expander
+      number: 14
+
+external_components:
+  # gsl3670 needs the touchscreen base changes from the same PR (option_with_default).
+  - source: github://clydebarrow/esphome@gsl3670
+    components: [gsl3670, touchscreen]
+
+lvgl:
+  displays:
+    - d1001_display
+  touchscreens:
+    - d1001_touch

@@ -1,0 +1,83 @@
+# M5Stack Dial — ESP32-S3 (M5StampS3), écran rond GC9A01A 240x240 (SPI),
+# touch FT3267 (FT5x06-compatible, I2C), encodeur + bouton.
+# Brochage usuel du M5Dial — À VALIDER SUR MATÉRIEL (cf. docs/lessons-learned.md §6).
+#
+# Enable the Montserrat font sizes used by the LVGL renderer (built in C++, so the lvgl
+# component can't auto-detect them). Build flags are read by lvgl's lv_conf.h generator.
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DLV_FONT_MONTSERRAT_16=1"
+      - "-DLV_FONT_MONTSERRAT_20=1"
+      - "-DLV_FONT_MONTSERRAT_28=1"
+      - "-DLV_FONT_MONTSERRAT_40=1"
+      - "-DLV_FONT_MONTSERRAT_48=1"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+spi:
+  - id: dial_spi
+    clk_pin: GPIO6
+    mosi_pin: GPIO5
+
+output:
+  - platform: ledc
+    id: dial_bl_output
+    pin: GPIO9
+
+light:
+  - platform: monochromatic
+    id: dial_backlight
+    output: dial_bl_output
+    restore_mode: ALWAYS_ON
+    internal: true
+
+display:
+  - platform: mipi_spi
+    id: dial_display
+    model: GC9A01A
+    spi_id: dial_spi
+    cs_pin: GPIO7
+    dc_pin: GPIO4
+    reset_pin: GPIO8
+    invert_colors: true  # GC9A01A needs color inversion (else black renders as white)
+    update_interval: never
+
+i2c:
+  - id: dial_i2c
+    sda: GPIO11
+    scl: GPIO12
+    scan: false
+
+touchscreen:
+  # M5Dial touch is an FT3267 (ft63x6 family). The INT line (GPIO14) is required —
+  # polling over I2C without it returns nothing (cf. esp-dial proven config).
+  - platform: ft63x6
+    id: dial_touch
+    i2c_id: dial_i2c
+    interrupt_pin: GPIO14
+
+sensor:
+  - platform: rotary_encoder
+    id: dial_encoder
+    pin_a: GPIO40
+    pin_b: GPIO41
+
+binary_sensor:
+  - platform: gpio
+    id: dial_button
+    pin:
+      number: GPIO42
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+
+lvgl:
+  displays:
+    - dial_display
+  touchscreens:
+    - dial_touch

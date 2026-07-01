@@ -1,0 +1,41 @@
+# Validation schéma/codegen pour le Seeed reTerminal D1001 (ESP32-P4).
+#   esphome config tests/test_d1001.yaml
+esphome:
+  name: test-d1001
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+packages:
+  board: !include ../packages/boards/reterminal_d1001.yaml
+  fonts: !include ../packages/fonts/montserrat_fr.yaml
+
+logger:
+
+# api (+ network) requis : ha_dashboard tire homeassistant_addon (cover/climate/media).
+wifi:
+  ssid: "test-ssid"
+  password: "test-password"
+api:
+
+switch:
+  - platform: template
+    id: sw_salon_prise
+    optimistic: true
+
+ha_dashboard:
+  profile: reterminal_d1001
+  font_small: ha_font_small
+  font_medium: ha_font_medium
+  font_large: ha_font_large
+  groups:
+    - name: Salon
+      icon: sofa
+      cards:
+        - { type: light, entity: light.salon_plafond }
+        - { type: switch, switch_id: sw_salon_prise, name: "Prise salon" }
+    - name: Cuisine
+      cards:
+        - { type: switch, switch_id: sw_salon_prise, name: "Prise (test)" }

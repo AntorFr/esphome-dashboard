@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquettes — onglet « Histoires & Musique » (D1001, music-library)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --bg:#0A0A0C; --screen:#0E0E12; --tile:#17171E; --track:#232330;
+    --text:#fff; --muted:#8A8A92; --line:#232330;
+    --media:#A06CFF; --play:#3DD68C; --amber:#FFB020;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px;line-height:1.45}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);max-width:900px;margin:0 0 8px}
+
+  /* Data-flow banner */
+  .flow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 22px;padding:12px 14px;border-radius:12px;background:#13111c;border:1px solid #271f3d;font-size:13px}
+  .flow .node{padding:5px 10px;border-radius:8px;background:#1d1830;color:#cdbff0}
+  .flow .ar{color:var(--media)}
+  .flow code{background:#23232c;border-radius:5px;padding:1px 6px;font-size:12px;color:#dcd2ff}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 8px;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+  .card-block{border-top:1px solid #1d1d24;padding:26px 0}
+  .card-block h2{font-size:18px;margin:0 0 2px;display:flex;align-items:center;gap:10px;color:var(--media)}
+  .card-block h2 .ti{font-size:22px}
+  .card-block .tag{color:var(--muted);font-weight:400;font-size:13px}
+  .row{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;margin-top:18px}
+  .device-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .device-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+  /* Portrait D1001 (800x1280 -> 280x448) */
+  .port-frame{background:#1B1B22;border-radius:26px;padding:10px}
+  .port{position:relative;width:280px;height:448px;border-radius:18px;background:var(--screen);overflow:hidden;display:flex;flex-direction:column}
+
+  /* header (time / date / weather) — shared D1001 chrome */
+  .hdr{display:flex;align-items:flex-start;padding:14px 16px 8px}
+  .hdr .time{font-size:30px;font-weight:500;line-height:1}
+  .hdr .date{font-size:12px;color:var(--muted);margin-top:2px}
+  .hdr .right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .hdr .wx{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+  .hdr .wx .ti{font-size:20px}
+  /* header now-playing mini widget (like the weather widget) -> tap opens screen D.
+     Reduced on purpose: cover + play/pause only, no title (no room; title lives in D). */
+  .npchip{display:inline-flex;align-items:center;gap:6px;background:var(--tile);border-radius:12px;padding:4px 7px 4px 5px}
+  .npchip .npc{width:22px;height:22px;border-radius:6px;flex:none}
+  .npchip .st{font-size:16px;color:var(--media)}
+
+  /* group tabs row */
+  .tabs{display:flex;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);overflow:hidden}
+  .tab{padding:8px 2px 10px;font-size:14px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:5px}
+  .tab.active{color:#fff;font-weight:600;box-shadow:inset 0 -2px 0 var(--amber)}
+  .tab.active.launch{box-shadow:inset 0 -2px 0 var(--media)}
+  .tab .ti{font-size:16px}
+
+  /* cover grid (tab content) */
+  .grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px;overflow:hidden;align-content:start}
+  /* Favourite = a grey card (same language as the entity tiles): clear contour, the cover
+     sits inside it. */
+  .ftile{display:flex;flex-direction:column;gap:8px;background:var(--tile);border-radius:16px;padding:10px}
+  .cover{position:relative;width:100%;aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden}
+  .ftile .ttl{font-size:13px;font-weight:500;line-height:1.2;max-height:2.4em;overflow:hidden}
+  .ftile .ty{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  /* Drill-in button (podcast/audiobook) — overlaid on top of the cover, so it adds no height
+     and every card keeps the same cover+title alignment whether or not it has one. */
+  .cover .coverbtn{position:absolute;left:6px;right:6px;top:6px;display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0;border-radius:10px;background:rgba(10,10,12,.72);font-size:12px;color:#fff}
+  .cover .coverbtn .ti{font-size:15px}
+  /* Play affordance in the bottom-right corner (tap the cover to play/resume) — corner
+     placement so it never overlaps the drill button overlaid at the top. */
+  .cover .playover{position:absolute;right:6px;bottom:6px;width:34px;height:34px;border-radius:50%;background:rgba(10,10,12,.58);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff}
+
+  /* detail view (full screen, opened on tap) */
+  .dtop{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
+  .dtop .back{width:34px;height:34px;border-radius:10px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted)}
+  .dtop .t-name{font-size:16px;font-weight:600}
+
+  .eplist{flex:1;display:flex;flex-direction:column;gap:8px;padding:2px 16px 14px;overflow:hidden}
+  .ephead{display:flex;gap:12px;align-items:center;padding:2px 0 8px}
+  .ephead .cover{width:60px;height:60px;flex:none;font-size:24px}
+  .ephead .meta .h{font-size:15px;font-weight:600}
+  .ephead .meta .s{font-size:12px;color:var(--muted)}
+  .eprow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--tile)}
+  .eprow .n{width:24px;height:24px;border-radius:50%;background:#262234;display:flex;align-items:center;justify-content:center;font-size:12px;color:#cdbff0;flex:none}
+  .eprow .et{flex:1;font-size:13px}
+  .eprow .ed{font-size:11px;color:var(--muted)}
+  .eprow.resume{outline:1.5px solid var(--play)}
+  .eprow.resume .n{background:var(--play);color:#06231a}
+  .eprow .thumb{width:34px;height:34px;border-radius:8px;flex:none}
+  .moreRow{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;color:var(--muted);font-size:12px}
+  .moreRow .sp{width:14px;height:14px;border-radius:50%;border:2px solid #3a3a44;border-top-color:var(--media);display:inline-block}
+
+  /* grid states (map LauncherStatus: LOADING / EMPTY / ERROR) */
+  .state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 30px;text-align:center;color:var(--muted)}
+  .state .sp{width:32px;height:32px;border-radius:50%;border:3px solid #2a2a34;border-top-color:var(--media);display:inline-block}
+  .state .bi{font-size:42px;color:#3a3a44}
+  .state .msg{font-size:14px}
+  .state .retry{margin-top:2px;font-size:13px;color:var(--media);display:inline-flex;gap:6px;align-items:center;background:#1a1530;padding:6px 12px;border-radius:12px}
+  /* tile cover placeholder while online_image decodes */
+  .cover.ph{background:#15151c !important;color:#3a3a44}
+  .cover.ph .ti{font-size:30px}
+
+  /* now-playing (full screen) */
+  .np{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:0 26px;text-align:center}
+  .np .bigcover{width:150px;height:150px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:54px;box-shadow:0 12px 40px rgba(160,108,255,.25)}
+  .np .npt{font-size:19px;font-weight:600}
+  .np .nps{font-size:13px;color:var(--muted)}
+  .np .onspk{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--play);background:#0f2018;padding:4px 10px;border-radius:12px}
+  .transport{display:flex;gap:16px;align-items:center;justify-content:center;padding-top:4px}
+  .tbtn{width:48px;height:48px;border-radius:50%;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:22px}
+  .tbtn.lg{width:60px;height:60px;font-size:28px;background:var(--play);color:#06231a}
+  .volrow{display:flex;align-items:center;gap:8px;width:100%;padding-top:6px}
+  .slider{flex:1;height:10px;border-radius:5px;background:var(--track);position:relative}
+  .slider .fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--media)}
+  .slider .knob{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:#fff;transform:translate(-50%,-50%)}
+
+  /* toast confirmation overlay */
+  .toast{position:absolute;left:14px;right:14px;bottom:14px;display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:#141a16;border:1px solid #1f3a2b}
+  .toast .tc{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+  .toast .tt{flex:1;font-size:12.5px}
+  .toast .tt b{font-weight:600}
+  .toast .ti.ok{color:var(--play);font-size:22px}
+
+  /* UX notes */
+  .ux{flex:1;min-width:300px;max-width:470px}
+  .ux h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px}
+  .ux table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .ux td{padding:5px 8px;border-bottom:1px solid #1a1a21;vertical-align:top}
+  .ux td:first-child{color:var(--muted);white-space:nowrap;width:130px}
+  .ux .q{margin-top:12px;padding:10px 12px;border-radius:10px;background:#1c1606;border:1px solid #3a2e12;font-size:13px}
+  .ux .q b{color:var(--amber)}
+</style>
+</head>
+<body>
+<h1>Onglet « Musique » — maquettes D1001</h1>
+<p class="lead">Lanceur enfants, branché comme <b>un onglet dédié</b> dans la navigation D1001 existante
+(header + onglets de groupes + grille). Pas d'écran « menu » à part, pas de sélecteur profil/enceinte :
+l'<b>owner</b> et l'<b>enceinte</b> sont figés en YAML par appareil. Cible : D1001 portrait. Bloc ambré = à trancher.</p>
+
+<div class="flow">
+  <span class="node">D1001 (ESP32-P4)</span>
+  <span class="ar">──①&nbsp;<code>GET /api/v1/quick/{owner}</code>→</span>
+  <span class="node">music-library</span>
+  <span class="ar">──②&nbsp;<code>/covers/{id}.jpg</code></span>
+  <span class="ar">&nbsp;&nbsp;③&nbsp;<code>POST /api/v1/ma/play</code>&nbsp;→</span>
+  <span class="node">Music Assistant</span>
+  <span class="ar">→&nbsp;🔊</span>
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--media)"></i> onglet lanceur (violet)</span>
+  <span><i class="dot" style="background:var(--amber)"></i> onglet groupe d'entités (ambre)</span>
+  <span><i class="dot" style="background:var(--play)"></i> lecture / confirmation</span>
+  <span style="margin-left:auto">Tap pochette = lance / reprend · bouton « Épisodes/Chapitres » = liste plein écran</span>
+</div>
+
+<div id="app"></div>
+
+<script>
+var GRAD={
+  comptines:'linear-gradient(135deg,#ff9bb3,#c84b8c)',
+  henri:'linear-gradient(135deg,#7ad0ff,#3a72c8)',
+  prince:'linear-gradient(135deg,#ffd27a,#c8862b)',
+  disney:'linear-gradient(135deg,#b08cff,#5b3ac8)',
+  radio:'linear-gradient(135deg,#7affc0,#2bc88a)',
+  trolls:'linear-gradient(135deg,#ff8f6c,#c83a5b)'
+};
+var TYI={playlist:'ti-playlist',album:'ti-disc',radio:'ti-radio',podcast:'ti-microphone-2',audiobook:'ti-book-2',track:'ti-music'};
+var TYL={playlist:'Playlist',album:'Album',radio:'Radio',podcast:'Podcast',audiobook:'Livre audio',track:'Titre'};
+
+var FAV=[
+  {g:'comptines',emo:'🎵',ttl:'Comptines',ty:'playlist'},
+  {g:'henri',emo:'🐰',ttl:'Henri le Lapin',ty:'podcast',kids:true},
+  {g:'prince',emo:'🌹',ttl:'Le Petit Prince',ty:'audiobook',kids:true},
+  {g:'disney',emo:'🏰',ttl:'Disney Hits',ty:'playlist'},
+  {g:'radio',emo:'📻',ttl:'Radio Pomme',ty:'radio'},
+  {g:'trolls',emo:'🎬',ttl:'Trolls',ty:'album'}
+];
+
+// Just the cover square (gradient placeholder + emoji); it lives inside a grey .ftile card.
+function cover(f){
+  return '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo+'</div>';
+}
+// A full favourite card: grey tile with cover + title + type, and a drill button for
+// podcasts/audiobooks.
+function favCard(f){
+  var listLbl = f.ty==='audiobook' ? 'Chapitres' : 'Épisodes';
+  // Drill button overlaid on the cover (only for podcasts/audiobooks); it adds no height so
+  // all cards stay aligned.
+  var ov = f.kids ? '<div class="coverbtn"><i class="ti ti-list"></i>'+listLbl+'</div>' : '';
+  var play = '<div class="playover"><i class="ti ti-player-play-filled"></i></div>';
+  return '<div class="ftile">'
+    + '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo+play+ov+'</div>'
+    + '<div class="ttl">'+f.ttl+'</div>'
+    + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div>'
+    + '</div>';
+}
+// np: false (hidden) | 'pause' (playing -> show ⏸) | 'play' (paused -> show ▶)
+function header(np){
+  var chip='';
+  if(np){
+    var ic = np==='play' ? 'ti-player-play-filled' : 'ti-player-pause-filled';
+    chip='<div class="npchip" title="ouvre En lecture"><span class="npc" style="background:'+GRAD.comptines+'"></span>'
+      + '<i class="ti '+ic+' st"></i></div>';
+  }
+  var right='<div class="right"><div class="wx"><i class="ti ti-cloud"></i>19°</div>'+chip+'</div>';
+  return '<div class="hdr"><div><div class="time">14:32</div><div class="date">vendredi 27 juin</div></div>'+right+'</div>';
+}
+function tabs(){
+  return '<div class="tabs">'
+    + '<div class="tab">Salon</div>'
+    + '<div class="tab">Chambre</div>'
+    + '<div class="tab active launch"><i class="ti ti-music"></i>Musique</div>'
+    + '</div>';
+}
+function frame(label, inner){
+  return '<div class="device-wrap"><span class="device-label">'+label+'</span>'
+    + '<div class="port-frame"><div class="port">'+inner+'</div></div></div>';
+}
+
+/* A — launcher tab active: header + tabs + cover grid (list button on podcast/audiobook) */
+function fGrid(){
+  var tiles=FAV.map(favCard).join('');
+  return frame('A · Onglet « Musique » actif', header(true)+tabs()+'<div class="grid">'+tiles+'</div>');
+}
+
+/* B — one-tap play confirmation (stay on the grid) */
+function fToast(){
+  var tiles=FAV.slice(0,4).map(favCard).join('');
+  return frame('B · Lecture one-tap (toast)', header(true)+tabs()+'<div class="grid">'+tiles+'</div>'
+    + '<div class="toast"><div class="tc" style="background:'+GRAD.comptines+'">🎵</div>'
+    + '<div class="tt"><b>Comptines</b><br>lecture sur Enceinte Chambre</div>'
+    + '<i class="ti ti-circle-check-filled ok"></i></div>');
+}
+
+function detailRow(lead, title, sub, resume, accent){
+  return '<div class="eprow'+(resume?' resume':'')+'">'+lead
+    + '<span class="et">'+title+'<div class="ed">'+sub+'</div></span>'
+    + '<i class="ti ti-player-play-filled" style="color:'+(accent||'var(--play)')+'"></i></div>';
+}
+
+/* C — detail (PODCAST): episodes WITH per-episode thumbnails + load-more on scroll */
+function fEpisodes(){
+  var f={g:'henri',emo:'🐰',ty:'podcast'};
+  var thumbs=['#7ad0ff','#9bd06a','#ffb86c','#ff8fb1','#b08cff'];
+  var eps=[
+    {t:'12 · La cabane secrète',d:'reprendre · 4:20 / 11 min',resume:true},
+    {t:'13 · La rivière gelée',d:'12 min'},
+    {t:'14 · Le grand pique-nique',d:'9 min'},
+    {t:'15 · Une nuit sous les étoiles',d:'13 min'}
+  ];
+  var rows=eps.map(function(e,i){
+    var lead='<span class="thumb" style="background:linear-gradient(135deg,'+thumbs[i]+',#1d1730)"></span>';
+    return detailRow(lead, e.t, e.d, e.resume);
+  }).join('');
+  rows += '<div class="moreRow"><span class="sp"></span> chargement…</div>';  // pagination on scroll
+  return frame('C · Détail PODCAST (vignettes + pagination)',
+    '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">Henri le Lapin</span></div>'
+    + '<div class="eplist"><div class="ephead">'+cover(f)
+    + '<div class="meta"><div class="h">Henri le Lapin</div><div class="s">Podcast · 248 épisodes</div></div></div>'
+    + rows + '</div>');
+}
+
+/* C2 — detail (AUDIOBOOK): chapters WITHOUT thumbnails -> number badge */
+function fChapters(){
+  var f={g:'prince',emo:'🌹',ty:'audiobook'};
+  var chs=[
+    {n:'▶',t:'Chapitre 7',d:'reprendre · 2:10 / 8 min',resume:true},
+    {n:'8',t:'Chapitre 8',d:'7 min'},
+    {n:'9',t:'Chapitre 9',d:'9 min'},
+    {n:'10',t:'Chapitre 10',d:'6 min'},
+    {n:'11',t:'Chapitre 11',d:'8 min'}
+  ];
+  var rows=chs.map(function(c){
+    return detailRow('<span class="n">'+c.n+'</span>', c.t, c.d, c.resume, 'var(--media)');
+  }).join('');
+  return frame('C2 · Détail LIVRE AUDIO (chapitres, sans vignette)',
+    '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">Le Petit Prince</span></div>'
+    + '<div class="eplist"><div class="ephead">'+cover(f)
+    + '<div class="meta"><div class="h">Le Petit Prince</div><div class="s">Livre audio · 27 chapitres</div></div></div>'
+    + rows + '</div>');
+}
+
+/* D — now playing (full screen) — opened from the header media widget; controls via ML */
+function fNow(){
+  return frame('D · En lecture (via widget header)',
+    '<div class="dtop"><div class="back"><i class="ti ti-chevron-left"></i></div><span class="t-name">En lecture</span></div>'
+    + '<div class="np">'
+    + '<div class="bigcover" style="background:'+GRAD.comptines+'">🎵</div>'
+    + '<div><div class="npt">Comptines</div><div class="nps">Playlist · 32 titres</div></div>'
+    + '<div class="onspk"><i class="ti ti-speakerphone"></i> sur Enceinte Chambre</div>'
+    + '<div class="transport"><div class="tbtn"><i class="ti ti-player-skip-back-filled"></i></div>'
+    + '<div class="tbtn lg"><i class="ti ti-player-pause-filled"></i></div>'
+    + '<div class="tbtn"><i class="ti ti-player-skip-forward-filled"></i></div></div>'
+    + '<div class="volrow"><i class="ti ti-volume" style="color:var(--muted)"></i>'
+    + '<div class="slider"><div class="fill" style="width:55%"></div><div class="knob" style="left:55%"></div></div></div>'
+    + '</div>');
+}
+
+/* Grid states (map LauncherStatus) */
+function stateFrame(label, inner){
+  return frame(label, header(false)+tabs()+'<div class="state">'+inner+'</div>');
+}
+function fLoading(){ return stateFrame('É1 · Chargement (LOADING)', '<span class="sp"></span><div class="msg">Chargement…</div>'); }
+function fEmpty(){ return stateFrame('É2 · Vide — 0 favori (EMPTY)', '<i class="ti ti-music bi"></i><div class="msg">Rien ici pour le moment</div>'); }
+function fOffline(){ return stateFrame('É3 · Hors-ligne (ERROR)', '<i class="ti ti-cloud-off bi"></i><div class="msg">Musique indisponible</div><div class="retry"><i class="ti ti-refresh"></i> Réessayer</div>'); }
+function fDecoding(){
+  var tiles=FAV.map(function(f,i){
+    var ov = f.kids ? '<div class="coverbtn"><i class="ti ti-list"></i>'+(f.ty==='audiobook'?'Chapitres':'Épisodes')+'</div>' : '';
+    var play = '<div class="playover"><i class="ti ti-player-play-filled"></i></div>';
+    var c = (i===1||i===4)
+      ? '<div class="cover ph"><i class="ti ti-photo"></i>'+play+ov+'</div>'
+      : '<div class="cover" style="background:'+GRAD[f.g]+'">'+f.emo+play+ov+'</div>';
+    return '<div class="ftile">'+c+'<div class="ttl">'+f.ttl+'</div>'
+      + '<div class="ty"><i class="ti '+TYI[f.ty]+'"></i>'+TYL[f.ty]+'</div></div>';
+  }).join('');
+  return frame('É4 · Pochettes en décodage', header(false)+tabs()+'<div class="grid">'+tiles+'</div>');
+}
+function statesBlock(){
+  return '<div class="ux"><h3>Mapping &amp; règles</h3><table>'
+    + '<tr><td>LOADING</td><td>spinner centré « Chargement… »</td></tr>'
+    + '<tr><td>EMPTY</td><td>message discret, pas d\'alerte</td></tr>'
+    + '<tr><td>ERROR / offline</td><td>icône cloud-off + « Réessayer » (re-fetch)</td></tr>'
+    + '<tr><td>READY</td><td>la grille de pochettes</td></tr>'
+    + '<tr><td>Pochette</td><td>placeholder neutre puis fondu quand <code>online_image</code> a décodé</td></tr>'
+    + '<tr><td>Widget header</td><td>réduit : pochette + ▶/⏸ (sans titre) ; affiché aussi en pause</td></tr>'
+    + '</table></div>';
+}
+
+var UX=[
+  ['Swipe ← / →','change d\'onglet (Salon / Chambre / <b>Musique</b>) — geste D1001 existant'],
+  ['Tap pochette','lance / <b>reprend</b> la lecture (TOUS types, y compris podcast/livre) + toast'],
+  ['Bouton « Épisodes / Chapitres »','sur une tuile podcast/livre → ouvre la <b>vue détail plein écran</b>'],
+  ['Tap ligne (détail)','joue l\'épisode / le chapitre choisi'],
+  ['Scroll (détail)','<b>pagination dynamique</b> : charge la page suivante (séries de centaines d\'items)'],
+  ['Retour (détail)','ferme la vue détail → revient à la grille de l\'onglet'],
+  ['Widget média (header)','visible si lecture en cours → tap ouvre « En lecture » (écran D)'],
+  ['Owner / enceinte','figés en YAML par appareil — aucun sélecteur à l\'écran'],
+];
+
+var DECIDED=[
+  ['Libellé onglet','<b>« Musique »</b>'],
+  ['Après lancement','<b>toast</b>, on reste sur la grille (écran B)'],
+  ['Podcast / livre audio','tap pochette = <b>reprise directe</b> ; bouton dédié = liste des items'],
+  ['Liste d\'items','<b>vue détail plein écran</b> (pas un popover) ; <b>pagination au scroll</b>'],
+  ['Vignettes','épisode = vignette ; chapitre = <b>numéro</b> (sans vignette) — UX unifiée'],
+  ['Style tuile','<b>carte grise</b> (fond #17171E, contour net) comme les tuiles d\'entités ; la pochette est à l\'intérieur'],
+  ['Accès « En lecture »','<b>widget média réduit</b> dans le header (pochette + ▶/⏸, sans titre), en lecture <b>et</b> en pause'],
+  ['États grille','LOADING = <b>spinner</b> · EMPTY = vide discret · ERROR/offline = icône + <b>Réessayer</b> · pochette = placeholder→fondu'],
+  ['État + transport','via <b>music-library</b> (relais MA), pas via HA — réactivité/cohérence dans le module'],
+  ['Deux features','(A) card <b>media_player HA</b> générique · (B) module <b>Musique (ML)</b> avec son now-playing'],
+  ['Position onglet','<b>ordre dans le YAML</b> — entrée de menu déclarée parmi les groupes'],
+];
+
+function uxBlock(){
+  var rows=UX.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('');
+  var dec=DECIDED.map(function(u){return '<tr><td>'+u[0]+'</td><td>'+u[1]+'</td></tr>';}).join('');
+  return '<div class="ux"><h3>Interactions &amp; échanges</h3><table>'+rows+'</table>'
+    + '<h3 style="margin-top:16px">Décidé</h3><table>'+dec+'</table>'
+    + '<div class="q" style="background:#0f1a14;border-color:#1f3a2b"><b style="color:var(--play)">À faire côté music-library</b> (le module reste sur le relais ML) : '
+    + '① <code>children</code> paginé (<code>offset/limit</code>, <code>has_more</code>, <code>cover_url</code> optionnel) · '
+    + '② état <b>now-playing</b> (item, play/pause, position, volume) · '
+    + '③ <b>transport</b> (pause/play, next/prev, volume, seek).</div>'
+    + '</div>';
+}
+
+document.getElementById('app').innerHTML =
+  '<div class="card-block"><h2><i class="ti ti-music"></i>Parcours du module <span class="tag">— onglet dédié → grille pochettes → (épisodes) → lecture</span></h2>'
+  + '<div class="row">' + fGrid() + fToast() + fEpisodes() + '</div>'
+  + '<div class="row">' + fChapters() + fNow() + uxBlock() + '</div>'
+  + '</div>'
+  + '<div class="card-block"><h2><i class="ti ti-loader-2"></i>États de la grille <span class="tag">— mappés sur LauncherStatus + décodage des pochettes</span></h2>'
+  + '<div class="row">' + fLoading() + fEmpty() + fOffline() + fDecoding() + statesBlock() + '</div>'
+  + '</div>';
+</script>
+</body>
+</html>

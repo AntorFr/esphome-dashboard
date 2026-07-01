@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DA — cartes « Histoires » pleine largeur, pochette ≤230px (D1001)</title>
+<style>
+  :root{
+    --bg:#0A0A0C; --screen:#0E0E12; --tile:#2C2C38; --tile2:#23232c; --cover:#15151C;
+    --text:#fff; --muted:#9A9AA4; --accent:#FFB020; --play:#3DD68C;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:26px}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);max-width:1000px;margin:0 0 4px;line-height:1.5}
+  .lead b{color:#cfd0d6}
+  .row{display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start;margin-top:26px}
+  .device{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:360px}
+  .lbl{text-align:center;font-size:15px;font-weight:700}
+  .lbl span{display:block;color:var(--muted);font-weight:400;font-size:12.5px;margin-top:4px;line-height:1.45}
+  .lbl .fast{color:var(--play)}
+  .frame{background:#1B1B22;border-radius:24px;padding:8px}
+  .screenwrap{width:336px;height:512px;overflow:hidden;border-radius:16px}
+  .screen{width:800px;height:1219px;transform:scale(.42);transform-origin:top left;
+          background:var(--screen);display:flex;flex-direction:column;padding:0 18px}
+  /* header */
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 6px 8px}
+  .hdr .clk{font-size:46px;font-weight:600;line-height:1}
+  .hdr .dt{color:var(--muted);font-size:20px;margin-top:6px}
+  .hdr .wx .l1{font-size:30px;text-align:right}
+  .hdr .wx .l2{color:var(--muted);font-size:18px;text-align:right;margin-top:2px}
+  /* tabs */
+  .tabs{display:flex;gap:10px;padding:8px 4px 16px}
+  .tab{flex:1;text-align:center;padding:14px 0;border-radius:12px;background:#1A1A22;color:var(--muted);font-size:22px}
+  .tab.on{background:var(--tile);color:#fff}
+  .tab.on .bar{display:block;height:4px;width:46px;background:var(--accent);border-radius:3px;margin:8px auto 0}
+  .tab .bar{display:none}
+  .grid{display:flex;flex-direction:column;gap:14px;padding:2px 0 24px}
+  .grid.two{flex-direction:row;flex-wrap:wrap;gap:14px}
+
+  /* chips & buttons (shared) */
+  .chip{font-size:21px;color:var(--muted);background:var(--tile2);padding:6px 16px;border-radius:20px;white-space:nowrap}
+  .play{display:flex;align-items:center;gap:10px;background:var(--play);color:#06281a;font-weight:700;
+        font-size:25px;padding:12px 22px;border-radius:30px}
+  .eps{display:flex;align-items:center;gap:9px;border:2px solid var(--accent);color:var(--accent);
+       font-size:22px;padding:10px 18px;border-radius:30px}
+  .pround{width:88px;height:88px;border-radius:50%;background:var(--play);color:#06281a;
+          display:flex;align-items:center;justify-content:center;font-size:40px;flex:0 0 auto}
+
+  /* Variante A — liste pleine largeur (1 colonne) */
+  .cardA{display:flex;gap:22px;width:100%;background:var(--tile);border-radius:20px;padding:18px;align-items:center}
+  .cardA .cov{width:200px;height:200px;border-radius:14px;overflow:hidden;flex:0 0 auto;background:var(--cover)}
+  .cardA .cov img{width:100%;height:100%;object-fit:cover;display:block}
+  .cardA .body{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+  .cardA .ttl{font-size:36px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cardA .actions{display:flex;gap:14px;align-items:center;margin-top:6px}
+
+  /* Variante B — cartes horizontales 2 colonnes */
+  .cardB{display:flex;gap:16px;width:373px;background:var(--tile);border-radius:18px;padding:16px;align-items:center}
+  .cardB .cov{width:150px;height:150px;border-radius:12px;overflow:hidden;flex:0 0 auto;background:var(--cover)}
+  .cardB .cov img{width:100%;height:100%;object-fit:cover;display:block}
+  .cardB .body{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .cardB .ttl{font-size:27px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cardB .meta{display:flex;align-items:center;gap:10px}
+
+  /* Variante C — pleine largeur, fond pochette floutée (premium) */
+  .cardC{position:relative;width:100%;border-radius:20px;overflow:hidden}
+  .cardC .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(34px) brightness(.40) saturate(1.3);transform:scale(1.25)}
+  .cardC .scrim{position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,8,12,.30),rgba(8,8,12,.72))}
+  .cardC .fg{position:relative;display:flex;gap:22px;padding:18px;align-items:center}
+  .cardC .cov{width:188px;height:188px;border-radius:14px;overflow:hidden;flex:0 0 auto;
+              box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .cardC .cov img{width:100%;height:100%;object-fit:cover;display:block}
+  .cardC .body{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+  .cardC .ttl{font-size:35px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cardC .actions{display:flex;gap:14px;align-items:center;margin-top:6px}
+  .cardC .chip{background:rgba(255,255,255,.14);color:#eee}
+</style>
+</head>
+<body>
+  <h1>« Histoires » — cartes pleine largeur, pochette ≤230&nbsp;px</h1>
+  <p class="lead">La carte remplit toute la colonne (pas de marge vide) et la pochette décodée est petite →
+  <b>décodage rapide</b> (∝ pixels). Pochettes réelles de ton serveur. Estimations de chargement à froid pour
+  les 10 favoris, en série.</p>
+
+  <div class="row" id="row"></div>
+
+<script>
+const FAVS = [
+  {id:"eb222baf-9529-4928-8afa-50e2eed28769", title:"Full Minecraft Soundtrack", type:"playlist",  kids:false},
+  {id:"49336451-6c8b-4440-8394-3a5123ec44b0", title:"Le monde des Pokémon",      type:"podcast",   kids:true},
+  {id:"8bb294b2-397a-4581-bbb7-77de68c2c9dc", title:"Harry Potter 1",            type:"audiobook", kids:true},
+  {id:"2d9882cc-2773-433e-8632-6374602d2637", title:"Frigiel et Fluffy 1",       type:"audiobook", kids:true},
+  {id:"a52820f9-189e-4e2d-953b-d1199f459ebb", title:"Robot sauvage",            type:"audiobook", kids:true},
+  {id:"9ed68718-714e-4cf3-b32e-b9762b01996e", title:"Ghibli for Sleep",          type:"playlist",  kids:false},
+  {id:"9fd61e1e-f0f3-446c-9d7a-cb3890228556", title:"Harry Potter 2",            type:"audiobook", kids:true},
+  {id:"08897204-048a-47a0-a902-0dab2e724c90", title:"Frigiel et Fluffy 3",       type:"audiobook", kids:true},
+];
+const TYPE_LBL = {playlist:"Playlist", album:"Album", radio:"Radio", podcast:"Podcast", audiobook:"Livre audio", track:"Titre"};
+const BASE = "http://music-library.berard.me";
+const cov = (it,n)=>`<img src="${BASE}/covers/${it.id}.jpg?size=${n}" loading="lazy" onerror="this.style.opacity=0">`;
+const epsLbl = it => it.type==="audiobook" ? "Chapitres" : "Épisodes";
+
+function cardA(it){
+  return `<div class="cardA">
+    <div class="cov">${cov(it,200)}</div>
+    <div class="body">
+      <div class="ttl">${it.title}</div>
+      <span class="chip">${TYPE_LBL[it.type]}</span>
+      <div class="actions">
+        <div class="play">▶ Lecture</div>
+        ${it.kids?`<div class="eps">≣ ${epsLbl(it)}</div>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+function cardB(it){
+  return `<div class="cardB">
+    <div class="cov">${cov(it,150)}</div>
+    <div class="body">
+      <div class="ttl">${it.title}</div>
+      <div class="meta"><span class="chip">${TYPE_LBL[it.type]}</span>${it.kids?`<span class="chip" style="color:var(--accent)">≣ ${epsLbl(it)}</span>`:""}</div>
+    </div>
+    <div class="pround">▶</div>
+  </div>`;
+}
+function cardC(it){
+  const url = `${BASE}/covers/${it.id}.jpg?size=188`;
+  return `<div class="cardC">
+    <div class="bg" style="background-image:url('${url}')"></div><div class="scrim"></div>
+    <div class="fg">
+      <div class="cov"><img src="${url}" loading="lazy" onerror="this.style.opacity=0"></div>
+      <div class="body">
+        <div class="ttl">${it.title}</div>
+        <span class="chip">${TYPE_LBL[it.type]}</span>
+        <div class="actions">
+          <div class="play">▶ Lecture</div>
+          ${it.kids?`<div class="eps">≣ ${epsLbl(it)}</div>`:""}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function frame(label, sub, fast, gridClass, cards){
+  return `<div class="device">
+    <div class="lbl">${label}<span class="${fast?'fast':''}">${sub}</span></div>
+    <div class="frame"><div class="screenwrap"><div class="screen">
+      <div class="hdr">
+        <div><div class="clk">9:41</div><div class="dt">mercredi 1 juillet</div></div>
+        <div class="wx"><div class="l1">☀️ 24°</div><div class="l2">Ensoleillé</div></div>
+      </div>
+      <div class="tabs"><div class="tab">⚙</div><div class="tab">⏻</div><div class="tab">⌂</div><div class="tab on">♪<span class="bar"></span></div></div>
+      <div class="grid ${gridClass}">${cards}</div>
+    </div></div></div>
+  </div>`;
+}
+
+document.getElementById("row").innerHTML = [
+  frame("Variante A — Liste pleine largeur", "Pochette 200px · CTA ▶ Lecture + ≣ Épisodes · ~1,6 s à froid · très lisible (4–5 visibles)", true, "",    FAVS.map(cardA).join("")),
+  frame("Variante B — Cartes horizontales 2 col", "Pochette 150px · ▶ rond · ~0,9 s à froid · dense (8+ visibles)", true, "two", FAVS.map(cardB).join("")),
+  frame("Variante C — Fond pochette floutée (premium)", "Pochette 188px nette + fond flouté · ~1,4 s (+ coût du flou) · effet « Apple Music »", false, "", FAVS.map(cardC).join("")),
+].join("");
+</script>
+</body>
+</html>

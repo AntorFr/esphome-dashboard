@@ -1,0 +1,65 @@
+# Montserrat fonts with Latin (accented) glyphs for the dashboard text.
+# LVGL's built-in lv_font_montserrat_* only cover ASCII, so French accents break.
+# Sizes are tuned for the 800x1280 panel (roughly 2x the mockup's mock-canvas sizes).
+font:
+  - file: "gfonts://Montserrat"
+    id: ha_font_small
+    size: 22
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  - file: "gfonts://Montserrat@500"
+    id: ha_font_medium
+    size: 30
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  - file: "gfonts://Montserrat@600"
+    id: ha_font_large
+    size: 56
+    bpp: 4
+    glyphsets: [GF_Latin_Core]
+  # Material Design Icons — weather pictograms for the header.
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_weather
+    size: 44
+    bpp: 4
+    glyphs:
+      - "\U000F0590"  # weather-cloudy
+      - "\U000F0591"  # weather-fog
+      - "\U000F0592"  # weather-hail
+      - "\U000F0593"  # weather-lightning
+      - "\U000F0594"  # weather-night
+      - "\U000F0595"  # weather-partly-cloudy
+      - "\U000F0596"  # weather-pouring
+      - "\U000F0597"  # weather-rainy
+      - "\U000F0598"  # weather-snowy
+      - "\U000F0599"  # weather-sunny
+      - "\U000F059D"  # weather-windy
+      - "\U000F059E"  # weather-windy-variant
+      - "\U000F067E"  # weather-lightning-rainy
+      - "\U000F067F"  # weather-snowy-rainy
+      - "\U000F0F31"  # weather-night-partly-cloudy
+      - "\U000F0026"  # alert (exceptional / fallback)
+  # Material Design Icons — group/menu icons. Same MDI webfont (= Home Assistant's icon
+  # set): the font component only embeds the glyphs listed here, so storage stays tiny
+  # (a handful of bitmaps), not the full ~7000-icon set nor any SVG.
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_icons
+    size: 28
+    bpp: 4
+    glyphs:
+      - "\U000F0493"  # cog (settings)
+      - "\U000F0425"  # power
+      - "\U000F04C3"  # speaker
+      - "\U000F0393"  # thermostat
+      - "\U000F0299"  # gate
+      - "\U000F04B9"  # sofa
+      - "\U000F0A70"  # silverware-fork-knife (kitchen)
+      - "\U000F0335"  # lightbulb
+      - "\U000F111C"  # window-shutter (cover)
+      - "\U000F02D7"  # help-circle (fallback)
+      - "\U000F057E"  # volume-high (now-playing, unmuted)
+      - "\U000F0E08"  # volume-variant-off (now-playing, muted = slashed speaker)
