@@ -2419,6 +2419,16 @@ void LvglRenderer::render_card_view_(const ViewModel &vm) {
       lv_obj_add_flag(this->card_next_btn_, LV_OBJ_FLAG_HIDDEN);
     }
   }
+  // When bottom buttons are shown, lift the centre column so the name clears them; and for
+  // media drop the redundant state text (the play/pause icon already conveys it).
+  if (this->card_center_ != nullptr)
+    lv_obj_set_style_translate_y(this->card_center_, (is_media || is_cover) ? (int) (-0.11f * this->h_) : 0, 0);
+  if (this->card_value_ != nullptr) {
+    if (is_media)
+      lv_obj_add_flag(this->card_value_, LV_OBJ_FLAG_HIDDEN);
+    else
+      lv_obj_remove_flag(this->card_value_, LV_OBJ_FLAG_HIDDEN);
+  }
   // Pagination dots for the current group.
   if (this->card_dots_ != nullptr && vm.groups != nullptr && vm.group_index >= 0 &&
       vm.group_index < (int) vm.groups->size()) {
