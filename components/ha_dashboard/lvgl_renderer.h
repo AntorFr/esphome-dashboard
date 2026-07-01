@@ -182,6 +182,18 @@ class LvglRenderer : public Renderer {
   std::vector<long> launcher_sig_;
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
 
+  // Episode-thumbnail recycling (current detail list): every row has an image, but only the
+  // rows on screen get one of the limited thumb slots — reassigned as the list scrolls.
+  std::vector<lv_obj_t *> ep_row_;                          // row container per episode
+  std::vector<lv_obj_t *> ep_img_;                          // thumbnail image per episode
+  std::vector<std::string> ep_url_;                         // signed thumb URL per episode ("" = none)
+  std::vector<int> ep_slot_;                                // thumb-slot index per episode (-1 = none)
+  std::vector<online_image::OnlineImage *> ep_thumb_slots_; // episode slots (thumb_slots[1..])
+  std::vector<int> thumb_owner_;                            // episode idx per episode slot (-1 = free)
+  lv_obj_t *ep_list_{nullptr};                              // the scrollable list (viewport)
+  uint32_t ep_assign_ms_{0};                                // throttle scroll-driven reassign
+  void assign_episode_thumbs_();
+
   // Launch-confirmation toast (floats on the top layer, auto-hides via a timer). Two lines:
   // title + "lecture sur <speaker>" (the two halves are passed newline-separated).
   lv_obj_t *toast_{nullptr};

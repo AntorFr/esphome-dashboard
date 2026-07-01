@@ -164,6 +164,19 @@ void LvglRenderer::show_toast(const std::string &text) {
 }
 
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  // Detail list: recycle episode thumbnails to whatever rows are now on screen. Throttle during
+  // the drag; always reassign once it settles.
+  if (!this->ep_img_.empty()) {
+    uint32_t now = lv_tick_get();
+    if (ended || now - this->ep_assign_ms_ >= 120) {
+      this->ep_assign_ms_ = now;
+      this->assign_episode_thumbs_();
+    }
+    return;
+  }
+#endif
+  // Grid: pull-to-refresh.
   if (ended) {
     if (this->pull_armed_) {
       this->pull_armed_ = false;
@@ -179,6 +192,96 @@ void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
   } else if (lv_obj_get_scroll_y(grid) <= -PULL_REFRESH_PX) {
     this->pull_armed_ = true;
   }
+}
+
+// Give the on-screen episode rows a thumbnail from the limited pool, recycling slots from rows
+// that scrolled off. Called on (re)build and while scrolling the detail list.
+void LvglRenderer::assign_episode_thumbs_() {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  if (this->ep_img_.empty() || this->ep_thumb_slots_.empty() || this->ep_list_ == nullptr)
+    return;
+  lv_obj_update_layout(this->ep_list_);  // ensure row coordinates are current
+  lv_area_t va;
+  lv_obj_get_coords(this->ep_list_, &va);
+  const int32_t buffer = 160;  // px above/below the viewport to preload
+
+  auto slot_index = [this](online_image::OnlineImage *slot) -> int {
+    for (size_t k = 0; k < this->cover_slot_list_.size(); k++)
+      if (this->cover_slot_list_[k] == slot)
+        return (int) k;
+    return -1;
+  };
+
+  // 1. Which episodes (with a thumbnail) are on screen (+buffer), capped to the pool size.
+  std::vector<char> want(this->ep_row_.size(), 0);
+  int n_wanted = 0;
+  for (size_t i = 0; i < this->ep_row_.size(); i++) {
+    if (this->ep_row_[i] == nullptr || this->ep_url_[i].empty())
+      continue;
+    lv_area_t ra;
+    lv_obj_get_coords(this->ep_row_[i], &ra);
+    if (ra.y2 >= va.y1 - buffer && ra.y1 <= va.y2 + buffer &&
+        n_wanted < (int) this->ep_thumb_slots_.size()) {
+      want[i] = 1;
+      n_wanted++;
+    }
+  }
+
+  // 2. Release slots whose episode scrolled out of the window (back to the placeholder).
+  for (size_t s = 0; s < this->thumb_owner_.size(); s++) {
+    int owner = this->thumb_owner_[s];
+    if (owner >= 0 && (owner >= (int) want.size() || !want[owner])) {
+      if (owner < (int) this->ep_img_.size() && this->ep_img_[owner] != nullptr)
+        lv_image_set_src(this->ep_img_[owner], nullptr);
+      int k = slot_index(this->ep_thumb_slots_[s]);
+      if (k >= 0)
+        this->cover_widget_list_[k] = nullptr;
+      this->ep_slot_[owner] = -1;
+      this->thumb_owner_[s] = -1;
+    }
+  }
+
+  // 3. Compact the download queue if idle (bounds its growth over a long scroll).
+  const bool was_idle = this->cover_load_idx_ >= this->cover_queue_.size();
+  if (was_idle) {
+    this->cover_queue_.clear();
+    this->cover_load_idx_ = 0;
+  }
+
+  // 4. Assign a free slot to each wanted episode without one, and (re)load its thumbnail.
+  for (size_t i = 0; i < want.size(); i++) {
+    if (!want[i] || this->ep_slot_[i] != -1)
+      continue;
+    int free_s = -1;
+    for (size_t s = 0; s < this->thumb_owner_.size(); s++)
+      if (this->thumb_owner_[s] < 0) {
+        free_s = (int) s;
+        break;
+      }
+    if (free_s < 0)
+      break;  // pool exhausted (|wanted| is capped to the pool, so this shouldn't happen)
+    online_image::OnlineImage *slot = this->ep_thumb_slots_[free_s];
+    lv_obj_t *img = this->ep_img_[i];
+    this->thumb_owner_[free_s] = (int) i;
+    this->ep_slot_[i] = free_s;
+    int k = slot_index(slot);
+    if (k >= 0)
+      this->cover_widget_list_[k] = img;
+    if (k >= 0 && this->cover_url_list_[k] == this->ep_url_[i]) {
+      lv_image_set_src(img, slot->get_lv_image_dsc());  // already loaded -> show immediately
+    } else {
+      lv_image_set_src(img, nullptr);  // placeholder until decoded
+      if (k >= 0)
+        this->cover_pending_url_[k] = this->ep_url_[i];
+      slot->set_url(this->ep_url_[i]);
+      this->cover_queue_.push_back(slot);
+    }
+  }
+
+  // 5. Kick the serial download queue if it was idle and we queued new work.
+  if (was_idle && this->cover_load_idx_ < this->cover_queue_.size())
+    this->cover_queue_[this->cover_load_idx_]->update();
+#endif
 }
 
 // Drop leading symbol/emoji codepoints (>= U+2000) the accented text font can't render
@@ -1241,6 +1344,14 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   clear_widgets(g.thumb_slots);
   this->cover_queue_.clear();
   this->cover_load_idx_ = 0;
+  // Reset episode-thumbnail recycling state (rebuilt below for the detail view).
+  this->ep_row_.clear();
+  this->ep_img_.clear();
+  this->ep_url_.clear();
+  this->ep_slot_.clear();
+  this->ep_thumb_slots_.clear();
+  this->thumb_owner_.clear();
+  this->ep_list_ = nullptr;
 #endif
 
   // Grid level = wrapping cover grid (2 columns); detail level = vertical list.
@@ -1433,14 +1544,21 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
-    int sidx = idx + 1;
-    if (!item.cover_url.empty() && sidx >= 1 && sidx < (int) g.thumb_slots.size() &&
-        g.thumb_slots[sidx] != nullptr) {
+    // Every episode gets a fixed 56px thumbnail box (dark placeholder). A thumb slot is only
+    // assigned while the row is on screen — assign_episode_thumbs_ recycles the limited pool as
+    // the list scrolls, so all episodes get an image, not just the first few.
+    if (!item.cover_url.empty()) {
       lv_obj_t *img = lv_image_create(row);
       lv_obj_set_size(img, 56, 56);
       lv_obj_set_style_radius(img, 8, 0);
       lv_obj_set_style_clip_corner(img, true, 0);
-      this->bind_cover_(img, g.thumb_slots[sidx], item.cover_url);  // signed proxy URL — as-is
+      lv_obj_set_style_bg_color(img, lv_color_hex(0x15151C), 0);
+      lv_obj_set_style_bg_opa(img, LV_OPA_COVER, 0);  // placeholder until the thumb loads
+      if (idx >= 0 && idx < (int) this->ep_img_.size()) {
+        this->ep_row_[idx] = row;
+        this->ep_img_[idx] = img;
+        this->ep_url_[idx] = item.cover_url;
+      }
     }
 #endif
     lv_obj_t *l = lv_label_create(row);
@@ -1551,6 +1669,14 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   }
 
   const std::vector<QuickItem> &items = L->items();
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  if (detail) {
+    this->ep_row_.assign(items.size(), nullptr);
+    this->ep_img_.assign(items.size(), nullptr);
+    this->ep_url_.assign(items.size(), std::string());
+    this->ep_slot_.assign(items.size(), -1);
+  }
+#endif
   for (size_t i = 0; i < items.size(); i++) {
     if (!detail) {
       make_cover_tile(items[i], (int) i);  // cover grid tile (play + optional drill button)
@@ -1572,6 +1698,16 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   }
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER
+  // Detail: episode thumbnails use the recyclable pool (thumb_slots[1..]; slot 0 = header).
+  // Assign the on-screen rows their slots now; the rest are (re)assigned as the list scrolls.
+  if (detail) {
+    this->ep_list_ = grid;
+    for (size_t s = 1; s < g.thumb_slots.size(); s++)
+      if (g.thumb_slots[s] != nullptr)
+        this->ep_thumb_slots_.push_back(g.thumb_slots[s]);
+    this->thumb_owner_.assign(this->ep_thumb_slots_.size(), -1);
+    this->assign_episode_thumbs_();
+  }
   // Start the serial cover downloads (one at a time; the rest follow via advance_cover_).
   if (!this->cover_queue_.empty())
     this->cover_queue_[0]->update();

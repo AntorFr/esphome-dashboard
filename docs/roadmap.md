@@ -122,8 +122,9 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
       FreeRTOS (`HttpMusicLibrary` worker + files) ; résultat livré sur la boucle
       (`process_pending`). Plus de gel LVGL ; l'indicateur de chargement s'affiche enfin.
 - [ ] Now-playing : barre de **progression** lecture (différée par design)
-- [ ] **Recyclage des vignettes au scroll** : seuls les ~9 premiers épisodes ont une miniature
-      (limité par le pool `thumb_slots`) ; recycler les slots selon la position de scroll
+- [x] **Recyclage des vignettes au scroll** (2026-07-01) : chaque ligne d'épisode a une image ;
+      le pool `thumb_slots` (16) est réassigné aux lignes visibles au scroll (`assign_episode_thumbs_`),
+      donc tous les épisodes ont une miniature, pas seulement les premiers.
 
 ### Tactile GSL3670 ✅ FAIT — VALIDÉ MATÉRIEL (composant officiel)
 - [x] Composant officiel `github://clydebarrow/esphome@gsl3670` (modèle `seeed-reterminal-d1001`,

@@ -66,6 +66,12 @@ online_image:
   - { id: thm7, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
   - { id: thm8, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
   - { id: thm9, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm10, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm11, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm12, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm13, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm14, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm15, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
 
 external_components:
   - source:
@@ -168,4 +174,5 @@ ha_dashboard:
       player: "RINCON_B8E937D6A3F601400"  # Sonos Salle à manger
       player_name: "Salle à manger"       # shown in the launch-confirmation toast
       cover_slots: [cov0, cov1, cov2, cov3, cov4, cov5, cov6, cov7, cov8, cov9]
-      thumb_slots: [thm0, thm1, thm2, thm3, thm4, thm5, thm6, thm7, thm8, thm9]
+      thumb_slots: [thm0, thm1, thm2, thm3, thm4, thm5, thm6, thm7, thm8, thm9,
+                    thm10, thm11, thm12, thm13, thm14, thm15]
