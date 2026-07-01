@@ -105,7 +105,6 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [x] **Slots dédiés** grille vs détail (`cover_slots` / `thumb_slots`) + `bind_cover_` (skip
       re-download si déjà chargé, masque jusqu'au décodage) → retour de détail instantané, plus de
       flash « petit → grand ».
-- [ ] Fetch **non bloquant** (gel pendant le GET HTTP) : tâche async / spinner réel
 - [x] **DA grille « Histoires »** (2026-07-01) : cartes horizontales pleine largeur (pochette
       200px + titre + chip de type + CTA « ▶ Lecture » vert / « ≣ Épisodes/Chapitres » ambré).
       Chargement à froid ~2,2 s (vs ~5 s) — limité par le **décodage JPEG on-device** (∝ pixels),
