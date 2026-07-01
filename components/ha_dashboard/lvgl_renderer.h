@@ -23,6 +23,9 @@ class LvglRenderer : public Renderer {
     if (this->handler_)
       this->handler_(event, index);
   }
+  // Pull-to-refresh hook (called by the launcher list's scroll callback): arm on top
+  // over-scroll, fire LAUNCHER_REFRESH when the scroll settles.
+  void on_launcher_scroll(lv_obj_t *grid, bool ended);
 
   // Update the dashboard header clock (called by the component from a time source).
   void set_clock(const char *time_str, const char *date_str);
@@ -171,6 +174,7 @@ class LvglRenderer : public Renderer {
   // groups), with a render signature to skip rebuilds when nothing changed.
   std::vector<lv_obj_t *> launcher_grids_;
   std::vector<long> launcher_sig_;
+  bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
   // Cover/thumbnail slots (flattened across launcher groups, both pools) -> currently bound
   // LVGL image (or null). cover_url_list_ = the URL a slot has actually FINISHED loading
   // (committed in on_cover_ready_); cover_pending_url_ = the URL last requested. A reload is

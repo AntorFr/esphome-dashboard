@@ -223,7 +223,8 @@ void Controller::handle(InputEvent event, int index) {
         case InputEvent::LAUNCHER_ACTIVATE:
         case InputEvent::LAUNCHER_OPEN_CHILDREN:
         case InputEvent::LAUNCHER_BACK:
-        case InputEvent::LAUNCHER_LOAD_MORE: {
+        case InputEvent::LAUNCHER_LOAD_MORE:
+        case InputEvent::LAUNCHER_REFRESH: {
           int gi = this->group_index_;
           if (this->groups_ && gi < (int) this->groups_->size()) {
             Group &g = (*this->groups_)[gi];
@@ -234,8 +235,10 @@ void Controller::handle(InputEvent event, int index) {
                 g.launcher->open_children(index);
               else if (event == InputEvent::LAUNCHER_BACK)
                 g.launcher->back();
-              else  // LAUNCHER_LOAD_MORE
+              else if (event == InputEvent::LAUNCHER_LOAD_MORE)
                 g.launcher->load_more_children();
+              else if (g.launcher->level() == LauncherLevel::GRID)  // LAUNCHER_REFRESH
+                g.launcher->load();  // pull-to-refresh only reloads the favourites grid
             }
           }
           break;

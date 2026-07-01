@@ -37,6 +37,7 @@ enum class InputEvent : uint8_t {
   LAUNCHER_OPEN_CHILDREN,  // music launcher: tap the list button -> drill into episodes (index = tile)
   LAUNCHER_BACK,           // music launcher: leave the episode/chapter list -> back to grid
   LAUNCHER_LOAD_MORE,      // music launcher: load the next page of episodes/chapters
+  LAUNCHER_REFRESH,        // music launcher: pull-to-refresh at the top of the favourites grid
   OPEN_NOW_PLAYING,        // header media widget -> open the "now playing" card
   NP_PLAY_PAUSE,           // now playing: toggle play/pause
   NP_NEXT,                 // now playing: next track

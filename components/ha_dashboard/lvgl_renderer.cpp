@@ -56,6 +56,34 @@ static void np_vol_slider_cb(lv_event_t *e) {
     self->emit(InputEvent::NP_SET_VOLUME, (int) lv_slider_get_value(slider));
 }
 
+// Pull-to-refresh on the launcher list: arm while the user over-scrolls past the top, fire
+// once the scroll settles. scroll_y is negative when the content is pulled down beyond the top.
+static constexpr int PULL_REFRESH_PX = 90;
+static void launcher_scroll_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  auto *grid = static_cast<lv_obj_t *>(lv_event_get_target(e));
+  if (self == nullptr || grid == nullptr)
+    return;
+  self->on_launcher_scroll(grid, lv_event_get_code(e) == LV_EVENT_SCROLL_END);
+}
+void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
+  if (ended) {
+    if (this->pull_armed_) {
+      this->pull_armed_ = false;
+      // Force the covers to reload so the refresh is *visible*: the favourites list is usually
+      // unchanged and the cached covers would otherwise skip re-download (no feedback). Clearing
+      // the loaded-URL tracking makes bind_cover_ re-fetch them on the rebuild.
+      for (auto &u : this->cover_url_list_)
+        u.clear();
+      for (auto &u : this->cover_pending_url_)
+        u.clear();
+      this->emit(InputEvent::LAUNCHER_REFRESH, -1);
+    }
+  } else if (lv_obj_get_scroll_y(grid) <= -PULL_REFRESH_PX) {
+    this->pull_armed_ = true;
+  }
+}
+
 // Drop leading symbol/emoji codepoints (>= U+2000) the accented text font can't render
 // (e.g. "🌊 Episode" -> "Episode"); Latin letters + accents (< U+2000) are kept.
 static std::string clean_title(const std::string &s) {
@@ -905,6 +933,9 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       lv_obj_set_style_pad_row(lgrid, 10, 0);
       lv_obj_set_flex_flow(lgrid, LV_FLEX_FLOW_COLUMN);
       lv_obj_add_flag(lgrid, LV_OBJ_FLAG_HIDDEN);
+      // Pull-to-refresh: watch over-scroll at the top.
+      lv_obj_add_event_cb(lgrid, launcher_scroll_cb, LV_EVENT_SCROLL, this);
+      lv_obj_add_event_cb(lgrid, launcher_scroll_cb, LV_EVENT_SCROLL_END, this);
     }
     this->launcher_grids_.push_back(lgrid);
     this->launcher_sig_.push_back(-1);
