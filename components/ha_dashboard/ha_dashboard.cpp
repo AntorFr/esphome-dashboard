@@ -414,7 +414,7 @@ void HaDashboard::handle_event_(InputEvent e, int idx) {
       this->push_timers_();
       break;
     case InputEvent::OPEN_TIMERS:
-      ESP_LOGD(TAG, "voice: open timers screen (TODO)");
+      // The renderer opens the timers overlay directly (see btn_event_cb); nothing to do here.
       break;
     default:
       this->controller_.handle(e, idx);

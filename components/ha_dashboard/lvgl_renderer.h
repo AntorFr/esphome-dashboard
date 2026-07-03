@@ -56,6 +56,9 @@ class LvglRenderer : public Renderer {
   // Header surfaces (D1001 dashboard): mic chip state + active-timer pill.
   void set_mic_state(MicState st);
   void set_timers(const std::vector<TimerInfo> &timers);
+  // Timers screen (active list + ring), a top-layer overlay opened from the header pill.
+  void show_timers_();
+  void hide_timers_();
 
  protected:
   lv_obj_t *make_screen_();
@@ -248,6 +251,16 @@ class LvglRenderer : public Renderer {
   lv_obj_t *timer_pill_{nullptr};
   lv_obj_t *timer_pill_lbl_{nullptr};
   MicState mic_state_{MicState::ARMED};
+
+  // Timers screen (top-layer overlay): progress ring for the soonest + list of all actives.
+  void build_timers_();
+  void refresh_timers_();  // populate ring + list from timers_data_
+  std::vector<TimerInfo> timers_data_;
+  lv_obj_t *timers_scr_{nullptr};
+  lv_obj_t *timers_ring_{nullptr};
+  lv_obj_t *timers_ring_time_{nullptr};
+  lv_obj_t *timers_ring_name_{nullptr};
+  lv_obj_t *timers_list_{nullptr};
 
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
 

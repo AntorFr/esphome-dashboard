@@ -143,6 +143,8 @@ static void btn_event_cb(lv_event_t *e) {
     d->renderer->show_sheet_(d->index);
   else if (d->event == InputEvent::SHEET_CLOSE)
     d->renderer->hide_sheet_();
+  else if (d->event == InputEvent::OPEN_TIMERS)
+    d->renderer->show_timers_();
 }
 
 // Control-sheet slider (volume / position / brightness): emit the value once released.
@@ -800,7 +802,18 @@ void LvglRenderer::set_mic_state(MicState st) {
   }
 }
 
+// Format seconds as m:ss (or h:mm:ss past an hour) into buf.
+static void fmt_timer(uint32_t s, char *buf, size_t n) {
+  if (s >= 3600)
+    std::snprintf(buf, n, "%u:%02u:%02u", s / 3600, (s % 3600) / 60, s % 60);
+  else
+    std::snprintf(buf, n, "%u:%02u", s / 60, s % 60);
+}
+
 void LvglRenderer::set_timers(const std::vector<TimerInfo> &timers) {
+  this->timers_data_ = timers;
+  if (this->timers_scr_ != nullptr && !lv_obj_has_flag(this->timers_scr_, LV_OBJ_FLAG_HIDDEN))
+    this->refresh_timers_();
   if (this->timer_pill_ == nullptr)
     return;
   // Header pill: show the soonest active timer's remaining time (single badge, no count).
@@ -816,14 +829,171 @@ void LvglRenderer::set_timers(const std::vector<TimerInfo> &timers) {
     return;
   }
   char buf[16];
-  uint32_t s = soonest->remaining_s;
-  if (s >= 3600)
-    std::snprintf(buf, sizeof(buf), "%u:%02u:%02u", s / 3600, (s % 3600) / 60, s % 60);
-  else
-    std::snprintf(buf, sizeof(buf), "%u:%02u", s / 60, s % 60);
+  fmt_timer(soonest->remaining_s, buf, sizeof(buf));
   if (this->timer_pill_lbl_ != nullptr)
     lv_label_set_text(this->timer_pill_lbl_, buf);
   lv_obj_clear_flag(this->timer_pill_, LV_OBJ_FLAG_HIDDEN);
+}
+
+// ===================== Timers screen (top-layer overlay) =====================
+// Opened from the header pill; shows a progress ring for the soonest active timer + a list
+// of all actives. Built once; refresh_timers_ repopulates from timers_data_.
+
+static void timers_close_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  if (self != nullptr)
+    self->hide_timers_();
+}
+
+void LvglRenderer::build_timers_() {
+  if (this->timers_scr_ != nullptr)
+    return;
+  this->timers_scr_ = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(this->timers_scr_);
+  lv_obj_set_size(this->timers_scr_, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_color(this->timers_scr_, lv_color_hex(0x0B0B10), 0);
+  lv_obj_set_style_bg_opa(this->timers_scr_, LV_OPA_COVER, 0);
+  lv_obj_set_flex_flow(this->timers_scr_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(this->timers_scr_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(this->timers_scr_, 40, 0);
+  lv_obj_set_style_pad_row(this->timers_scr_, 28, 0);
+  lv_obj_clear_flag(this->timers_scr_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(this->timers_scr_, LV_OBJ_FLAG_HIDDEN);
+
+  // Top bar: title + close.
+  lv_obj_t *top = lv_obj_create(this->timers_scr_);
+  lv_obj_remove_style_all(top);
+  lv_obj_set_width(top, lv_pct(100));
+  lv_obj_set_height(top, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(top, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(top, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *title = lv_label_create(top);
+  lv_label_set_text(title, "Minuteries");
+  lv_obj_set_style_text_color(title, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(title, this->font_large_, &lv_font_montserrat_48);
+  lv_obj_t *close = lv_button_create(top);
+  lv_obj_set_size(close, 74, 74);
+  lv_obj_set_style_radius(close, 37, 0);
+  lv_obj_set_style_bg_color(close, lv_color_hex(0x20202A), 0);
+  lv_obj_set_style_shadow_width(close, 0, 0);
+  lv_obj_t *cx = lv_label_create(close);
+  lv_label_set_text(cx, LV_SYMBOL_CLOSE);
+  lv_obj_center(cx);
+  lv_obj_set_style_text_color(cx, lv_color_hex(COL_MUTED), 0);
+  lv_obj_add_event_cb(close, timers_close_cb, LV_EVENT_CLICKED, this);
+
+  // Progress ring (soonest timer) with the remaining time + name in the centre.
+  this->timers_ring_ = lv_arc_create(this->timers_scr_);
+  lv_obj_set_size(this->timers_ring_, 380, 380);
+  lv_arc_set_rotation(this->timers_ring_, 270);
+  lv_arc_set_bg_angles(this->timers_ring_, 0, 360);
+  lv_arc_set_range(this->timers_ring_, 0, 100);
+  lv_obj_remove_flag(this->timers_ring_, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_arc_width(this->timers_ring_, 18, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(this->timers_ring_, lv_color_hex(0x23232C), LV_PART_MAIN);
+  lv_obj_set_style_arc_width(this->timers_ring_, 18, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(this->timers_ring_, lv_color_hex(COL_TIMER), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(this->timers_ring_, LV_OPA_TRANSP, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(this->timers_ring_, 0, LV_PART_KNOB);
+  lv_obj_t *ringcol = lv_obj_create(this->timers_ring_);
+  lv_obj_remove_style_all(ringcol);
+  lv_obj_set_size(ringcol, 300, 300);
+  lv_obj_center(ringcol);
+  lv_obj_set_flex_flow(ringcol, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(ringcol, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(ringcol, LV_OBJ_FLAG_SCROLLABLE);
+  this->timers_ring_time_ = lv_label_create(ringcol);
+  lv_label_set_text(this->timers_ring_time_, "0:00");
+  lv_obj_set_style_text_color(this->timers_ring_time_, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(this->timers_ring_time_, this->font_large_, &lv_font_montserrat_48);
+  this->timers_ring_name_ = lv_label_create(ringcol);
+  lv_label_set_text(this->timers_ring_name_, "");
+  lv_obj_set_style_text_color(this->timers_ring_name_, lv_color_hex(COL_MUTED), 0);
+  this->set_text_font_(this->timers_ring_name_, this->font_medium_, &lv_font_montserrat_28);
+
+  // List of active timers.
+  this->timers_list_ = lv_obj_create(this->timers_scr_);
+  lv_obj_remove_style_all(this->timers_list_);
+  lv_obj_set_width(this->timers_list_, lv_pct(100));
+  lv_obj_set_flex_grow(this->timers_list_, 1);
+  lv_obj_set_flex_flow(this->timers_list_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(this->timers_list_, 14, 0);
+  lv_obj_set_scroll_dir(this->timers_list_, LV_DIR_VER);
+}
+
+void LvglRenderer::refresh_timers_() {
+  if (this->timers_scr_ == nullptr)
+    return;
+  // Ring = soonest active timer's elapsed fraction; centre shows its remaining + name.
+  const TimerInfo *soonest = nullptr;
+  for (const auto &t : this->timers_data_) {
+    if (!t.is_active)
+      continue;
+    if (soonest == nullptr || t.remaining_s < soonest->remaining_s)
+      soonest = &t;
+  }
+  char buf[16];
+  if (soonest != nullptr) {
+    fmt_timer(soonest->remaining_s, buf, sizeof(buf));
+    lv_label_set_text(this->timers_ring_time_, buf);
+    lv_label_set_text(this->timers_ring_name_, soonest->name.c_str());
+    int pct = soonest->total_s > 0
+                  ? (int) (100 - lroundf(100.0f * soonest->remaining_s / soonest->total_s))
+                  : 0;
+    lv_arc_set_value(this->timers_ring_, pct);
+  } else {
+    lv_label_set_text(this->timers_ring_time_, "—");
+    lv_label_set_text(this->timers_ring_name_, "aucune minuterie");
+    lv_arc_set_value(this->timers_ring_, 0);
+  }
+
+  // Rebuild the list of active timers.
+  lv_obj_clean(this->timers_list_);
+  for (const auto &t : this->timers_data_) {
+    if (!t.is_active)
+      continue;
+    lv_obj_t *row = lv_obj_create(this->timers_list_);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_width(row, lv_pct(100));
+    lv_obj_set_height(row, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(row, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(row, 18, 0);
+    lv_obj_set_style_pad_hor(row, 26, 0);
+    lv_obj_set_style_pad_ver(row, 20, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(row, 18, 0);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *ic = lv_label_create(row);
+    lv_label_set_text(ic, MDI_TIMER);
+    lv_obj_set_style_text_color(ic, lv_color_hex(COL_TIMER), 0);
+    if (this->font_icons_lg_ != nullptr)
+      lv_obj_set_style_text_font(ic, this->font_icons_lg_->get_lv_font(), 0);
+    lv_obj_t *name = lv_label_create(row);
+    lv_label_set_text(name, t.name.empty() ? "minuterie" : t.name.c_str());
+    lv_obj_set_flex_grow(name, 1);
+    lv_obj_set_style_text_color(name, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(name, this->font_medium_, &lv_font_montserrat_28);
+    lv_obj_t *time = lv_label_create(row);
+    fmt_timer(t.remaining_s, buf, sizeof(buf));
+    lv_label_set_text(time, buf);
+    lv_obj_set_style_text_color(time, lv_color_hex(COL_TIMER), 0);
+    this->set_text_font_(time, this->font_large_, &lv_font_montserrat_48);
+  }
+}
+
+void LvglRenderer::show_timers_() {
+  this->build_timers_();
+  this->refresh_timers_();
+  lv_obj_clear_flag(this->timers_scr_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(this->timers_scr_);
+}
+
+void LvglRenderer::hide_timers_() {
+  if (this->timers_scr_ != nullptr)
+    lv_obj_add_flag(this->timers_scr_, LV_OBJ_FLAG_HIDDEN);
 }
 
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
