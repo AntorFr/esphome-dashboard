@@ -562,7 +562,7 @@ void LvglRenderer::refresh_sheet_() {
 
 // A round action button for the overlay (icon + optional label under it). Emits `ev`.
 static lv_obj_t *voice_btn_(LvglRenderer *self, lv_obj_t *parent, const char *sym, const char *label,
-                            bool primary, uint32_t accent, InputEvent ev) {
+                            const lv_font_t *label_font, bool primary, uint32_t accent, InputEvent ev) {
   lv_obj_t *b = lv_button_create(parent);
   lv_obj_set_style_radius(b, 22, 0);
   lv_obj_set_style_bg_color(b, lv_color_hex(primary ? accent : COL_TILE), 0);
@@ -579,7 +579,8 @@ static lv_obj_t *voice_btn_(LvglRenderer *self, lv_obj_t *parent, const char *sy
   if (label != nullptr && label[0] != '\0') {
     lv_obj_t *l = lv_label_create(b);
     lv_label_set_text(l, label);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_28, 0);
+    // Accent-capable font (the built-in montserrat is ASCII-only -> "Arrêter" tofus the ê).
+    lv_obj_set_style_text_font(l, label_font != nullptr ? label_font : &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x04222E : COL_TEXT), 0);
   }
   auto *d = new CbData{self, ev, -1};
@@ -689,12 +690,13 @@ void LvglRenderer::build_voice_() {
   lv_obj_set_flex_align(this->voice_actions_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_column(this->voice_actions_, 20, 0);
   lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_SCROLLABLE);
-  // Prebuilt buttons; shown/hidden per state.
-  voice_btn_(this, this->voice_actions_, LV_SYMBOL_STOP, "Arrêter", true, COL_TIMER, InputEvent::TIMER_STOP);
-  voice_btn_(this, this->voice_actions_, LV_SYMBOL_PLUS, "1 min", false, COL_TIMER, InputEvent::TIMER_ADD_MIN);
-  voice_btn_(this, this->voice_actions_, MDI_MIC, "Réessayer", true, COL_VOICE, InputEvent::VOICE_START);
-  voice_btn_(this, this->voice_actions_, LV_SYMBOL_CLOSE, "Fermer", false, COL_VOICE, InputEvent::VOICE_CANCEL);
-  voice_btn_(this, this->voice_actions_, MDI_MIC, "Réactiver", true, COL_VOICE, InputEvent::VOICE_MUTE_TOGGLE);
+  // Prebuilt buttons; shown/hidden per state. Labels use the accent-capable font.
+  const lv_font_t *bf = this->font_medium_ != nullptr ? this->font_medium_->get_lv_font() : &lv_font_montserrat_28;
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_STOP, "Arrêter", bf, true, COL_TIMER, InputEvent::TIMER_STOP);
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_PLUS, "1 min", bf, false, COL_TIMER, InputEvent::TIMER_ADD_MIN);
+  voice_btn_(this, this->voice_actions_, MDI_MIC, "Réessayer", bf, true, COL_VOICE, InputEvent::VOICE_START);
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_CLOSE, "Fermer", bf, false, COL_VOICE, InputEvent::VOICE_CANCEL);
+  voice_btn_(this, this->voice_actions_, MDI_MIC, "Réactiver", bf, true, COL_VOICE, InputEvent::VOICE_MUTE_TOGGLE);
 
   // Bottom hint.
   this->voice_hint_ = lv_label_create(this->voice_root_);
