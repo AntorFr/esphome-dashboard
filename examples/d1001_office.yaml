@@ -16,10 +16,11 @@ esphome:
   friendly_name: ${friendly_name}
   area: ${area}
   on_boot:
-    # Start local wake-word detection at boot so "Okay Nabu" works without waiting for HA to
-    # subscribe. (Detection -> voice_assistant.start still needs HA for STT/TTS.)
-    - priority: -300
+    # Start local wake-word detection once everything is up (also (re)started on HA connect
+    # and after each pipeline run, see voice_assistant below).
+    - priority: -100
       then:
+        - delay: 2s
         - micro_wake_word.start:
 
 wifi:
