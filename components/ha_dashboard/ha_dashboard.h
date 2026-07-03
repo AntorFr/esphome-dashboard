@@ -85,6 +85,8 @@ class HaDashboard : public Component {
   void add_launcher_cover_slot(online_image::OnlineImage *slot);
   // Register a detail thumbnail slot (header / episode thumbnails) for that launcher group.
   void add_launcher_thumb_slot(online_image::OnlineImage *slot);
+  // Cover/thumbnail encoding requested from music-library ("jpg" default | "bmp").
+  void set_launcher_image_format(const std::string &fmt);
 #endif
 
  protected:

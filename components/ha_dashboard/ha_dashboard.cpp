@@ -134,6 +134,11 @@ void HaDashboard::add_launcher_thumb_slot(online_image::OnlineImage *slot) {
   if (!this->groups_.empty() && this->groups_.back().is_launcher)
     this->groups_.back().thumb_slots.push_back(slot);
 }
+
+void HaDashboard::set_launcher_image_format(const std::string &fmt) {
+  if (!this->ml_backends_.empty())
+    this->ml_backends_.back()->set_image_format(fmt);
+}
 #endif
 
 void HaDashboard::setup() {

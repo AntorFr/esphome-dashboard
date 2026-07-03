@@ -56,6 +56,7 @@ CONF_BASE_URL = "base_url"
 CONF_OWNER = "owner"
 CONF_PLAYER = "player"
 CONF_PLAYER_NAME = "player_name"
+CONF_IMAGE_FORMAT = "image_format"
 CONF_HTTP_REQUEST_ID = "http_request_id"
 CONF_COVER_SLOTS = "cover_slots"
 CONF_THUMB_SLOTS = "thumb_slots"
@@ -147,6 +148,9 @@ GROUP_SCHEMA = cv.All(
             cv.Optional(CONF_OWNER): cv.string,
             cv.Optional(CONF_PLAYER): cv.string,
             cv.Optional(CONF_PLAYER_NAME): cv.string,  # friendly name for the launch toast
+            # Cover/thumbnail encoding requested from music-library: jpg (small) or bmp (no-DCT
+            # decode -> cheaper on the ESP loop). Must match the online_image slots' `format:`.
+            cv.Optional(CONF_IMAGE_FORMAT, default="jpg"): cv.one_of("jpg", "bmp", lower=True),
             cv.Optional(CONF_HTTP_REQUEST_ID): cv.use_id(http_request.HttpRequestComponent),
             # Grid cover slots (one per favourite, 350px) — optional.
             cv.Optional(CONF_COVER_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
@@ -245,6 +249,7 @@ async def to_code(config):
                     group[CONF_PLAYER],
                 )
             )
+            cg.add(var.set_launcher_image_format(group[CONF_IMAGE_FORMAT]))
             for slot_id in group.get(CONF_COVER_SLOTS, []):
                 slot = await cg.get_variable(slot_id)
                 cg.add(var.add_launcher_cover_slot(slot))

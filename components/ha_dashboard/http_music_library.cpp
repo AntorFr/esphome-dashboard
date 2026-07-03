@@ -48,6 +48,18 @@ static std::string match_base_scheme(std::string u, const std::string &base) {
   return u;
 }
 
+// Append `key=value` to a URL (choosing ? or & as needed). No-op if value is empty. Safe on a
+// signed /thumb URL: `fmt` isn't part of the HMAC, so it doesn't invalidate the signature.
+static std::string append_query(std::string u, const char *key, const std::string &value) {
+  if (value.empty() || u.empty())
+    return u;
+  u += (u.find('?') == std::string::npos) ? '?' : '&';
+  u += key;
+  u += '=';
+  u += value;
+  return u;
+}
+
 // Read a full response body into `out`. Blocks until COMPLETE / error / timeout (on the
 // worker task, so the main loop is never frozen).
 static bool read_body(http_request::HttpContainer *c, std::string &out, uint32_t timeout_ms) {
@@ -168,13 +180,14 @@ struct NpResult {
 void HttpMusicLibrary::fetch_favorites(const std::string &owner, QuickItemsCallback cb) {
   const std::string url = this->base_url_ + "/api/v1/quick/" + url_encode(owner);
   const std::string base = this->base_url_;
+  const std::string img_fmt = this->image_format_;
   auto result = std::make_shared<FavResult>();
   this->enqueue_(
-      [this, url, base, result]() {
+      [this, url, base, img_fmt, result]() {
         std::string body;
         bool ok = this->http_get_(url, body);
         if (ok) {
-          ok = json::parse_json(body, [result, &base](JsonObject root) -> bool {
+          ok = json::parse_json(body, [result, &base, &img_fmt](JsonObject root) -> bool {
             JsonArray arr = root["items"].as<JsonArray>();
             if (arr.isNull())
               return false;
@@ -185,7 +198,7 @@ void HttpMusicLibrary::fetch_favorites(const std::string &owner, QuickItemsCallb
               q.title = it["title"] | "";
               q.media_type = it["media_type"] | "";
               q.uri = it["uri"] | "";
-              q.cover_url = match_base_scheme(it["cover_url"] | "", base);
+              q.cover_url = append_query(match_base_scheme(it["cover_url"] | "", base), "fmt", img_fmt);
               q.has_children = it["has_children"] | false;
               result->items.push_back(std::move(q));
             }
@@ -203,13 +216,14 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
                           "/children?offset=" + std::to_string(offset) +
                           "&limit=" + std::to_string(limit);
   const std::string base = this->base_url_;
+  const std::string img_fmt = this->image_format_;
   auto result = std::make_shared<ChildResult>();
   this->enqueue_(
-      [this, url, base, result]() {
+      [this, url, base, img_fmt, result]() {
         std::string body;
         bool ok = this->http_get_(url, body);
         if (ok) {
-          ok = json::parse_json(body, [result, &base](JsonObject root) -> bool {
+          ok = json::parse_json(body, [result, &base, &img_fmt](JsonObject root) -> bool {
             result->has_more = root["has_more"] | false;
             JsonArray arr = root["items"].as<JsonArray>();
             if (arr.isNull())
@@ -219,7 +233,7 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
               QuickItem q;
               q.title = it["title"] | "";
               q.uri = it["uri"] | "";
-              q.cover_url = match_base_scheme(it["cover_url"] | "", base);  // null for chapters -> ""
+              q.cover_url = append_query(match_base_scheme(it["cover_url"] | "", base), "fmt", img_fmt);  // null for chapters -> ""
               q.seek = it["seek"] | 0;
               result->items.push_back(std::move(q));
             }
@@ -235,19 +249,20 @@ void HttpMusicLibrary::fetch_now_playing(NowPlayingCallback cb) {
   const std::string url =
       this->base_url_ + "/api/v1/ma/now_playing?queue_id=" + url_encode(this->queue_id_);
   const std::string base = this->base_url_;
+  const std::string img_fmt = this->image_format_;
   auto result = std::make_shared<NpResult>();
   this->enqueue_(
-      [this, url, base, result]() {
+      [this, url, base, img_fmt, result]() {
         std::string body;
         bool ok = this->http_get_(url, body);
         if (ok) {
-          ok = json::parse_json(body, [result, &base](JsonObject root) -> bool {
+          ok = json::parse_json(body, [result, &base, &img_fmt](JsonObject root) -> bool {
             NowPlaying &np = result->np;
             np.available = root["available"] | false;
             np.state = root["state"] | "idle";
             np.title = root["title"] | "";
             np.artist = root["artist"] | "";
-            np.cover_url = match_base_scheme(root["cover_url"] | "", base);
+            np.cover_url = append_query(match_base_scheme(root["cover_url"] | "", base), "fmt", img_fmt);
             np.position_s = root["position_s"] | 0;
             np.duration_s = root["duration_s"] | 0;
             np.volume = root["volume"] | -1;

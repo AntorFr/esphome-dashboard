@@ -1028,12 +1028,12 @@ void LvglRenderer::hide_timers_() {
 
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
-  // Detail list: recycle episode thumbnails to whatever rows are now on screen. Throttle during
-  // the drag; always reassign once it settles.
+  // Detail list: recycle episode thumbnails to whatever rows are now on screen. Only (re)assign
+  // once the scroll SETTLES — assigning mid-drag queues JPEG downloads whose (blocking) decode
+  // stutters the gesture. Loading after the finger lifts keeps the scroll itself fluid.
   if (!this->ep_img_.empty()) {
-    uint32_t now = lv_tick_get();
-    if (ended || now - this->ep_assign_ms_ >= 120) {
-      this->ep_assign_ms_ = now;
+    if (ended) {
+      this->ep_assign_ms_ = lv_tick_get();
       this->assign_episode_thumbs_();
     }
     return;
@@ -1198,16 +1198,35 @@ void LvglRenderer::set_clock(const char *time_str, const char *date_str) {
     lv_label_set_text(this->idle_date_lbl_, date_str);
 }
 
+// Tint the weather glyph by condition (sun=amber, rain=blue, snow=icy, cloud=grey, …).
+static uint32_t weather_color(const char *g) {
+  if (g == nullptr)
+    return COL_TEXT;
+  auto is = [g](const char *s) { return std::strcmp(g, s) == 0; };
+  if (is("\U000F0599") || is("\U000F0593"))                     return 0xFFC93D;  // sunny / lightning
+  if (is("\U000F0594") || is("\U000F0F31"))                     return 0x9AA8FF;  // night
+  if (is("\U000F0596") || is("\U000F0597") || is("\U000F067E")) return 0x5AA9F0;  // rain
+  if (is("\U000F0598") || is("\U000F067F") || is("\U000F0592")) return 0xCDE8FF;  // snow / hail
+  if (is("\U000F059D"))                                         return 0x8FD3C4;  // windy
+  if (is("\U000F0590") || is("\U000F0591") || is("\U000F0595")) return 0xAEB9C7;  // cloud / fog
+  return COL_TEXT;
+}
+
 void LvglRenderer::set_weather(const char *icon_glyph, const char *temp_str, const char *cond_str) {
-  if (this->weather_icon_lbl_ != nullptr && icon_glyph != nullptr)
+  uint32_t wc = weather_color(icon_glyph);
+  if (this->weather_icon_lbl_ != nullptr && icon_glyph != nullptr) {
     lv_label_set_text(this->weather_icon_lbl_, icon_glyph);
+    lv_obj_set_style_text_color(this->weather_icon_lbl_, lv_color_hex(wc), 0);
+  }
   if (this->weather_temp_lbl_ != nullptr)
     lv_label_set_text(this->weather_temp_lbl_, temp_str);
   if (this->weather_cond_lbl_ != nullptr)
     lv_label_set_text(this->weather_cond_lbl_, cond_str);
   // Same on the standby screen.
-  if (this->idle_wx_icon_ != nullptr && icon_glyph != nullptr)
+  if (this->idle_wx_icon_ != nullptr && icon_glyph != nullptr) {
     lv_label_set_text(this->idle_wx_icon_, icon_glyph);
+    lv_obj_set_style_text_color(this->idle_wx_icon_, lv_color_hex(wc), 0);
+  }
   if (this->idle_wx_temp_ != nullptr)
     lv_label_set_text(this->idle_wx_temp_, temp_str);
   if (this->idle_wx_cond_ != nullptr)
@@ -1890,7 +1909,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_label_set_text(npi, LV_SYMBOL_AUDIO);
   lv_obj_center(npi);
   lv_obj_set_style_text_font(npi, &lv_font_montserrat_28, 0);
-  lv_obj_set_style_text_color(npi, lv_color_hex(COL_TEXT), 0);
+  lv_obj_set_style_text_color(npi, lv_color_hex(0xA06CFF), 0);  // music = media purple
   {
     auto *d = new CbData{this, InputEvent::OPEN_NOW_PLAYING, -1};
     g_cbdata.push_back(d);

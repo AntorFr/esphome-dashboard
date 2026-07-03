@@ -32,6 +32,9 @@ class HttpMusicLibrary : public MusicLibraryBackend {
       this->base_url_.pop_back();
   }
   void set_queue_id(const std::string &queue_id) { this->queue_id_ = queue_id; }
+  // Cover/thumbnail encoding requested from the server: "" / "jpg" = default JPEG; "bmp" =
+  // uncompressed BMP (no on-device DCT decode — cheaper for the ESP's loop, bigger transfer).
+  void set_image_format(const std::string &fmt) { this->image_format_ = (fmt == "jpg") ? "" : fmt; }
 
   void fetch_favorites(const std::string &owner, QuickItemsCallback cb) override;
   void fetch_children(const std::string &item_id, int offset, int limit, QuickPageCallback cb) override;
@@ -60,6 +63,7 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   http_request::HttpRequestComponent *http_{nullptr};
   std::string base_url_;
   std::string queue_id_;
+  std::string image_format_;  // "" = JPEG (default); "bmp" = request BMP covers/thumbs
 
   TaskHandle_t worker_{nullptr};
   QueueHandle_t work_q_{nullptr};  // HttpJob* -> worker

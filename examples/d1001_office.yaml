@@ -10,6 +10,10 @@ substitutions:
   device_name: d1001-office
   friendly_name: reTerminal Bureau
   area: Bureau
+  # Launcher cover encoding — A/B knob: jpg (small transfer, slow DCT decode that can stall the
+  # loop) vs bmp (bigger transfer, ~free decode). Drives BOTH the online_image slots' format and
+  # the music_library group's image_format (online_image accepts jpg/bmp, upper-cased internally).
+  ml_img_fmt: jpg
 
 esphome:
   name: ${device_name}
@@ -42,6 +46,25 @@ ota:
 logger:
   level: DEBUG
 
+# Diagnostics for the WiFi/stability investigation: heap + loop health, and the reset reason
+# (tells us WHY a reboot happened — watchdog / brownout / panic — if the instability recurs).
+debug:
+  update_interval: 30s
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Reset Reason"
+
+sensor:
+  - platform: debug
+    free:
+      name: "Heap libre"
+    fragmentation:
+      name: "Heap fragmentation"
+    loop_time:
+      name: "Loop time"
+
 # HTTP client for the Music Library launcher (ESP -> music-library REST API).
 http_request:
   id: ml_http
@@ -51,34 +74,34 @@ http_request:
 # Cover-image pool for the launcher (one slot per favourite). URLs are set at runtime; the
 # initial url is just a required placeholder. JPEG -> RGB565, downloaded/decoded async.
 online_image:
-  - { id: cov0, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov1, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov2, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov3, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov4, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov5, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov6, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov7, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov8, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: cov9, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov0, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov1, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov2, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov3, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov4, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov5, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov6, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov7, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov8, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: cov9, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
   # Detail pool (separate from the grid): slot 0 = header cover / now-playing art, slots 1.. =
   # episode thumbnails. Kept apart so drilling in/out never re-downloads the grid covers.
-  - { id: thm0, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm1, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm2, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm3, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm4, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm5, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm6, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm7, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm8, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm9, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm10, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm11, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm12, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm13, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm14, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
-  - { id: thm15, url: "http://music-library.berard.me/covers/_.jpg", format: JPEG, type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm0, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm1, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm2, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm3, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm4, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm5, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm6, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm7, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm8, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm9, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm10, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm11, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm12, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm13, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm14, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
+  - { id: thm15, url: "http://music-library.berard.me/covers/_.jpg", format: "${ml_img_fmt}", type: RGB565, update_interval: never, http_request_id: ml_http }
 
 external_components:
   - source:
@@ -227,6 +250,7 @@ ha_dashboard:
       owner: "Sébastien"
       player: "RINCON_B8E937D6A3F601400"  # Sonos Salle à manger
       player_name: "Salle à manger"       # shown in the launch-confirmation toast
+      image_format: ${ml_img_fmt}          # jpg | bmp — appends ?fmt= to cover/thumb URLs
       cover_slots: [cov0, cov1, cov2, cov3, cov4, cov5, cov6, cov7, cov8, cov9]
       thumb_slots: [thm0, thm1, thm2, thm3, thm4, thm5, thm6, thm7, thm8, thm9,
                     thm10, thm11, thm12, thm13, thm14, thm15]
