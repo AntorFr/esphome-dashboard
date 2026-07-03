@@ -17,21 +17,19 @@ from esphome.components import (
 )
 from esphome.components.homeassistant_addon import HomeassistantMediaPlayer
 from esphome.components.lvgl import lv_validation as lvalid
-from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
+from esphome.const import CONF_FORMAT, CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE, CONF_URL
+from esphome.core import CORE, ID
 
 CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
+
+
 # sensor / binary_sensor / switch sont toujours référencés par le C++ (encodeur/bouton du
 # Dial, binding switch), même si le board courant ne les utilise pas -> AUTO_LOAD.
-AUTO_LOAD = [
-    "sensor",
-    "binary_sensor",
-    "switch",
-    "time",
-    "cover",
-    "climate",
-    "homeassistant_addon",
-]
+# `online_image` (+ image/runtime_image) n'est chargé QUE si un groupe `music_library` existe :
+# on génère nous-mêmes les slots de covers/vignettes (cf. to_code) au lieu d'un bloc YAML manuel.
+# Chargement conditionnel car online_image dépend de http_request (absent sur le Dial).
+AUTO_LOAD = ["sensor", "binary_sensor", "switch", "time", "cover", "climate", "homeassistant_addon"]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
@@ -152,11 +150,11 @@ GROUP_SCHEMA = cv.All(
             # decode -> cheaper on the ESP loop). Must match the online_image slots' `format:`.
             cv.Optional(CONF_IMAGE_FORMAT, default="jpg"): cv.one_of("jpg", "bmp", lower=True),
             cv.Optional(CONF_HTTP_REQUEST_ID): cv.use_id(http_request.HttpRequestComponent),
-            # Grid cover slots (one per favourite, 350px) — optional.
-            cv.Optional(CONF_COVER_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
-            # Detail slots: slot 0 = header/now-playing, slots 1.. = episode thumbnails (96px).
-            # A pool dedicated to the detail view so drilling in/out never disturbs the grid.
-            cv.Optional(CONF_THUMB_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
+            # Cover/thumbnail pools are AUTO-GENERATED (no manual online_image block): give a
+            # count. Grid covers = one per favourite shown; detail slot 0 = header/now-playing,
+            # slots 1.. = episode thumbnails. Kept apart so drilling in/out never disturbs the grid.
+            cv.Optional(CONF_COVER_SLOTS, default=10): cv.int_range(min=1, max=32),
+            cv.Optional(CONF_THUMB_SLOTS, default=16): cv.int_range(min=1, max=32),
         }
     ),
     _validate_group,
@@ -190,6 +188,31 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
     }
 ).extend(cv.COMPONENT_SCHEMA)
+
+
+# Placeholder URL for a generated cover/thumbnail slot — the launcher overwrites it at runtime
+# (OnlineImage::set_url) with the real signed cover/thumb URL. Only needs to be a valid URL.
+_ML_SLOT_URL = "http://ha-dashboard.invalid/_.jpg"
+
+
+async def _make_ml_slot(name, http_id, fmt):
+    """Generate one `online_image` slot by reusing online_image's own codegen (so we get its
+    exact C++ class + build config: the JPEG/BMP decoder library + defines, component
+    registration, http parenting). Returns the created variable."""
+    conf = online_image.CONFIG_SCHEMA(
+        {
+            CONF_ID: ID(name, is_declaration=True, type=online_image.OnlineImage),
+            CONF_URL: _ML_SLOT_URL,
+            CONF_FORMAT: fmt,  # "JPG" | "BMP" (online_image upper-cases; JPG == JPEG)
+            CONF_TYPE: "RGB565",
+            CONF_HTTP_REQUEST_ID: http_id,
+        }
+    )
+    # declare_id normally registers component ids during validation; we build this one at
+    # to_code time, so register it ourselves (register_component consumes it).
+    CORE.component_ids.add(str(conf[CONF_ID]))
+    await online_image.to_code(conf)
+    return await cg.get_variable(conf[CONF_ID])
 
 
 async def to_code(config):
@@ -250,13 +273,24 @@ async def to_code(config):
                 )
             )
             cg.add(var.set_launcher_image_format(group[CONF_IMAGE_FORMAT]))
-            for slot_id in group.get(CONF_COVER_SLOTS, []):
-                slot = await cg.get_variable(slot_id)
-                cg.add(var.add_launcher_cover_slot(slot))
             if CONF_PLAYER_NAME in group:
                 cg.add(var.add_launcher_player_name(group[CONF_PLAYER_NAME]))
-            for slot_id in group.get(CONF_THUMB_SLOTS, []):
-                slot = await cg.get_variable(slot_id)
+            # We generate online_image components here (no user `online_image:` block). Source
+            # files are copied per domain KEY present in CORE.config (see writer.copy_src_tree /
+            # iter_components), so inject the keys — validation is already done, and the value
+            # is irrelevant to the source copy. This avoids AUTO_LOAD's empty-config validation.
+            for _dom in ("image", "runtime_image", "online_image"):
+                CORE.loaded_integrations.add(_dom)
+                CORE.config.setdefault(_dom, [])
+            # Auto-generate the online_image cover/thumbnail pools (no manual YAML block). The
+            # slot decoder format must match what the launcher requests (image_format).
+            slot_fmt = "BMP" if group[CONF_IMAGE_FORMAT] == "bmp" else "JPG"
+            http_id = group[CONF_HTTP_REQUEST_ID]
+            for i in range(group[CONF_COVER_SLOTS]):
+                slot = await _make_ml_slot(f"mldash{group_index}_cov{i}", http_id, slot_fmt)
+                cg.add(var.add_launcher_cover_slot(slot))
+            for i in range(group[CONF_THUMB_SLOTS]):
+                slot = await _make_ml_slot(f"mldash{group_index}_thm{i}", http_id, slot_fmt)
                 cg.add(var.add_launcher_thumb_slot(slot))
             continue
         cg.add(var.add_group(group[CONF_NAME], group[CONF_ICON]))
