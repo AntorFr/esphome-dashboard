@@ -5,6 +5,9 @@
 #include "esphome/components/api/api_server.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+#ifdef USE_VOICE_ASSISTANT
+#include "esphome/components/voice_assistant/voice_assistant.h"
+#endif
 
 namespace esphome {
 namespace ha_dashboard {
@@ -382,9 +385,12 @@ void HaDashboard::loop() {
 void HaDashboard::handle_event_(InputEvent e, int idx) {
   switch (e) {
     case InputEvent::VOICE_START:
-      // Tap-to-talk / retry. Starting the pipeline is wired in YAML (voice_assistant.start);
-      // the incoming on_* events then drive the overlay. Logged here as the hook point.
+      // Tap-to-talk / retry: start the assistant pipeline directly (bypassing the wake word).
       ESP_LOGD(TAG, "voice: start requested (tap-to-talk)");
+#ifdef USE_VOICE_ASSISTANT
+      if (voice_assistant::global_voice_assistant != nullptr)
+        voice_assistant::global_voice_assistant->request_start(false, true);
+#endif
       break;
     case InputEvent::VOICE_CANCEL:
       this->renderer_.voice_hide();

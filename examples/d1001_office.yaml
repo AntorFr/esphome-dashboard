@@ -15,6 +15,12 @@ esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
   area: ${area}
+  on_boot:
+    # Start local wake-word detection at boot so "Okay Nabu" works without waiting for HA to
+    # subscribe. (Detection -> voice_assistant.start still needs HA for STT/TTS.)
+    - priority: -300
+      then:
+        - micro_wake_word.start:
 
 wifi:
   ssid: !secret wifi_ssid
@@ -118,8 +124,10 @@ voice_assistant:
     - lambda: "id(d1001_dash)->voice_error();"
   on_client_connected:
     - lambda: "id(d1001_dash)->voice_set_available(true);"
+    - micro_wake_word.start:      # start local wake-word detection once HA (Assist) is connected
   on_client_disconnected:
     - lambda: "id(d1001_dash)->voice_set_available(false);"
+    - micro_wake_word.stop:
   on_timer_started:
     - lambda: "id(d1001_dash)->timer_started(timer.id, timer.name, timer.seconds_left);"
   on_timer_updated:
