@@ -31,6 +31,10 @@ class Controller {
   // callbacks d'état HA dans la même boucle ne produisent qu'un seul render (flush dans tick()).
   void refresh() { this->render_dirty_ = true; }
 
+  // Activité non-navigationnelle (interaction vocale, minuteur qui sonne) : garde l'écran
+  // éveillé et, si en veille, réveille vers l'écran d'accueil — comme une touche tactile.
+  void notify_activity();
+
   NavState state() const { return this->state_; }
 
  protected:

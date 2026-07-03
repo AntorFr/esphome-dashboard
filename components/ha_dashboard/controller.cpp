@@ -65,6 +65,17 @@ LauncherModule *Controller::first_launcher_() {
   return nullptr;
 }
 
+void Controller::notify_activity() {
+  this->last_event_ms_ = millis();  // keep awake (reset the inactivity timeout)
+  if (this->state_ == NavState::IDLE) {
+    // Wake from standby to the home screen, exactly like a touch would.
+    this->state_ = this->dashboard_mode_ ? NavState::DASHBOARD : NavState::MENU;
+    if (!this->dashboard_mode_)
+      this->group_index_ = 0;
+    this->render_();
+  }
+}
+
 void Controller::handle(InputEvent event, int index) {
   this->last_event_ms_ = millis();
 

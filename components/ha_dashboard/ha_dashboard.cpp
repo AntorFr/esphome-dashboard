@@ -442,6 +442,7 @@ void HaDashboard::handle_event_(InputEvent e, int idx) {
 }
 
 void HaDashboard::voice_listening() {
+  this->controller_.notify_activity();  // a wake word / tap-to-talk wakes the screen (like a touch)
   this->renderer_.set_mic_state(MicState::LISTENING);
   this->renderer_.voice_show(VoiceState::LISTENING);
 }
@@ -520,6 +521,7 @@ void HaDashboard::timer_finished(const std::string &id) {
       break;
     }
   this->ringing_timer_id_ = id;
+  this->controller_.notify_activity();  // a finished timer lights up the screen (like a touch)
   this->renderer_.voice_show(VoiceState::TIMER_RINGING);
   char sub[48];
   if (!name.empty())
