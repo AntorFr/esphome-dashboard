@@ -121,19 +121,40 @@ time:
 # Audio hardware (I2S buses, ES8311/ES7210, speaker, microphone, PA) lives in the board package.
 # NB: the board sets execute_from_psram (CONFIG_SPIRAM_XIP_FROM_PSRAM) — required on the P4 or
 # the audio stack asserts esp_task_stack_is_sane_cache_disabled at boot.
+# Speaker media_player: plays the voice_assistant TTS AND short feedback sounds (the same FLAC
+# sounds as HA Voice PE, embedded at build time). Routes to the board's d1001_speaker; the
+# pipeline resamples the 48 kHz sounds down to the speaker's 16 kHz.
+media_player:
+  - platform: speaker
+    id: d1001_media
+    announcement_pipeline:
+      speaker: d1001_speaker
+      format: FLAC
+      sample_rate: 16000
+      num_channels: 1
+    files:
+      - id: wake_sound
+        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/wake_word_triggered.flac
+      - id: timer_sound
+        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/timer_finished.flac
+
 micro_wake_word:
   models:
     - model: okay_nabu
   microphone:
     microphone: d1001_microphone
   on_wake_word_detected:
+    - media_player.speaker.play_on_device_media_file:  # "ding" when the wake word is caught
+        id: d1001_media
+        media_file: wake_sound
+        announcement: true
     - voice_assistant.start:
 
 voice_assistant:
   id: d1001_voice
   microphone:
     microphone: d1001_microphone
-  speaker: d1001_speaker
+  media_player: d1001_media
   # Mirror the pipeline stages into our overlay via the ha_dashboard C++ API.
   on_listening:
     - lambda: "id(d1001_dash)->voice_listening();"
@@ -160,6 +181,10 @@ voice_assistant:
     - lambda: "id(d1001_dash)->timer_cancelled(timer.id);"
   on_timer_finished:
     - lambda: "id(d1001_dash)->timer_finished(timer.id);"
+    - media_player.speaker.play_on_device_media_file:  # alarm sound when a timer finishes
+        id: d1001_media
+        media_file: timer_sound
+        announcement: true
 
 # === Entités Home Assistant liées (cartes binaires) ===
 switch:
