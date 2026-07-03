@@ -113,6 +113,8 @@ class HaDashboard : public Component {
   binary_sensor::BinarySensor *button_{nullptr};
   time::RealTimeClock *time_{nullptr};
   uint32_t last_clock_ms_{0};
+  std::string last_clock_str_;   // last "HH:MM" pushed (skip redundant clock-label updates)
+  int last_idle_hour_{-1};       // last hour pushed to the idle tint
   const char *weather_entity_{nullptr};
   std::string weather_temp_;
   std::string weather_cond_;

@@ -44,6 +44,7 @@ static std::vector<CbData *> g_cbdata;
 
 static uint32_t accent_for(const Card &c);    // defined below
 static const char *icon_for(const Card &c);   // defined below (LVGL symbol fallback)
+static void load_screen_(lv_obj_t *scr);      // load a screen only if not already active
 
 // MDI glyphs (embedded in ha_font_icons_lg) for classic-card icons + climate modes.
 static const char *const MDI_POWER = "\U000F0425";
@@ -2290,8 +2291,7 @@ void LvglRenderer::render_dashboard_(const ViewModel &vm) {
 
   this->refresh_sheet_();  // keep the control sheet (if open) in sync with the card state
 
-  if (this->dashboard_scr_ != nullptr)
-    lv_screen_load(this->dashboard_scr_);
+  load_screen_(this->dashboard_scr_);
 }
 
 void LvglRenderer::render_launcher_(int gi, const Group &g) {
@@ -2949,8 +2949,7 @@ void LvglRenderer::render_now_playing_(const ViewModel &vm) {
     }
 #endif
   }
-  if (this->now_playing_scr_ != nullptr)
-    lv_screen_load(this->now_playing_scr_);
+  load_screen_(this->now_playing_scr_);
 }
 
 const Card *LvglRenderer::current_card_(const ViewModel &vm) const {
@@ -3050,15 +3049,20 @@ void LvglRenderer::render_card_view_(const ViewModel &vm) {
       lv_obj_clear_flag(dot, LV_OBJ_FLAG_SCROLLABLE);
     }
   }
-  if (this->card_scr_ != nullptr)
-    lv_screen_load(this->card_scr_);
+  load_screen_(this->card_scr_);
+}
+
+// Load a screen only if it isn't already the active one — avoids a full-screen redraw on every
+// state-driven render (the common case is "same screen, only some values changed").
+static void load_screen_(lv_obj_t *scr) {
+  if (scr != nullptr && lv_screen_active() != scr)
+    lv_screen_load(scr);
 }
 
 void LvglRenderer::render(const ViewModel &vm) {
   switch (vm.state) {
     case NavState::IDLE:
-      if (this->idle_scr_ != nullptr)
-        lv_screen_load(this->idle_scr_);
+      load_screen_(this->idle_scr_);
       break;
 
     case NavState::DASHBOARD:
@@ -3071,8 +3075,7 @@ void LvglRenderer::render(const ViewModel &vm) {
 
     case NavState::MENU:
       this->layout_menu_(vm.group_index);
-      if (this->menu_scr_ != nullptr)
-        lv_screen_load(this->menu_scr_);
+      load_screen_(this->menu_scr_);
       break;
 
     case NavState::GROUP:

@@ -354,6 +354,12 @@ void Controller::handle(InputEvent event, int index) {
 }
 
 void Controller::tick(uint32_t now_ms) {
+  // Flush a coalesced re-render (multiple HA state callbacks in one loop -> a single render).
+  if (this->render_dirty_) {
+    this->render_dirty_ = false;
+    this->render_();
+  }
+
   // Auto-retry a launcher whose load failed (e.g. network not ready right after boot): while
   // its tab is active and status is ERROR, retry every few seconds until it succeeds.
   if (this->state_ == NavState::DASHBOARD && this->groups_ != nullptr) {

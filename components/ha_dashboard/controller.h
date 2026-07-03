@@ -27,8 +27,9 @@ class Controller {
   // À appeler à chaque loop : gère le timeout d'inactivité -> veille.
   void tick(uint32_t now_ms);
 
-  // Re-rendu de l'état courant (ex. quand l'état HA d'une card change).
-  void refresh() { this->render_(); }
+  // Re-rendu de l'état courant (ex. quand l'état HA d'une card change). Coalescé : plusieurs
+  // callbacks d'état HA dans la même boucle ne produisent qu'un seul render (flush dans tick()).
+  void refresh() { this->render_dirty_ = true; }
 
   NavState state() const { return this->state_; }
 
@@ -60,6 +61,7 @@ class Controller {
   uint32_t np_poll_ms_{0};         // throttle now-playing refresh while its card is open
   int sheet_ci_{-1};               // card the control sheet is open on (-1 = closed)
   uint32_t debounce_ms_{350};  // encoder -> HA commit delay (optimistic preview meanwhile)
+  bool render_dirty_{false};   // an HA state change asked for a re-render; flushed once in tick()
 };
 
 }  // namespace ha_dashboard

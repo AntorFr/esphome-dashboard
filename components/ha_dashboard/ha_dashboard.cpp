@@ -361,8 +361,16 @@ void HaDashboard::update_clock_() {
     snprintf(date_buf, sizeof(date_buf), "%s %d %s", days[dow], t.day_of_month, months[mon]);
   else
     snprintf(date_buf, sizeof(date_buf), "%s %s %d", days[dow], months[mon], t.day_of_month);
-  this->renderer_.set_clock(time_buf, date_buf);
-  this->renderer_.set_idle_hour(t.hour);
+  // Only push when the displayed minute changed — avoids re-invalidating the clock label every
+  // second for the same "HH:MM".
+  if (this->last_clock_str_ != time_buf) {
+    this->last_clock_str_ = time_buf;
+    this->renderer_.set_clock(time_buf, date_buf);
+  }
+  if (t.hour != this->last_idle_hour_) {
+    this->last_idle_hour_ = t.hour;
+    this->renderer_.set_idle_hour(t.hour);
+  }
 }
 
 void HaDashboard::loop() {
