@@ -149,7 +149,7 @@ void HaDashboard::build_if_ready_() {
     return;  // LVGL pas encore prêt
 
   this->renderer_.build(this->groups_);
-  this->renderer_.set_event_handler([this](InputEvent e, int idx) { this->controller_.handle(e, idx); });
+  this->renderer_.set_event_handler([this](InputEvent e, int idx) { this->handle_event_(e, idx); });
   this->controller_.set_renderer(&this->renderer_);
   this->controller_.set_model(&this->groups_);
   this->controller_.set_dashboard_mode(this->profile_ == "reterminal_d1001");
@@ -374,7 +374,159 @@ void HaDashboard::loop() {
   this->poll_encoder_();
   this->poll_button_();
   this->update_clock_();
+  this->tick_timers_(millis());
   this->controller_.tick(millis());
+}
+
+// Route overlay/header voice + timer actions to the component; navigation goes to the controller.
+void HaDashboard::handle_event_(InputEvent e, int idx) {
+  switch (e) {
+    case InputEvent::VOICE_START:
+      // Tap-to-talk / retry. Starting the pipeline is wired in YAML (voice_assistant.start);
+      // the incoming on_* events then drive the overlay. Logged here as the hook point.
+      ESP_LOGD(TAG, "voice: start requested (tap-to-talk)");
+      break;
+    case InputEvent::VOICE_CANCEL:
+      this->renderer_.voice_hide();
+      this->refresh_mic_chip_();
+      break;
+    case InputEvent::VOICE_MUTE_TOGGLE:
+      this->voice_set_muted(!this->voice_muted_);
+      break;
+    case InputEvent::TIMER_STOP:
+      if (!this->ringing_timer_id_.empty()) {
+        this->timer_cancelled(this->ringing_timer_id_);
+        this->ringing_timer_id_.clear();
+      }
+      this->renderer_.voice_hide();
+      this->refresh_mic_chip_();
+      break;
+    case InputEvent::TIMER_ADD_MIN:
+      for (auto &t : this->timers_)
+        if (t.id == this->ringing_timer_id_) {
+          t.remaining_s = 60;
+          t.is_active = true;
+          break;
+        }
+      this->ringing_timer_id_.clear();
+      this->renderer_.voice_hide();
+      this->refresh_mic_chip_();
+      this->push_timers_();
+      break;
+    case InputEvent::OPEN_TIMERS:
+      ESP_LOGD(TAG, "voice: open timers screen (TODO)");
+      break;
+    default:
+      this->controller_.handle(e, idx);
+      break;
+  }
+}
+
+void HaDashboard::voice_listening() {
+  this->renderer_.set_mic_state(MicState::LISTENING);
+  this->renderer_.voice_show(VoiceState::LISTENING);
+}
+void HaDashboard::voice_thinking() { this->renderer_.voice_show(VoiceState::THINKING); }
+void HaDashboard::voice_responding() { this->renderer_.voice_show(VoiceState::RESPONDING); }
+void HaDashboard::voice_error() { this->renderer_.voice_show(VoiceState::ERROR); }
+void HaDashboard::voice_end() {
+  // A ringing timer keeps the overlay up; otherwise close it and restore the mic chip.
+  if (this->renderer_.voice_state() == VoiceState::TIMER_RINGING)
+    return;
+  this->renderer_.voice_hide();
+  this->refresh_mic_chip_();
+}
+void HaDashboard::voice_level(float level) { this->renderer_.set_voice_level(level); }
+
+void HaDashboard::voice_set_muted(bool muted) {
+  this->voice_muted_ = muted;
+  if (muted)
+    this->renderer_.voice_show(VoiceState::MUTED);
+  else
+    this->renderer_.voice_hide();
+  this->refresh_mic_chip_();
+}
+void HaDashboard::voice_set_available(bool available) {
+  this->voice_available_ = available;
+  this->refresh_mic_chip_();
+}
+
+void HaDashboard::refresh_mic_chip_() {
+  MicState st = MicState::ARMED;
+  if (!this->voice_available_)
+    st = MicState::UNAVAILABLE;
+  else if (this->voice_muted_)
+    st = MicState::MUTED;
+  this->renderer_.set_mic_state(st);
+}
+
+void HaDashboard::timer_started(const std::string &id, const std::string &name, uint32_t seconds) {
+  for (auto &t : this->timers_)
+    if (t.id == id) {
+      t.name = name;
+      t.remaining_s = t.total_s = seconds;
+      t.is_active = true;
+      this->push_timers_();
+      return;
+    }
+  this->timers_.push_back(TimerInfo{id, name, seconds, seconds, true});
+  this->push_timers_();
+}
+void HaDashboard::timer_updated(const std::string &id, uint32_t seconds_left, bool is_active) {
+  for (auto &t : this->timers_)
+    if (t.id == id) {
+      t.remaining_s = seconds_left;
+      t.is_active = is_active;
+      this->push_timers_();
+      return;
+    }
+}
+void HaDashboard::timer_cancelled(const std::string &id) {
+  for (size_t i = 0; i < this->timers_.size(); i++)
+    if (this->timers_[i].id == id) {
+      this->timers_.erase(this->timers_.begin() + i);
+      break;
+    }
+  this->push_timers_();
+}
+void HaDashboard::timer_finished(const std::string &id) {
+  std::string name;
+  uint32_t total = 0;
+  for (auto &t : this->timers_)
+    if (t.id == id) {
+      t.remaining_s = 0;
+      t.is_active = false;
+      name = t.name;
+      total = t.total_s;
+      break;
+    }
+  this->ringing_timer_id_ = id;
+  this->renderer_.voice_show(VoiceState::TIMER_RINGING);
+  char sub[48];
+  if (!name.empty())
+    std::snprintf(sub, sizeof(sub), "« %s » · %u:%02u", name.c_str(), total / 60, total % 60);
+  else
+    std::snprintf(sub, sizeof(sub), "%u:%02u", total / 60, total % 60);
+  this->renderer_.voice_set_sub(sub);
+  this->push_timers_();
+}
+
+void HaDashboard::push_timers_() { this->renderer_.set_timers(this->timers_); }
+
+void HaDashboard::tick_timers_(uint32_t now_ms) {
+  if (this->timers_.empty())
+    return;
+  if (now_ms - this->last_timer_tick_ms_ < 1000)
+    return;
+  this->last_timer_tick_ms_ = now_ms;
+  bool changed = false;
+  for (auto &t : this->timers_)
+    if (t.is_active && t.remaining_s > 0) {
+      t.remaining_s--;
+      changed = true;
+    }
+  if (changed)
+    this->push_timers_();
 }
 
 void HaDashboard::dump_config() {

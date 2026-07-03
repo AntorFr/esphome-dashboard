@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquettes — assistant vocal (D1001)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+<style>
+  :root{
+    --bg:#0A0A0C; --screen:#0E0E12; --tile:#2C2C38; --track:#232330;
+    --text:#fff; --muted:#8A8A92; --iconoff:#6b6b73;
+    --media:#A06CFF; --voice:#35C6FF; --voice2:#7A5CFF; --ok:#3DD68C; --err:#FF5A5A; --timer:#FFB020;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px;line-height:1.45}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);max-width:960px;margin:0 0 8px}.lead b{color:#cfd0d6}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 10px;font-size:13px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .card-block{border-top:1px solid #1d1d24;padding:26px 0}
+  .card-block h2{font-size:18px;margin:0 0 2px;display:flex;align-items:center;gap:10px}
+  .card-block h2 .mdi{font-size:22px;color:var(--voice)}
+  .card-block .tag{color:var(--muted);font-weight:400;font-size:13px}
+  .row{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;margin-top:18px}
+  .device-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .device-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+  /* Portrait D1001 frame (800x1280 scaled) */
+  .port-frame{background:#1B1B22;border-radius:24px;padding:8px}
+  .screenwrap{overflow:hidden;border-radius:16px}
+  .screen{background:var(--screen);transform-origin:top left;position:relative}
+
+  /* ---- Voice full-screen overlay ---- */
+  .va{position:absolute;inset:0;background:
+      radial-gradient(120% 80% at 50% 22%, rgba(53,198,255,.10), rgba(10,10,14,0) 60%),
+      #0B0B10;display:flex;flex-direction:column;align-items:center;color:#fff}
+  .va.err{background:radial-gradient(120% 80% at 50% 22%, rgba(255,90,90,.12), rgba(10,10,14,0) 60%),#0B0B10}
+  .va-top{width:100%;display:flex;align-items:center;justify-content:space-between;padding:34px 34px 0}
+  .va-badge{display:inline-flex;align-items:center;gap:12px;font-size:26px;color:var(--muted)}
+  .va-badge .mdi{font-size:34px}
+  .va-x{width:74px;height:74px;border-radius:50%;background:#20202a;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--muted)}
+  .va-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;width:100%;padding:0 46px}
+
+  /* Orb */
+  .orb-wrap{position:relative;width:460px;height:460px;display:flex;align-items:center;justify-content:center}
+  .ring{position:absolute;border-radius:50%;border:2px solid rgba(53,198,255,.35)}
+  .r1{width:460px;height:460px;animation:pulse 2.6s ease-out infinite}
+  .r2{width:460px;height:460px;animation:pulse 2.6s ease-out infinite 1.3s}
+  @keyframes pulse{0%{transform:scale(.62);opacity:.7}100%{transform:scale(1);opacity:0}}
+  .orb{width:300px;height:300px;border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, #9Feaff, var(--voice) 46%, var(--voice2) 100%);
+    box-shadow:0 0 90px rgba(53,198,255,.55),0 0 180px rgba(122,92,255,.30);
+    display:flex;align-items:center;justify-content:center;font-size:150px;color:rgba(255,255,255,.95);
+    animation:breathe 3.4s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  .orb.think{background:radial-gradient(circle at 38% 32%,#c9b8ff,var(--voice2) 55%,#4B39B0 100%);box-shadow:0 0 90px rgba(122,92,255,.5)}
+  .orb.speak{background:radial-gradient(circle at 38% 32%,#9Feaff,var(--voice) 46%,var(--voice2) 100%)}
+  .orb.err{background:radial-gradient(circle at 38% 32%,#ffb3b3,var(--err) 55%,#B21F1F 100%);box-shadow:0 0 90px rgba(255,90,90,.5)}
+  .orb.mute{background:radial-gradient(circle at 38% 32%,#3a3a44,#26262f 60%,#1a1a20 100%);box-shadow:none;color:var(--muted)}
+  .think-dots{display:flex;gap:20px}
+  .think-dots i{width:26px;height:26px;border-radius:50%;background:#fff;opacity:.9;animation:blink 1.2s infinite}
+  .think-dots i:nth-child(2){animation-delay:.2s}.think-dots i:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+  /* waveform (listening / speaking) */
+  .wave{display:flex;align-items:center;gap:9px;height:70px}
+  .wave i{width:10px;border-radius:5px;background:linear-gradient(#9Feaff,var(--voice));animation:eq 1s ease-in-out infinite}
+  .wave i:nth-child(2n){background:linear-gradient(#c9b8ff,var(--voice2))}
+  .wave i:nth-child(1){height:26px;animation-delay:0s}.wave i:nth-child(2){height:52px;animation-delay:.1s}
+  .wave i:nth-child(3){height:70px;animation-delay:.2s}.wave i:nth-child(4){height:40px;animation-delay:.3s}
+  .wave i:nth-child(5){height:60px;animation-delay:.15s}.wave i:nth-child(6){height:30px;animation-delay:.25s}
+  .wave i:nth-child(7){height:54px;animation-delay:.05s}.wave i:nth-child(8){height:22px;animation-delay:.35s}
+  @keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+
+  .va-status{font-size:44px;font-weight:600;text-align:center}
+  .va-status.sm{font-size:34px;color:var(--muted);font-weight:500}
+  .va-partial{font-size:34px;color:var(--muted);font-style:italic;text-align:center;max-width:640px}
+  .bubbles{display:flex;flex-direction:column;gap:18px;width:100%;max-width:660px}
+  .bub{padding:22px 28px;border-radius:26px;font-size:32px;line-height:1.3;max-width:88%}
+  .bub.user{align-self:flex-end;background:#26303c;border-bottom-right-radius:8px}
+  .bub.asst{align-self:flex-start;background:linear-gradient(135deg,#1c2b3a,#241d3a);border-bottom-left-radius:8px}
+  .bub .who{font-size:19px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+  .va-hint{padding:26px;text-align:center;color:#6E6E78;font-size:24px}
+  .va-actions{display:flex;gap:20px}
+  .va-btn{padding:20px 34px;border-radius:20px;background:#20202a;font-size:28px;display:flex;align-items:center;gap:12px}
+  .va-btn.pri{background:var(--voice);color:#04222e;font-weight:600}
+  .tts-bar{width:70%;max-width:560px;height:12px;border-radius:6px;background:#20202a;position:relative}
+  .tts-bar .f{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:6px;background:var(--voice)}
+
+  /* ---- mini dashboard header with mic chip ---- */
+  .d-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:34px 30px 12px}
+  .d-hdr .clk{font-size:70px;font-weight:600;line-height:1}
+  .d-hdr .dt{color:var(--muted);font-size:30px;margin-top:8px}
+  .hdr-right{display:flex;align-items:center;gap:18px}
+  .mic-chip{width:86px;height:86px;border-radius:50%;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:46px;color:#cfd0d6;position:relative}
+  .mic-chip.armed{color:var(--voice);box-shadow:0 0 0 3px rgba(53,198,255,.35)}
+  .mic-chip.listen{background:var(--voice);color:#04222e}
+  .mic-chip.listen::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px solid var(--voice);animation:pulse 1.8s ease-out infinite}
+  .mic-chip.muted{color:var(--err)}
+  .timer-pill{display:inline-flex;align-items:center;gap:10px;height:86px;padding:0 26px;border-radius:44px;background:var(--tile);color:var(--timer);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums}
+  .timer-pill .mdi{font-size:44px}
+  .wx{font-size:44px;text-align:right}
+  .d-tabs{display:flex;gap:12px;padding:8px 24px 18px}
+  .d-tab{flex:1;text-align:center;padding:20px 0;border-radius:14px;background:#1A1A22;color:var(--muted);font-size:34px}
+  .d-tab.on{background:var(--tile);color:#fff}
+  .d-grid{display:flex;flex-wrap:wrap;gap:16px;padding:6px 24px}
+  .mtile{width:100%;height:150px;background:var(--tile);border-radius:18px;opacity:.5}
+
+  /* timer ring */
+  .timer-ring{width:420px;height:420px;border-radius:50%;
+    background:conic-gradient(var(--timer) calc(var(--p,60)*1%), #23232c 0);
+    display:flex;align-items:center;justify-content:center}
+  .timer-ring .hole{width:340px;height:340px;border-radius:50%;background:#0B0B10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .timer-ring .big{font-size:100px;font-weight:700;font-variant-numeric:tabular-nums}
+  .timer-ring .lbl{font-size:30px;color:var(--muted)}
+  .timer-list{display:flex;flex-direction:column;gap:14px;width:100%;max-width:640px}
+  .timer-item{display:flex;align-items:center;gap:20px;background:var(--tile);border-radius:18px;padding:22px 26px}
+  .timer-item .mdi{font-size:44px;color:var(--timer)}
+  .timer-item .tt{font-size:40px;font-weight:600;font-variant-numeric:tabular-nums}
+  .timer-item .tn{font-size:26px;color:var(--muted)}
+  .ring-alarm .orb{animation:shake .5s ease-in-out infinite}
+  @keyframes shake{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+
+  .ux{flex:1;min-width:300px;max-width:460px}
+  .ux h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px}
+  .ux table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .ux td{padding:5px 8px;border-bottom:1px solid #1a1a21;vertical-align:top}
+  .ux td:first-child{color:var(--muted);white-space:nowrap;width:150px}
+  .ux .q{margin-top:12px;padding:10px 12px;border-radius:10px;background:#06181c;border:1px solid #123a42;font-size:13px}
+  .ux .q b{color:var(--voice)}
+  .states{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 0;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<h1>Maquettes — assistant vocal (D1001)</h1>
+<p class="lead"><b>reTerminal D1001</b> (micro + HP) : wake-word local (<code>micro_wake_word</code>) + pipeline HA Assist (<code>voice_assistant</code>).
+L'assistant est une <b>couche overlay plein écran</b> par-dessus l'écran courant (dashboard / launcher / veille), build-once + update-in-place (ADR-0005) — <b>pas</b> un état du carrousel.
+Choix <b>validés</b> : overlay <b>opaque</b> (comme les autres écrans), <b>orbe animé</b> + niveau audio, <b>pas de texte reconnu affiché</b> (statut seul), <b>pastille micro</b> dans le header, <b>minuteries en v1</b> (pastille header unique → écran minuteries).</p>
+<div class="legend">
+  <span><i class="dot" style="background:var(--voice)"></i> écoute / actif</span>
+  <span><i class="dot" style="background:var(--voice2)"></i> réflexion</span>
+  <span><i class="dot" style="background:var(--ok)"></i> succès</span>
+  <span><i class="dot" style="background:var(--err)"></i> erreur</span>
+  <span><i class="dot" style="background:var(--timer)"></i> minuterie</span>
+</div>
+
+<div id="app"></div>
+
+<script>
+var SCALE=0.40, W=800, H=1280;
+function frame(inner){
+  return '<div class="port-frame"><div class="screenwrap" style="width:'+(W*SCALE)+'px;height:'+(H*SCALE)+'px">'
+    +'<div class="screen" style="width:'+W+'px;height:'+H+'px;transform:scale('+SCALE+')">'+inner+'</div></div></div>';
+}
+function vaTop(showX){
+  return '<div class="va-top"><div class="va-badge"><i class="mdi mdi-assistant"></i>Assistant</div>'
+    +(showX!==false?'<div class="va-x"><i class="mdi mdi-close"></i></div>':'<div style="width:74px"></div>')+'</div>';
+}
+
+/* ---------- core loop ---------- */
+function listening(){
+  return '<div class="va">'+vaTop()
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="ring r1"></div><div class="ring r2"></div>'
+    +'<div class="orb"><i class="mdi mdi-microphone"></i></div></div>'
+    +'<div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>'
+    +'<div class="va-status">Je vous écoute…</div>'
+    +'</div><div class="va-hint">Touchez pour annuler · relâche auto en fin de phrase</div></div>';
+}
+function thinking(){
+  return '<div class="va">'+vaTop()
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="orb think"><div class="think-dots"><i></i><i></i><i></i></div></div></div>'
+    +'<div class="va-status">Un instant…</div>'
+    +'</div><div class="va-hint">Reconnaissance + intention</div></div>';
+}
+function responding(){
+  return '<div class="va">'+vaTop()
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="orb speak"><i class="mdi mdi-volume-high"></i></div></div>'
+    +'<div class="va-status">Réponse…</div>'
+    +'<div class="tts-bar"><div class="f"></div></div>'
+    +'</div><div class="va-hint">Lecture vocale (musique atténuée)</div></div>';
+}
+function errored(){
+  return '<div class="va err">'+vaTop()
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="orb err"><i class="mdi mdi-alert"></i></div></div>'
+    +'<div class="va-status">Je n\'ai pas compris</div>'
+    +'<div class="va-partial">Reformulez, ou touchez le micro pour réessayer.</div>'
+    +'<div class="va-actions"><div class="va-btn pri"><i class="mdi mdi-microphone"></i>Réessayer</div>'
+    +'<div class="va-btn"><i class="mdi mdi-close"></i>Fermer</div></div>'
+    +'</div><div class="va-hint"></div></div>';
+}
+
+/* ---------- header mic chip states ---------- */
+function miniDash(chipCls, chipIcon, timer){
+  var pill = timer ? '<div class="timer-pill"><i class="mdi mdi-timer-outline"></i>'+timer+'</div>' : '';
+  return '<div class="d-hdr"><div><div class="clk">9:41</div><div class="dt">jeudi 2 juillet</div></div>'
+    +'<div class="hdr-right">'+pill+'<div class="mic-chip '+chipCls+'"><i class="mdi '+chipIcon+'"></i></div>'
+    +'<div class="wx">☀️ 24°</div></div></div>'
+    +'<div class="d-tabs"><div class="d-tab">⚙</div><div class="d-tab on">⌂</div><div class="d-tab">🔧</div><div class="d-tab">♫</div></div>'
+    +'<div class="d-grid"><div class="mtile"></div><div class="mtile"></div><div class="mtile"></div></div>';
+}
+function muted(){
+  return '<div class="va">'+vaTop(false)
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="orb mute"><i class="mdi mdi-microphone-off"></i></div></div>'
+    +'<div class="va-status sm">Micro coupé</div>'
+    +'<div class="va-actions"><div class="va-btn pri"><i class="mdi mdi-microphone"></i>Réactiver</div></div>'
+    +'</div><div class="va-hint">Le wake-word est désactivé</div></div>';
+}
+function unavailable(){
+  return '<div class="va">'+vaTop(false)
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="orb mute"><i class="mdi mdi-cloud-off-outline"></i></div></div>'
+    +'<div class="va-status sm">Assistant indisponible</div>'
+    +'<div class="va-partial">Home Assistant est hors ligne, ou aucun pipeline Assist n\'est configuré.</div>'
+    +'</div><div class="va-hint"></div></div>';
+}
+
+/* ---------- timers ---------- */
+function timerActive(){
+  return '<div class="va">'+vaTop()
+    +'<div class="va-mid">'
+    +'<div class="timer-ring" style="--p:62"><div class="hole"><div class="big">04:37</div><div class="lbl">Minuterie « pâtes »</div></div></div>'
+    +'<div class="timer-list">'
+    +'<div class="timer-item"><i class="mdi mdi-timer-outline"></i><div style="flex:1"><div class="tn">pâtes</div></div><div class="tt">04:37</div></div>'
+    +'<div class="timer-item"><i class="mdi mdi-timer-outline"></i><div style="flex:1"><div class="tn">lessive</div></div><div class="tt">21:08</div></div>'
+    +'</div>'
+    +'</div><div class="va-hint">« mets un minuteur de 6 minutes » — géré par HA Assist</div></div>';
+}
+function timerAlarm(){
+  return '<div class="va ring-alarm">'+vaTop(false)
+    +'<div class="va-mid">'
+    +'<div class="orb-wrap"><div class="ring r1" style="border-color:rgba(255,176,32,.4)"></div>'
+    +'<div class="orb" style="background:radial-gradient(circle at 38% 32%,#ffe0a0,var(--timer) 55%,#C97E00 100%);box-shadow:0 0 90px rgba(255,176,32,.55)"><i class="mdi mdi-timer-alert"></i></div></div>'
+    +'<div class="va-status">Minuterie terminée</div>'
+    +'<div class="va-partial">« pâtes » · 6:00</div>'
+    +'<div class="va-actions"><div class="va-btn pri" style="background:var(--timer);color:#3a2600"><i class="mdi mdi-check"></i>Arrêter</div>'
+    +'<div class="va-btn"><i class="mdi mdi-plus"></i>+1 min</div></div>'
+    +'</div><div class="va-hint"></div></div>';
+}
+
+/* ---------- render ---------- */
+var GROUPS=[
+  {title:'Boucle vocale', icon:'mdi-waveform', tag:'les 4 états cœur du pipeline Assist',
+   items:[['Écoute',listening()],['Réflexion',thinking()],['Réponse',responding()],['Erreur',errored()]],
+   ux:[['Déclenchement','Wake-word local, ou tap sur la pastille micro (header)'],
+       ['Écoute','Orbe + waveform = niveau audio live ; « Je vous écoute… » (pas de texte reconnu)'],
+       ['Fin de parole','VAD auto (silence) ou tap ; passe en réflexion'],
+       ['Réflexion','Orbe + points animés (« Un instant… »)'],
+       ['Réponse','Orbe haut-parleur + lecture TTS (barre) ; musique atténuée (ducking)'],
+       ['Fermeture','Auto-dismiss après le TTS → retour à l\'écran précédent'],
+       ['Erreur','Orbe rouge + « Réessayer » / « Fermer »']],
+   q:'<b>Validé :</b> overlay <u>opaque</u> (comme les autres écrans), orbe animé, <u>sans texte reconnu</u> (statut seul). Réécoute enchaînée (follow-up) = <u>pilotée par le pipeline</u> (HA renvoie <code>continue_conversation</code>) : réponse → retour en écoute au lieu de fermer.'},
+
+  {title:'Pastille micro (header) + états', icon:'mdi-microphone-settings', tag:'surface persistante + micro coupé / indisponible',
+   items:[['Armé (veille wake-word)',frame(miniDash('armed','mdi-microphone'))],
+          ['Écoute (depuis header)',frame(miniDash('listen','mdi-microphone'))],
+          ['Micro coupé',frame(miniDash('muted','mdi-microphone-off'))],
+          ['Plein écran — coupé',frame(muted())],
+          ['Plein écran — indisponible',frame(unavailable())]],
+   raw:true,
+   ux:[['Pastille','Toujours visible dans le header : armé (halo cyan) / écoute (plein) / coupé (rouge)'],
+       ['Tap pastille','Tap-to-talk (lance l\'écoute) ; appui long = couper/réactiver le micro'],
+       ['Micro coupé','Wake-word désactivé ; bouton « Réactiver »'],
+       ['Indisponible','HA hors ligne ou pas de pipeline Assist']],
+   q:'<b>Validé :</b> pastille <u>toujours visible</u> ; le <u>wake-word réveille depuis la veille</u> (overlay par-dessus l\'horloge, retour veille après la réponse).'},
+
+  {title:'Minuteries Assist', icon:'mdi-timer-outline', tag:'« mets un minuteur de X » — pastille header + sonnerie plein écran',
+   items:[['Pastille header (active)',frame(miniDash('armed','mdi-microphone','04:37'))],
+          ['Minuterie(s) active(s)',frame(timerActive())],
+          ['Alarme (sonne)',frame(timerAlarm())]],
+   raw:true,
+   ux:[['Création','Par la voix (« minuteur de 6 minutes ») — événements timer de HA Assist'],
+       ['Pastille header','Apparaît quand ≥1 minuterie tourne : ⏱ + temps restant (la plus proche), badge unique (pas de compteur) ; tap = écran minuteries'],
+       ['Actives','Anneau de progression + liste des minuteries en cours'],
+       ['Sonnerie','Plein écran + son ; « Arrêter » / « +1 min »']],
+   q:'<b>Validé :</b> minuteries en <u>v1</u>. Pastille header <u>unique</u> même si plusieurs (pas de compteur) → tap ouvre l\'écran « minuteries actives ».'}
+];
+
+document.getElementById('app').innerHTML = GROUPS.map(function(g){
+  var cells = g.items.map(function(it){
+    var content = g.raw ? it[1] : frame(it[1]);   // header states are already framed
+    return '<div class="device-wrap"><span class="device-label">'+it[0]+'</span>'+content+'</div>';
+  }).join('');
+  var rows = g.ux.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>';}).join('');
+  return '<div class="card-block"><h2><i class="mdi '+g.icon+'"></i>'+g.title+' <span class="tag">— '+g.tag+'</span></h2>'
+    +'<div class="row">'+cells
+    +'<div class="ux"><h3>UX</h3><table>'+rows+'</table><div class="q">'+g.q+'</div></div>'
+    +'</div></div>';
+}).join('');
+</script>
+</body>
+</html>

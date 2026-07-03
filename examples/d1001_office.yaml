@@ -87,6 +87,46 @@ time:
     id: sntp_time
     timezone: Europe/Paris
 
+# === Voice assistant (wake word local + HA Assist), reflected into the dashboard overlay ===
+# Audio hardware (I2S buses, ES8311/ES7210, speaker, microphone, PA) lives in the board package.
+micro_wake_word:
+  models:
+    - model: okay_nabu
+  microphone:
+    microphone: d1001_microphone
+  on_wake_word_detected:
+    - voice_assistant.start:
+
+voice_assistant:
+  id: d1001_voice
+  microphone:
+    microphone: d1001_microphone
+  speaker: d1001_speaker
+  # Mirror the pipeline stages into our overlay via the ha_dashboard C++ API.
+  on_listening:
+    - lambda: "id(d1001_dash)->voice_listening();"
+  on_stt_end:
+    - lambda: "id(d1001_dash)->voice_thinking();"
+  on_tts_start:
+    - lambda: "id(d1001_dash)->voice_responding();"
+  on_end:
+    - lambda: "id(d1001_dash)->voice_end();"
+    - micro_wake_word.start:
+  on_error:
+    - lambda: "id(d1001_dash)->voice_error();"
+  on_client_connected:
+    - lambda: "id(d1001_dash)->voice_set_available(true);"
+  on_client_disconnected:
+    - lambda: "id(d1001_dash)->voice_set_available(false);"
+  on_timer_started:
+    - lambda: "id(d1001_dash)->timer_started(timer.id, timer.name, timer.seconds_left);"
+  on_timer_updated:
+    - lambda: "id(d1001_dash)->timer_updated(timer.id, timer.seconds_left, timer.is_active);"
+  on_timer_cancelled:
+    - lambda: "id(d1001_dash)->timer_cancelled(timer.id);"
+  on_timer_finished:
+    - lambda: "id(d1001_dash)->timer_finished(timer.id);"
+
 # === Entités Home Assistant liées (cartes binaires) ===
 switch:
   - platform: homeassistant
@@ -132,6 +172,7 @@ homeassistant_addon:
       volume_step: 0.05
 
 ha_dashboard:
+  id: d1001_dash
   profile: reterminal_d1001
   language: fr
   inactivity_timeout: 120s
@@ -144,6 +185,7 @@ ha_dashboard:
   font_weather: ha_font_weather
   font_icons: ha_font_icons
   font_icons_lg: ha_font_icons_lg
+  font_voice: ha_font_voice
   # Pas d'encodeur/bouton : navigation tactile seule sur le D1001.
   groups:
     - name: "Focus"

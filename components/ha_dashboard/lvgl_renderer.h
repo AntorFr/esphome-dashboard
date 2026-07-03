@@ -43,8 +43,19 @@ class LvglRenderer : public Renderer {
   void set_font_weather(font::Font *f) { this->font_weather_ = f; }
   void set_font_icons(font::Font *f) { this->font_icons_ = f; }
   void set_font_icons_lg(font::Font *f) { this->font_icons_lg_ = f; }
+  void set_font_voice(font::Font *f) { this->font_voice_ = f; }
   // Button-hold return gauge (driven from the component while the encoder button is held).
   void set_return_progress(float p) { this->render_return_(p); }
+
+  // --- Voice assistant (top-layer overlay, over any screen) ---
+  void voice_show(VoiceState st);            // build-once, then restyle to the given state
+  void voice_hide();                         // hide the overlay
+  void set_voice_level(float level);         // 0..1 mic level (listening waveform amplitude)
+  void voice_set_sub(const std::string &s);  // set the overlay's secondary line (e.g. ringing timer)
+  VoiceState voice_state() const { return this->voice_state_; }
+  // Header surfaces (D1001 dashboard): mic chip state + active-timer pill.
+  void set_mic_state(MicState st);
+  void set_timers(const std::vector<TimerInfo> &timers);
 
  protected:
   lv_obj_t *make_screen_();
@@ -166,6 +177,7 @@ class LvglRenderer : public Renderer {
   font::Font *font_weather_{nullptr};
   font::Font *font_icons_{nullptr};
   font::Font *font_icons_lg_{nullptr};  // larger MDI set for classic-card tile/sheet icons
+  font::Font *font_voice_{nullptr};     // large MDI glyphs for the voice overlay orb
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};
@@ -213,6 +225,29 @@ class LvglRenderer : public Renderer {
   lv_obj_t *sheet_pp_icon_{nullptr};    // media play/pause glyph
   lv_obj_t *sheet_slider_{nullptr};     // volume / position / brightness
   lv_obj_t *sheet_modes_[4]{nullptr, nullptr, nullptr, nullptr};  // climate mode buttons
+
+  // --- Voice assistant overlay (top layer, built once; restyled per state) ---
+  void build_voice_();               // create the overlay tree on lv_layer_top()
+  void voice_apply_(VoiceState st);  // restyle in place for a state (no create/destroy)
+  lv_obj_t *voice_root_{nullptr};    // full-screen container
+  lv_obj_t *voice_orb_{nullptr};     // central orb
+  lv_obj_t *voice_orb_icon_{nullptr};
+  lv_obj_t *voice_wave_{nullptr};    // listening level bars (container)
+  std::vector<lv_obj_t *> voice_bars_;
+  lv_obj_t *voice_status_{nullptr};  // status line ("Je vous écoute…")
+  lv_obj_t *voice_sub_{nullptr};     // secondary line (error detail / timer name)
+  lv_obj_t *voice_ttsbar_{nullptr};  // responding TTS progress bar
+  lv_obj_t *voice_actions_{nullptr}; // buttons row (error / muted / ringing)
+  lv_obj_t *voice_hint_{nullptr};    // bottom hint
+  lv_obj_t *voice_close_{nullptr};   // top-right close
+  VoiceState voice_state_{VoiceState::HIDDEN};
+
+  // Header mic chip + active-timer pill (D1001 dashboard header).
+  lv_obj_t *mic_chip_{nullptr};
+  lv_obj_t *mic_chip_icon_{nullptr};
+  lv_obj_t *timer_pill_{nullptr};
+  lv_obj_t *timer_pill_lbl_{nullptr};
+  MicState mic_state_{MicState::ARMED};
 
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
 

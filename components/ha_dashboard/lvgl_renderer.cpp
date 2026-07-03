@@ -58,6 +58,19 @@ static const char *const MDI_SPEAKER = "\U000F04C3";
 static const char *const MDI_THERMOSTAT = "\U000F0393";
 static const char *const MDI_FIRE = "\U000F0238";
 static const char *const MDI_SNOW = "\U000F0717";
+// Voice-assistant glyphs (ha_font_voice for the orb; ha_font_icons_lg for the header chip/pill).
+static const char *const MDI_MIC = "\U000F036C";
+static const char *const MDI_MIC_OFF = "\U000F036D";
+static const char *const MDI_VOL = "\U000F057E";
+static const char *const MDI_ALERT = "\U000F0028";
+static const char *const MDI_CLOUD_OFF = "\U000F0164";
+static const char *const MDI_TIMER = "\U000F051B";
+static const char *const MDI_TIMER_ALERT = "\U000F1ACD";
+// Voice palette.
+static constexpr uint32_t COL_VOICE = 0x35C6FF;
+static constexpr uint32_t COL_VOICE2 = 0x7A5CFF;
+static constexpr uint32_t COL_ERR = 0xFF5A5A;
+static constexpr uint32_t COL_TIMER = 0xFFB020;
 
 // Effective cover presentation: YAML `cover_kind` override, else the HA device_class.
 static int cover_kind_of(const Card &c) {
@@ -504,6 +517,315 @@ void LvglRenderer::refresh_sheet_() {
   }
 }
 
+// ===================== Voice assistant overlay (top layer) =====================
+// Built once on lv_layer_top(); voice_apply_ restyles it in place per state (ADR-0005 — no
+// create/destroy on transitions). Independent of NavState: it floats over any screen.
+
+// A round action button for the overlay (icon + optional label under it). Emits `ev`.
+static lv_obj_t *voice_btn_(LvglRenderer *self, lv_obj_t *parent, const char *sym, const char *label,
+                            bool primary, uint32_t accent, InputEvent ev) {
+  lv_obj_t *b = lv_button_create(parent);
+  lv_obj_set_style_radius(b, 22, 0);
+  lv_obj_set_style_bg_color(b, lv_color_hex(primary ? accent : COL_TILE), 0);
+  lv_obj_set_style_shadow_width(b, 0, 0);
+  lv_obj_set_style_pad_hor(b, 34, 0);
+  lv_obj_set_style_pad_ver(b, 20, 0);
+  lv_obj_set_flex_flow(b, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(b, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(b, 12, 0);
+  lv_obj_t *ic = lv_label_create(b);
+  lv_label_set_text(ic, sym);
+  lv_obj_set_style_text_font(ic, &lv_font_montserrat_28, 0);
+  lv_obj_set_style_text_color(ic, lv_color_hex(primary ? 0x04222E : COL_TEXT), 0);
+  if (label != nullptr && label[0] != '\0') {
+    lv_obj_t *l = lv_label_create(b);
+    lv_label_set_text(l, label);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x04222E : COL_TEXT), 0);
+  }
+  auto *d = new CbData{self, ev, -1};
+  g_cbdata.push_back(d);
+  lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+  return b;
+}
+
+void LvglRenderer::build_voice_() {
+  if (this->voice_root_ != nullptr)
+    return;
+  this->voice_root_ = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(this->voice_root_);
+  lv_obj_set_size(this->voice_root_, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_color(this->voice_root_, lv_color_hex(0x0B0B10), 0);
+  lv_obj_set_style_bg_opa(this->voice_root_, LV_OPA_COVER, 0);  // opaque overlay
+  lv_obj_set_flex_flow(this->voice_root_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(this->voice_root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(this->voice_root_, 40, 0);
+  lv_obj_set_style_pad_row(this->voice_root_, 34, 0);
+  lv_obj_clear_flag(this->voice_root_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(this->voice_root_, LV_OBJ_FLAG_HIDDEN);
+
+  // Top-right close (cancel).
+  this->voice_close_ = lv_button_create(this->voice_root_);
+  lv_obj_set_size(this->voice_close_, 74, 74);
+  lv_obj_set_style_radius(this->voice_close_, 37, 0);
+  lv_obj_set_style_bg_color(this->voice_close_, lv_color_hex(0x20202A), 0);
+  lv_obj_set_style_shadow_width(this->voice_close_, 0, 0);
+  lv_obj_align(this->voice_close_, LV_ALIGN_TOP_RIGHT, 0, 0);
+  lv_obj_add_flag(this->voice_close_, LV_OBJ_FLAG_IGNORE_LAYOUT);
+  lv_obj_t *cx = lv_label_create(this->voice_close_);
+  lv_label_set_text(cx, LV_SYMBOL_CLOSE);
+  lv_obj_center(cx);
+  lv_obj_set_style_text_color(cx, lv_color_hex(COL_MUTED), 0);
+  {
+    auto *d = new CbData{this, InputEvent::VOICE_CANCEL, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(this->voice_close_, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
+
+  // Central orb (circle + large glyph).
+  this->voice_orb_ = lv_obj_create(this->voice_root_);
+  lv_obj_remove_style_all(this->voice_orb_);
+  lv_obj_set_size(this->voice_orb_, 300, 300);
+  lv_obj_set_style_radius(this->voice_orb_, 150, 0);
+  lv_obj_set_style_bg_color(this->voice_orb_, lv_color_hex(COL_VOICE), 0);
+  lv_obj_set_style_bg_grad_color(this->voice_orb_, lv_color_hex(COL_VOICE2), 0);
+  lv_obj_set_style_bg_grad_dir(this->voice_orb_, LV_GRAD_DIR_VER, 0);
+  lv_obj_set_style_bg_opa(this->voice_orb_, LV_OPA_COVER, 0);
+  lv_obj_clear_flag(this->voice_orb_, LV_OBJ_FLAG_SCROLLABLE);
+  this->voice_orb_icon_ = lv_label_create(this->voice_orb_);
+  lv_label_set_text(this->voice_orb_icon_, MDI_MIC);
+  lv_obj_center(this->voice_orb_icon_);
+  lv_obj_set_style_text_color(this->voice_orb_icon_, lv_color_hex(0xFFFFFF), 0);
+  if (this->font_voice_ != nullptr)
+    lv_obj_set_style_text_font(this->voice_orb_icon_, this->font_voice_->get_lv_font(), 0);
+
+  // Listening level bars.
+  this->voice_wave_ = lv_obj_create(this->voice_root_);
+  lv_obj_remove_style_all(this->voice_wave_);
+  lv_obj_set_size(this->voice_wave_, LV_SIZE_CONTENT, 70);
+  lv_obj_set_flex_flow(this->voice_wave_, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(this->voice_wave_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(this->voice_wave_, 9, 0);
+  lv_obj_clear_flag(this->voice_wave_, LV_OBJ_FLAG_SCROLLABLE);
+  const int heights[] = {26, 52, 70, 40, 60, 30, 54, 22};
+  for (int i = 0; i < 8; i++) {
+    lv_obj_t *bar = lv_obj_create(this->voice_wave_);
+    lv_obj_remove_style_all(bar);
+    lv_obj_set_size(bar, 10, heights[i]);
+    lv_obj_set_style_radius(bar, 5, 0);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(i % 2 ? COL_VOICE2 : COL_VOICE), 0);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+    this->voice_bars_.push_back(bar);
+  }
+
+  // Status + secondary line.
+  this->voice_status_ = lv_label_create(this->voice_root_);
+  lv_label_set_text(this->voice_status_, "");
+  lv_obj_set_style_text_color(this->voice_status_, lv_color_hex(COL_TEXT), 0);
+  lv_obj_set_style_text_align(this->voice_status_, LV_TEXT_ALIGN_CENTER, 0);
+  this->set_text_font_(this->voice_status_, this->font_large_, &lv_font_montserrat_48);
+
+  this->voice_sub_ = lv_label_create(this->voice_root_);
+  lv_label_set_text(this->voice_sub_, "");
+  lv_obj_set_width(this->voice_sub_, lv_pct(80));
+  lv_obj_set_style_text_color(this->voice_sub_, lv_color_hex(COL_MUTED), 0);
+  lv_obj_set_style_text_align(this->voice_sub_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(this->voice_sub_, LV_LABEL_LONG_WRAP);
+  this->set_text_font_(this->voice_sub_, this->font_medium_, &lv_font_montserrat_28);
+
+  // Responding TTS progress bar.
+  this->voice_ttsbar_ = lv_bar_create(this->voice_root_);
+  lv_obj_set_size(this->voice_ttsbar_, 420, 12);
+  lv_obj_set_style_radius(this->voice_ttsbar_, 6, 0);
+  lv_obj_set_style_bg_color(this->voice_ttsbar_, lv_color_hex(0x20202A), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(this->voice_ttsbar_, lv_color_hex(COL_VOICE), LV_PART_INDICATOR);
+  lv_bar_set_range(this->voice_ttsbar_, 0, 100);
+  lv_bar_set_value(this->voice_ttsbar_, 40, LV_ANIM_OFF);
+
+  // Actions row (error / muted / ringing).
+  this->voice_actions_ = lv_obj_create(this->voice_root_);
+  lv_obj_remove_style_all(this->voice_actions_);
+  lv_obj_set_size(this->voice_actions_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(this->voice_actions_, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(this->voice_actions_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(this->voice_actions_, 20, 0);
+  lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_SCROLLABLE);
+  // Prebuilt buttons; shown/hidden per state.
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_STOP, "Arrêter", true, COL_TIMER, InputEvent::TIMER_STOP);
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_PLUS, "1 min", false, COL_TIMER, InputEvent::TIMER_ADD_MIN);
+  voice_btn_(this, this->voice_actions_, MDI_MIC, "Réessayer", true, COL_VOICE, InputEvent::VOICE_START);
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_CLOSE, "Fermer", false, COL_VOICE, InputEvent::VOICE_CANCEL);
+  voice_btn_(this, this->voice_actions_, MDI_MIC, "Réactiver", true, COL_VOICE, InputEvent::VOICE_MUTE_TOGGLE);
+
+  // Bottom hint.
+  this->voice_hint_ = lv_label_create(this->voice_root_);
+  lv_label_set_text(this->voice_hint_, "");
+  lv_obj_set_style_text_color(this->voice_hint_, lv_color_hex(0x6E6E78), 0);
+  this->set_text_font_(this->voice_hint_, this->font_small_, &lv_font_montserrat_20);
+}
+
+// Show/hide the N-th action button (creation order in voice_actions_).
+static void voice_action_show(lv_obj_t *actions, std::initializer_list<int> shown) {
+  uint32_t n = lv_obj_get_child_count(actions);
+  for (uint32_t i = 0; i < n; i++)
+    lv_obj_add_flag(lv_obj_get_child(actions, i), LV_OBJ_FLAG_HIDDEN);
+  for (int idx : shown)
+    if (idx >= 0 && idx < (int) n)
+      lv_obj_remove_flag(lv_obj_get_child(actions, idx), LV_OBJ_FLAG_HIDDEN);
+}
+
+void LvglRenderer::voice_apply_(VoiceState st) {
+  if (this->voice_root_ == nullptr)
+    return;
+  // Defaults: hide the optional widgets; each state re-enables what it needs.
+  lv_obj_add_flag(this->voice_wave_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(this->voice_ttsbar_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(this->voice_actions_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_clear_flag(this->voice_close_, LV_OBJ_FLAG_HIDDEN);
+
+  uint32_t orb = COL_VOICE, orb2 = COL_VOICE2;
+  const char *glyph = MDI_MIC, *status = "", *sub = "", *hint = "";
+
+  switch (st) {
+    case VoiceState::LISTENING:
+      glyph = MDI_MIC; status = "Je vous écoute…"; hint = "Touchez pour annuler";
+      lv_obj_clear_flag(this->voice_wave_, LV_OBJ_FLAG_HIDDEN);
+      break;
+    case VoiceState::THINKING:
+      glyph = MDI_MIC; status = "Un instant…"; hint = "Reconnaissance + intention";
+      orb = COL_VOICE2; orb2 = 0x4B39B0;
+      break;
+    case VoiceState::RESPONDING:
+      glyph = MDI_VOL; status = "Réponse…"; hint = "Lecture vocale";
+      lv_obj_clear_flag(this->voice_ttsbar_, LV_OBJ_FLAG_HIDDEN);
+      break;
+    case VoiceState::ERROR:
+      glyph = MDI_ALERT; status = "Je n'ai pas compris"; sub = "Reformulez, ou touchez le micro pour réessayer.";
+      orb = COL_ERR; orb2 = 0xB21F1F;
+      lv_obj_clear_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_HIDDEN);
+      voice_action_show(this->voice_actions_, {2, 3});  // Réessayer / Fermer
+      break;
+    case VoiceState::MUTED:
+      glyph = MDI_MIC_OFF; status = "Micro coupé"; hint = "Le wake-word est désactivé";
+      orb = 0x3A3A44; orb2 = 0x1A1A20;
+      lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_HIDDEN);
+      voice_action_show(this->voice_actions_, {4});  // Réactiver
+      break;
+    case VoiceState::UNAVAILABLE:
+      glyph = MDI_CLOUD_OFF; status = "Assistant indisponible";
+      sub = "Home Assistant est hors ligne, ou aucun pipeline Assist n'est configuré.";
+      orb = 0x3A3A44; orb2 = 0x1A1A20;
+      lv_obj_clear_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
+      break;
+    case VoiceState::TIMER_RINGING:
+      glyph = MDI_TIMER_ALERT; status = "Minuterie terminée";
+      orb = COL_TIMER; orb2 = 0xC97E00;
+      lv_obj_clear_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(this->voice_close_, LV_OBJ_FLAG_HIDDEN);
+      voice_action_show(this->voice_actions_, {0, 1});  // Arrêter / +1 min
+      break;
+    default:
+      break;
+  }
+
+  lv_obj_set_style_bg_color(this->voice_orb_, lv_color_hex(orb), 0);
+  lv_obj_set_style_bg_grad_color(this->voice_orb_, lv_color_hex(orb2), 0);
+  lv_label_set_text(this->voice_orb_icon_, glyph);
+  lv_label_set_text(this->voice_status_, status);
+  if (sub[0] != '\0')
+    lv_label_set_text(this->voice_sub_, sub);
+  lv_label_set_text(this->voice_hint_, hint);
+}
+
+void LvglRenderer::voice_show(VoiceState st) {
+  this->build_voice_();
+  if (this->voice_root_ == nullptr)
+    return;
+  this->voice_state_ = st;
+  this->voice_apply_(st);
+  lv_obj_clear_flag(this->voice_root_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(this->voice_root_);
+}
+
+void LvglRenderer::voice_hide() {
+  this->voice_state_ = VoiceState::HIDDEN;
+  if (this->voice_root_ != nullptr)
+    lv_obj_add_flag(this->voice_root_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void LvglRenderer::set_voice_level(float level) {
+  if (this->voice_state_ != VoiceState::LISTENING || this->voice_bars_.empty())
+    return;
+  if (level < 0.05f)
+    level = 0.05f;
+  if (level > 1.0f)
+    level = 1.0f;
+  // Scale each bar around its base height for a lively waveform.
+  const int base[] = {26, 52, 70, 40, 60, 30, 54, 22};
+  for (size_t i = 0; i < this->voice_bars_.size(); i++) {
+    int h = (int) (base[i] * (0.35f + 0.65f * level));
+    lv_obj_set_height(this->voice_bars_[i], h < 6 ? 6 : h);
+  }
+}
+
+void LvglRenderer::voice_set_sub(const std::string &s) {
+  if (this->voice_sub_ == nullptr)
+    return;
+  lv_label_set_text(this->voice_sub_, s.c_str());
+  if (s.empty())
+    lv_obj_add_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
+  else
+    lv_obj_clear_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void LvglRenderer::set_mic_state(MicState st) {
+  this->mic_state_ = st;
+  if (this->mic_chip_ == nullptr)
+    return;
+  uint32_t bg = COL_TILE, fg = 0xCFD0D6;
+  const char *glyph = MDI_MIC;
+  switch (st) {
+    case MicState::ARMED: fg = COL_VOICE; break;
+    case MicState::LISTENING: bg = COL_VOICE; fg = 0x04222E; break;
+    case MicState::MUTED: glyph = MDI_MIC_OFF; fg = COL_ERR; break;
+    case MicState::UNAVAILABLE: fg = COL_MUTED; break;
+  }
+  lv_obj_set_style_bg_color(this->mic_chip_, lv_color_hex(bg), 0);
+  if (this->mic_chip_icon_ != nullptr) {
+    lv_label_set_text(this->mic_chip_icon_, glyph);
+    lv_obj_set_style_text_color(this->mic_chip_icon_, lv_color_hex(fg), 0);
+  }
+}
+
+void LvglRenderer::set_timers(const std::vector<TimerInfo> &timers) {
+  if (this->timer_pill_ == nullptr)
+    return;
+  // Header pill: show the soonest active timer's remaining time (single badge, no count).
+  const TimerInfo *soonest = nullptr;
+  for (const auto &t : timers) {
+    if (!t.is_active)
+      continue;
+    if (soonest == nullptr || t.remaining_s < soonest->remaining_s)
+      soonest = &t;
+  }
+  if (soonest == nullptr) {
+    lv_obj_add_flag(this->timer_pill_, LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+  char buf[16];
+  uint32_t s = soonest->remaining_s;
+  if (s >= 3600)
+    std::snprintf(buf, sizeof(buf), "%u:%02u:%02u", s / 3600, (s % 3600) / 60, s % 60);
+  else
+    std::snprintf(buf, sizeof(buf), "%u:%02u", s / 60, s % 60);
+  if (this->timer_pill_lbl_ != nullptr)
+    lv_label_set_text(this->timer_pill_lbl_, buf);
+  lv_obj_clear_flag(this->timer_pill_, LV_OBJ_FLAG_HIDDEN);
+}
+
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // Detail list: recycle episode thumbnails to whatever rows are now on screen. Throttle during
@@ -809,6 +1131,7 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
   } else {
     this->build_dashboard_(groups);
     this->build_now_playing_();
+    this->build_voice_();  // voice-assistant overlay (top layer), hidden until an event fires
     // Now-playing artwork reuses the detail pool's slot 0 (detail and now-playing screens are
     // never shown at the same time); keeps the grid covers untouched.
     for (const auto &g : groups) {
@@ -1309,6 +1632,50 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_flex_flow(right, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(right, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(right, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Active-timer pill (hidden until ≥1 timer runs) -> opens the timers screen.
+  this->timer_pill_ = lv_button_create(right);
+  lv_obj_set_height(this->timer_pill_, 56);
+  lv_obj_set_style_radius(this->timer_pill_, 28, 0);
+  lv_obj_set_style_bg_color(this->timer_pill_, lv_color_hex(COL_TILE), 0);
+  lv_obj_set_style_shadow_width(this->timer_pill_, 0, 0);
+  lv_obj_set_style_pad_hor(this->timer_pill_, 18, 0);
+  lv_obj_set_flex_flow(this->timer_pill_, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(this->timer_pill_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(this->timer_pill_, 8, 0);
+  lv_obj_add_flag(this->timer_pill_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_t *tpi = lv_label_create(this->timer_pill_);
+  lv_label_set_text(tpi, MDI_TIMER);
+  lv_obj_set_style_text_color(tpi, lv_color_hex(COL_TIMER), 0);
+  if (this->font_icons_lg_ != nullptr)
+    lv_obj_set_style_text_font(tpi, this->font_icons_lg_->get_lv_font(), 0);
+  this->timer_pill_lbl_ = lv_label_create(this->timer_pill_);
+  lv_label_set_text(this->timer_pill_lbl_, "0:00");
+  lv_obj_set_style_text_color(this->timer_pill_lbl_, lv_color_hex(COL_TIMER), 0);
+  this->set_text_font_(this->timer_pill_lbl_, this->font_medium_, &lv_font_montserrat_28);
+  {
+    auto *d = new CbData{this, InputEvent::OPEN_TIMERS, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(this->timer_pill_, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
+
+  // Microphone chip: tap = tap-to-talk (start listening). State reflects armed/listening/muted.
+  this->mic_chip_ = lv_button_create(right);
+  lv_obj_set_size(this->mic_chip_, 56, 56);
+  lv_obj_set_style_radius(this->mic_chip_, 28, 0);
+  lv_obj_set_style_bg_color(this->mic_chip_, lv_color_hex(COL_TILE), 0);
+  lv_obj_set_style_shadow_width(this->mic_chip_, 0, 0);
+  this->mic_chip_icon_ = lv_label_create(this->mic_chip_);
+  lv_label_set_text(this->mic_chip_icon_, MDI_MIC);
+  lv_obj_center(this->mic_chip_icon_);
+  lv_obj_set_style_text_color(this->mic_chip_icon_, lv_color_hex(COL_VOICE), 0);
+  if (this->font_icons_lg_ != nullptr)
+    lv_obj_set_style_text_font(this->mic_chip_icon_, this->font_icons_lg_->get_lv_font(), 0);
+  {
+    auto *d = new CbData{this, InputEvent::VOICE_START, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(this->mic_chip_, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
 
   // Now-playing button -> opens the "now playing" card.
   this->np_btn_ = lv_button_create(right);

@@ -43,6 +43,22 @@ class HaDashboard : public Component {
   void set_font_weather(font::Font *f) { this->renderer_.set_font_weather(f); }
   void set_font_icons(font::Font *f) { this->renderer_.set_font_icons(f); }
   void set_font_icons_lg(font::Font *f) { this->renderer_.set_font_icons_lg(f); }
+  void set_font_voice(font::Font *f) { this->renderer_.set_font_voice(f); }
+
+  // --- Voice assistant (called from voice_assistant / micro_wake_word YAML automations) ---
+  void voice_listening();
+  void voice_thinking();
+  void voice_responding();
+  void voice_error();
+  void voice_end();               // pipeline ended -> hide the overlay (unless a timer is ringing)
+  void voice_level(float level);  // 0..1 mic level during listening (waveform amplitude)
+  void voice_set_muted(bool muted);
+  void voice_set_available(bool available);
+  // HA Assist voice timers.
+  void timer_started(const std::string &id, const std::string &name, uint32_t seconds);
+  void timer_updated(const std::string &id, uint32_t seconds_left, bool is_active);
+  void timer_cancelled(const std::string &id);
+  void timer_finished(const std::string &id);
 
   // Appelés par le codegen (to_code) pour peupler le modèle.
   void add_group(const std::string &name, const std::string &icon);
@@ -73,6 +89,10 @@ class HaDashboard : public Component {
 
  protected:
   void build_if_ready_();
+  void handle_event_(InputEvent e, int idx);  // route voice/timer actions here, nav to controller
+  void refresh_mic_chip_();                    // reconcile the header mic chip with muted/available
+  void push_timers_();                         // recompute + push timers to the renderer
+  void tick_timers_(uint32_t now_ms);          // 1 s countdown for the header pill
   void poll_encoder_();
   void poll_button_();
   void update_clock_();
@@ -103,6 +123,13 @@ class HaDashboard : public Component {
   std::string language_{"en"};
   uint32_t timeout_ms_{30000};
   bool built_{false};
+
+  // Voice assistant state.
+  bool voice_muted_{false};
+  bool voice_available_{true};
+  std::vector<TimerInfo> timers_;
+  std::string ringing_timer_id_;
+  uint32_t last_timer_tick_ms_{0};
 
   float last_encoder_{NAN};
   bool button_down_{false};

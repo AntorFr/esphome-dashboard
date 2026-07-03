@@ -65,6 +65,39 @@ enum class InputEvent : uint8_t {
   SHEET_COVER_STOP,        // cover: stop
   SHEET_COVER_CLOSE,       // cover: close
   SHEET_SET_VALUE,         // slider (index = 0..100): volume (media) / position (cover) / brightness (light)
+
+  // Voice assistant overlay actions (buttons on the top-layer overlay / header mic chip).
+  VOICE_START,             // start listening (tap mic chip / "retry")
+  VOICE_CANCEL,            // cancel / close the overlay
+  VOICE_MUTE_TOGGLE,       // toggle microphone mute (long-press chip / "reactivate")
+  TIMER_STOP,             // stop the ringing (or a) timer (index = timer, -1 = the ringing one)
+  TIMER_ADD_MIN,          // add one minute to the ringing timer
+  OPEN_TIMERS,             // open the timers screen (tap the header timer pill)
+};
+
+// Voice-assistant overlay states (independent of NavState — the overlay sits on the top
+// layer, over any screen). Driven by the ESPHome voice_assistant/micro_wake_word events.
+enum class VoiceState : uint8_t {
+  HIDDEN = 0,     // overlay not shown
+  LISTENING,      // wake detected / recording (audio level animated)
+  THINKING,       // STT done -> intent/LLM
+  RESPONDING,     // TTS playing (reply)
+  ERROR,          // not understood / pipeline error
+  MUTED,          // microphone muted (wake word disabled)
+  UNAVAILABLE,    // HA offline / no Assist pipeline
+  TIMER_RINGING,  // a voice timer finished -> full-screen alarm
+};
+
+// Header microphone chip states (persistent surface on the D1001 dashboard header).
+enum class MicState : uint8_t { ARMED = 0, LISTENING, MUTED, UNAVAILABLE };
+
+// One HA Assist voice timer (for the header pill + the timers screen).
+struct TimerInfo {
+  std::string id;
+  std::string name;
+  uint32_t remaining_s{0};
+  uint32_t total_s{0};
+  bool is_active{false};
 };
 
 // Instantané de l'état de navigation passé au renderer.
