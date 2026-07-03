@@ -17,8 +17,9 @@ esphome:
       - "-DLV_FONT_MONTSERRAT_40=1"
       - "-DLV_FONT_MONTSERRAT_48=1"
   on_boot:
-    # Enable the speaker power amplifier (direct GPIO53 per the Seeed BSP) — without it the
-    # ES8311 codec runs but no sound reaches the speaker.
+    # Enable the speaker power amplifier. The Seeed BSP drives it via the XL9535 expander
+    # (output port 1, bit 3 = pin P13), NOT the GPIO53 the header's GPIO_OUTPUT_PA define
+    # suggests. Without this the ES8311 codec runs but no sound reaches the speaker.
     - priority: -100
       then:
         - output.turn_on: d1001_audio_pa
@@ -95,10 +96,13 @@ output:
     id: d1001_bl_pwm
     pin: GPIO14
     frequency: 2000Hz
-  # Speaker power-amplifier enable (net EN_PA = GPIO53, per the Seeed BSP). Held high for audio.
+  # Speaker power-amplifier enable. The Seeed BSP toggles it on the XL9535 expander
+  # (output port 1, bit 3). In ESPHome's octal xl9535 numbering that is pin 13. Held high.
   - platform: gpio
     id: d1001_audio_pa
-    pin: GPIO53
+    pin:
+      xl9535: d1001_expander
+      number: 13
 light:
   - platform: monochromatic
     id: d1001_backlight

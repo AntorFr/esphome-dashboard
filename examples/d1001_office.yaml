@@ -121,17 +121,17 @@ time:
 # Audio hardware (I2S buses, ES8311/ES7210, speaker, microphone, PA) lives in the board package.
 # NB: the board sets execute_from_psram (CONFIG_SPIRAM_XIP_FROM_PSRAM) — required on the P4 or
 # the audio stack asserts esp_task_stack_is_sane_cache_disabled at boot.
-# Speaker media_player: plays the voice_assistant TTS AND short feedback sounds (the same FLAC
-# sounds as HA Voice PE, embedded at build time). Routes to the board's d1001_speaker; the
-# pipeline resamples the 48 kHz sounds down to the speaker's 16 kHz.
+# Speaker media_player: plays the voice_assistant TTS AND short feedback sounds. Routes to the
+# board's d1001_speaker; the pipeline resamples sources down to the speaker's 16 kHz.
+# format: NONE compiles ALL decoders (MP3/FLAC/WAV/OPUS). Required because HA streams the TTS
+# response as an .mp3 URL (api/tts_proxy/*.mp3); a fixed FLAC format would only build the FLAC
+# decoder, so the MP3 reader failed with ESP_ERR_NOT_SUPPORTED and looped forever.
 media_player:
   - platform: speaker
     id: d1001_media
     announcement_pipeline:
       speaker: d1001_speaker
-      format: FLAC
-      sample_rate: 16000
-      num_channels: 1
+      format: NONE
     files:
       - id: wake_sound
         file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/wake_word_triggered.flac
