@@ -223,6 +223,7 @@ class LvglRenderer : public Renderer {
   lv_obj_t *sheet_icon_{nullptr};
   const Card *sheet_card_{nullptr};     // card the sheet is showing (null = closed)
   // Live widgets refreshed from the card state:
+  lv_obj_t *sheet_illus_{nullptr};      // big state illustration (cover glyph / media speaker)
   lv_obj_t *sheet_value_lbl_{nullptr};  // climate target temp
   lv_obj_t *sheet_sub_lbl_{nullptr};    // climate current / media artist
   lv_obj_t *sheet_pp_icon_{nullptr};    // media play/pause glyph

@@ -378,9 +378,23 @@ void LvglRenderer::hide_sheet_() {
 void LvglRenderer::build_sheet_content_(const Card &c) {
   lv_obj_clean(this->sheet_body_);
   this->sheet_value_lbl_ = this->sheet_sub_lbl_ = this->sheet_pp_icon_ = this->sheet_slider_ = nullptr;
+  this->sheet_illus_ = nullptr;
   for (int i = 0; i < 4; i++)
     this->sheet_modes_[i] = nullptr;
   const uint32_t accent = accent_for(c);
+
+  // A big central illustration (icon) at the top of the sheet body — visual anchor like the
+  // mockups. Uses the large voice font (104px MDI); returns the label for later refresh.
+  auto illustration = [this](const char *glyph, uint32_t color) -> lv_obj_t * {
+    if (this->font_voice_ == nullptr)
+      return nullptr;
+    lv_obj_t *l = lv_label_create(this->sheet_body_);
+    lv_label_set_text(l, glyph);
+    lv_obj_set_style_text_font(l, this->font_voice_->get_lv_font(), 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
+    lv_obj_set_style_pad_ver(l, 8, 0);
+    return l;
+  };
 
   // A round icon/text button in the sheet. Returns the glyph label (for later refresh).
   auto sbtn = [this](lv_obj_t *parent, const char *glyph, const lv_font_t *font, bool primary,
@@ -434,30 +448,40 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
     lv_obj_t *mr = sheet_row_(this->sheet_body_);
     const lv_font_t *mdi = this->font_icons_lg_ != nullptr ? this->font_icons_lg_->get_lv_font()
                                                            : &lv_font_montserrat_48;
-    struct M { const char *g; const lv_font_t *f; };
-    M ms[4] = {{LV_SYMBOL_POWER, &lv_font_montserrat_48}, {MDI_FIRE, mdi}, {MDI_SNOW, mdi},
-               {LV_SYMBOL_REFRESH, &lv_font_montserrat_48}};
+    struct M { const char *g; const lv_font_t *f; const char *label; };
+    M ms[4] = {{LV_SYMBOL_POWER, &lv_font_montserrat_48, "Éteint"}, {MDI_FIRE, mdi, "Chauffe"},
+               {MDI_SNOW, mdi, "Froid"}, {LV_SYMBOL_REFRESH, &lv_font_montserrat_48, "Auto"}};
     for (int i = 0; i < 4; i++) {
       lv_obj_t *b = lv_button_create(mr);
-      lv_obj_set_size(b, 96, 96);
+      lv_obj_set_size(b, 120, 120);
       lv_obj_set_style_radius(b, 18, 0);
       lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
       lv_obj_set_style_shadow_width(b, 0, 0);
       lv_obj_set_style_border_width(b, 3, 0);
       lv_obj_set_style_border_color(b, lv_color_hex(COL_TILE), 0);
+      lv_obj_set_flex_flow(b, LV_FLEX_FLOW_COLUMN);
+      lv_obj_set_flex_align(b, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      lv_obj_set_style_pad_row(b, 6, 0);
       lv_obj_t *l = lv_label_create(b);
       lv_label_set_text(l, ms[i].g);
-      lv_obj_center(l);
       lv_obj_set_style_text_font(l, ms[i].f, 0);
       lv_obj_set_style_text_color(l, lv_color_hex(COL_MUTED), 0);
+      lv_obj_t *lb = lv_label_create(b);
+      lv_label_set_text(lb, ms[i].label);
+      this->set_text_font_(lb, this->font_small_, &lv_font_montserrat_20);
+      lv_obj_set_style_text_color(lb, lv_color_hex(COL_MUTED), 0);
       auto *d = new CbData{this, InputEvent::SHEET_MODE, i};
       g_cbdata.push_back(d);
       lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
       this->sheet_modes_[i] = b;
     }
   } else if (c.type == CardType::MEDIA_PLAYER) {
+    illustration(MDI_SPEAKER, accent);  // visual anchor (album art = later, needs online_image)
     this->sheet_sub_lbl_ = lv_label_create(this->sheet_body_);
-    lv_obj_set_style_text_color(this->sheet_sub_lbl_, lv_color_hex(COL_MUTED), 0);
+    lv_obj_set_style_text_color(this->sheet_sub_lbl_, lv_color_hex(COL_TEXT), 0);
+    lv_obj_set_width(this->sheet_sub_lbl_, lv_pct(90));
+    lv_obj_set_style_text_align(this->sheet_sub_lbl_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(this->sheet_sub_lbl_, LV_LABEL_LONG_DOT);
     this->set_text_font_(this->sheet_sub_lbl_, this->font_medium_, &lv_font_montserrat_28);
     lv_obj_t *tr = sheet_row_(this->sheet_body_);
     lv_obj_set_style_pad_column(tr, 30, 0);
@@ -467,6 +491,7 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
     make_slider(COL_MUTED, LV_SYMBOL_VOLUME_MAX, &lv_font_montserrat_28);
   } else if (c.type == CardType::COVER) {
     const bool gate = cover_kind_of(c) == (int) CoverKind::GATE;
+    this->sheet_illus_ = illustration(card_mdi_glyph(c), c.is_on() ? accent : COL_MUTED);  // open/closed
     lv_obj_t *tr = sheet_row_(this->sheet_body_);
     lv_obj_set_style_pad_column(tr, 26, 0);
     sbtn(tr, gate ? LV_SYMBOL_LEFT : LV_SYMBOL_UP, &lv_font_montserrat_48, false, InputEvent::SHEET_COVER_OPEN);
@@ -516,6 +541,10 @@ void LvglRenderer::refresh_sheet_() {
       lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
   } else if (this->sheet_slider_ != nullptr) {  // cover / light
     lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
+    if (c.type == CardType::COVER && this->sheet_illus_ != nullptr) {
+      lv_label_set_text(this->sheet_illus_, card_mdi_glyph(c));  // open/closed illustration
+      lv_obj_set_style_text_color(this->sheet_illus_, lv_color_hex(c.is_on() ? accent_for(c) : COL_MUTED), 0);
+    }
   }
 }
 
@@ -1798,15 +1827,16 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_bg_opa(right, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(right, 0, 0);
   lv_obj_set_style_pad_all(right, 0, 0);
-  lv_obj_set_style_pad_column(right, 14, 0);
+  lv_obj_set_style_pad_column(right, 26, 0);  // wide gaps: header pills are separate tap targets
   lv_obj_set_flex_flow(right, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(right, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_clear_flag(right, LV_OBJ_FLAG_SCROLLABLE);
 
   // Active-timer pill (hidden until ≥1 timer runs) -> opens the timers screen.
   this->timer_pill_ = lv_button_create(right);
-  lv_obj_set_height(this->timer_pill_, 56);
-  lv_obj_set_style_radius(this->timer_pill_, 28, 0);
+  lv_obj_set_height(this->timer_pill_, 64);
+  lv_obj_set_style_radius(this->timer_pill_, 32, 0);
+  lv_obj_set_ext_click_area(this->timer_pill_, 10);
   lv_obj_set_style_bg_color(this->timer_pill_, lv_color_hex(COL_TILE), 0);
   lv_obj_set_style_shadow_width(this->timer_pill_, 0, 0);
   lv_obj_set_style_pad_hor(this->timer_pill_, 18, 0);
@@ -1831,8 +1861,9 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
 
   // Microphone chip: tap = tap-to-talk (start listening). State reflects armed/listening/muted.
   this->mic_chip_ = lv_button_create(right);
-  lv_obj_set_size(this->mic_chip_, 56, 56);
-  lv_obj_set_style_radius(this->mic_chip_, 28, 0);
+  lv_obj_set_size(this->mic_chip_, 64, 64);
+  lv_obj_set_style_radius(this->mic_chip_, 32, 0);
+  lv_obj_set_ext_click_area(this->mic_chip_, 10);  // enlarge the hit area beyond the visual
   lv_obj_set_style_bg_color(this->mic_chip_, lv_color_hex(COL_TILE), 0);
   lv_obj_set_style_shadow_width(this->mic_chip_, 0, 0);
   this->mic_chip_icon_ = lv_label_create(this->mic_chip_);
@@ -1849,9 +1880,10 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
 
   // Now-playing button -> opens the "now playing" card.
   this->np_btn_ = lv_button_create(right);
-  lv_obj_set_size(this->np_btn_, 56, 56);
+  lv_obj_set_size(this->np_btn_, 64, 64);
   lv_obj_set_style_bg_color(this->np_btn_, lv_color_hex(COL_TILE), 0);
-  lv_obj_set_style_radius(this->np_btn_, 28, 0);
+  lv_obj_set_style_radius(this->np_btn_, 32, 0);
+  lv_obj_set_ext_click_area(this->np_btn_, 10);
   lv_obj_set_style_shadow_width(this->np_btn_, 0, 0);
   lv_obj_t *npi = lv_label_create(this->np_btn_);
   lv_label_set_text(npi, LV_SYMBOL_AUDIO);

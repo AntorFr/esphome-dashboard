@@ -101,3 +101,11 @@ font:
       - "\U000F0028"  # alert-circle (error)
       - "\U000F0164"  # cloud-off-outline (unavailable)
       - "\U000F1ACD"  # timer-alert-outline (timer ringing)
+      # Big control-sheet illustrations (cover state + media).
+      - "\U000F04C3"  # speaker (media sheet)
+      - "\U000F111C"  # window-shutter (cover closed)
+      - "\U000F111E"  # window-shutter-open (cover open)
+      - "\U000F06D9"  # garage (closed)
+      - "\U000F06DA"  # garage-open
+      - "\U000F0299"  # gate (closed)
+      - "\U000F116A"  # gate-open
