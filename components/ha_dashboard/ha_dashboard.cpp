@@ -504,7 +504,7 @@ void HaDashboard::timer_finished(const std::string &id) {
   this->renderer_.voice_show(VoiceState::TIMER_RINGING);
   char sub[48];
   if (!name.empty())
-    std::snprintf(sub, sizeof(sub), "« %s » · %u:%02u", name.c_str(), total / 60, total % 60);
+    std::snprintf(sub, sizeof(sub), "%s - %u:%02u", name.c_str(), total / 60, total % 60);
   else
     std::snprintf(sub, sizeof(sub), "%u:%02u", total / 60, total % 60);
   this->renderer_.voice_set_sub(sub);

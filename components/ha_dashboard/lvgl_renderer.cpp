@@ -691,15 +691,15 @@ void LvglRenderer::voice_apply_(VoiceState st) {
 
   switch (st) {
     case VoiceState::LISTENING:
-      glyph = MDI_MIC; status = "Je vous écoute…"; hint = "Touchez pour annuler";
+      glyph = MDI_MIC; status = "Je vous écoute..."; hint = "Touchez pour annuler";
       lv_obj_clear_flag(this->voice_wave_, LV_OBJ_FLAG_HIDDEN);
       break;
     case VoiceState::THINKING:
-      glyph = MDI_MIC; status = "Un instant…"; hint = "Reconnaissance + intention";
+      glyph = MDI_MIC; status = "Un instant..."; hint = "Reconnaissance + intention";
       orb = COL_VOICE2; orb2 = 0x4B39B0;
       break;
     case VoiceState::RESPONDING:
-      glyph = MDI_VOL; status = "Réponse…"; hint = "Lecture vocale";
+      glyph = MDI_VOL; status = "Réponse..."; hint = "Lecture vocale";
       lv_obj_clear_flag(this->voice_ttsbar_, LV_OBJ_FLAG_HIDDEN);
       break;
     case VoiceState::ERROR:
@@ -2612,7 +2612,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_style_text_font(ic, &lv_font_montserrat_48, 0);
       lv_obj_set_style_text_color(ic, lv_color_hex(COL_ACCENT), 0);
       lv_obj_t *lbl = lv_label_create(box);
-      lv_label_set_text(lbl, "Chargement…");
+      lv_label_set_text(lbl, "Chargement...");
       lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
       this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
     }
@@ -2640,7 +2640,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   if (detail && L->has_more()) {
     if (L->loading_more()) {
       lv_obj_t *lbl = lv_label_create(grid);
-      lv_label_set_text(lbl, "Chargement…");
+      lv_label_set_text(lbl, "Chargement...");
       lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
       this->set_text_font_(lbl, this->font_small_, &lv_font_montserrat_20);
     } else {

@@ -89,6 +89,8 @@ time:
 
 # === Voice assistant (wake word local + HA Assist), reflected into the dashboard overlay ===
 # Audio hardware (I2S buses, ES8311/ES7210, speaker, microphone, PA) lives in the board package.
+# NB: the board sets execute_from_psram (CONFIG_SPIRAM_XIP_FROM_PSRAM) — required on the P4 or
+# the audio stack asserts esp_task_stack_is_sane_cache_disabled at boot.
 micro_wake_word:
   models:
     - model: okay_nabu

@@ -35,6 +35,10 @@ esp32:
     type: esp-idf
     advanced:
       enable_idf_experimental_features: true
+      # Execute code/rodata from PSRAM so tasks keep running when the flash cache is disabled
+      # (flash write/erase). Needed on the P4 once the audio stack does flash ops, otherwise
+      # boot asserts esp_task_stack_is_sane_cache_disabled. Maps to CONFIG_SPIRAM_XIP_FROM_PSRAM.
+      execute_from_psram: true
 
 # PSRAM à pleine vitesse (200 MHz) : indispensable pour alimenter le scanout MIPI-DSI
 # 800x1280 sans underrun (sinon écran noir / corrompu). Vitesses P4 : 20/100/200 MHz.
