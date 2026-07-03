@@ -46,6 +46,13 @@ static uint32_t accent_for(const Card &c);    // defined below
 static const char *icon_for(const Card &c);   // defined below (LVGL symbol fallback)
 static void load_screen_(lv_obj_t *scr);      // load a screen only if not already active
 
+// Append "key=value" to a URL, chaining with ? or & (the cover_url may already carry ?fmt=).
+[[maybe_unused]] static std::string url_add(std::string u, const std::string &kv) {
+  u += (u.find('?') == std::string::npos) ? '?' : '&';
+  u += kv;
+  return u;
+}
+
 // MDI glyphs (embedded in ha_font_icons_lg) for classic-card icons + climate modes.
 static const char *const MDI_POWER = "\U000F0425";
 static const char *const MDI_LIGHT = "\U000F0335";
@@ -2420,7 +2427,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
         !item.cover_url.empty()) {
       lv_obj_t *img = lv_image_create(cover);
       lv_obj_center(img);
-      this->bind_cover_(img, g.cover_slots[idx], item.cover_url + "?size=" + std::to_string(COVER_PX));
+      this->bind_cover_(img, g.cover_slots[idx], url_add(item.cover_url, "size=" + std::to_string(COVER_PX)));
     }
 #endif
 
@@ -2629,7 +2636,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_size(hc, 64, 64);
       lv_obj_set_style_clip_corner(hc, true, 0);
       lv_obj_set_style_radius(hc, 8, 0);
-      this->bind_cover_(hc, g.thumb_slots[0], L->detail_cover_url() + "?size=64");
+      this->bind_cover_(hc, g.thumb_slots[0], url_add(L->detail_cover_url(), "size=64"));
     }
 #endif
 
