@@ -36,6 +36,7 @@ class Controller {
   void notify_activity();
 
   NavState state() const { return this->state_; }
+  uint32_t last_event_ms() const { return this->last_event_ms_; }
 
  protected:
   void render_();

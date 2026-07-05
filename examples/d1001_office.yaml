@@ -60,6 +60,19 @@ text_sensor:
     reset_reason:
       name: "Reset Reason"
 
+# Side button (GPIO3, active-low): short-press toggles extended standby (backlight off/on).
+binary_sensor:
+  - platform: gpio
+    id: d1001_side_button
+    pin:
+      number: GPIO3
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    on_press:
+      - lambda: "id(d1001_dash)->toggle_deep_standby();"
+
 sensor:
   - platform: debug
     free:
@@ -271,6 +284,13 @@ ha_dashboard:
         id: d1001_media
         media_file: click_sound
         announcement: true
+  # Extended standby: after this much idle in the clock screen, turn the backlight off; the next
+  # touch or wake word turns it back on. Must be > inactivity_timeout. Tune to taste.
+  deep_standby_timeout: 3min
+  on_deep_standby:
+    - light.turn_off: d1001_backlight
+  on_wake:
+    - light.turn_on: d1001_backlight
   weather:
     entity: weather.petit_mars
   font_small: ha_font_small

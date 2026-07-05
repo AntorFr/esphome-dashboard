@@ -392,10 +392,47 @@ void HaDashboard::loop() {
   this->update_clock_();
   this->tick_timers_(millis());
   this->controller_.tick(millis());
+
+  // Extended standby: once the clock screen has been idle for deep_standby_timeout, fire
+  // on_deep_standby once (e.g. turn the backlight off). Woken in wake_from_deep_standby_().
+  if (this->deep_standby_ms_ > 0 && !this->deep_standby_active_ &&
+      this->controller_.state() == NavState::IDLE &&
+      millis() - this->controller_.last_event_ms() >= this->deep_standby_ms_) {
+    this->deep_standby_active_ = true;
+    ESP_LOGD(TAG, "deep standby");
+    this->deep_standby_trigger_.trigger();
+  }
+}
+
+bool HaDashboard::wake_from_deep_standby_() {
+  if (!this->deep_standby_active_)
+    return false;
+  this->deep_standby_active_ = false;
+  ESP_LOGD(TAG, "wake from deep standby");
+  this->wake_trigger_.trigger();
+  return true;
+}
+
+void HaDashboard::toggle_deep_standby() {
+  if (this->deep_standby_active_) {
+    this->wake_from_deep_standby_();
+    this->controller_.notify_activity();  // wake the screen back to home
+  } else {
+    this->deep_standby_active_ = true;
+    ESP_LOGD(TAG, "deep standby (button)");
+    this->deep_standby_trigger_.trigger();
+  }
 }
 
 // Route overlay/header voice + timer actions to the component; navigation goes to the controller.
 void HaDashboard::handle_event_(InputEvent e, int idx) {
+  // Wake from extended standby on the first interaction: turn the backlight back on and swallow
+  // this event (don't also fire the tapped action or a click), like waking a phone.
+  if (this->wake_from_deep_standby_()) {
+    this->controller_.notify_activity();  // bring the screen back to the home/dashboard
+    return;
+  }
+
   // Audible click feedback: fire on a discrete tap of a button/tile, but not on continuous
   // gestures (carousel swipes, slider drags) or system events, which would spam the click.
   switch (e) {
@@ -461,6 +498,7 @@ void HaDashboard::handle_event_(InputEvent e, int idx) {
 }
 
 void HaDashboard::voice_listening() {
+  this->wake_from_deep_standby_();       // wake word turns the backlight back on
   this->controller_.notify_activity();  // a wake word / tap-to-talk wakes the screen (like a touch)
   this->renderer_.set_mic_state(MicState::LISTENING);
   this->renderer_.voice_show(VoiceState::LISTENING);
@@ -540,6 +578,7 @@ void HaDashboard::timer_finished(const std::string &id) {
       break;
     }
   this->ringing_timer_id_ = id;
+  this->wake_from_deep_standby_();       // a finished timer turns the backlight back on
   this->controller_.notify_activity();  // a finished timer lights up the screen (like a touch)
   this->renderer_.voice_show(VoiceState::TIMER_RINGING);
   char sub[48];

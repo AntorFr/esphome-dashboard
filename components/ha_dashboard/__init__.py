@@ -39,6 +39,9 @@ HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
 
 CONF_PROFILE = "profile"
 CONF_ON_TAP = "on_tap"
+CONF_DEEP_STANDBY_TIMEOUT = "deep_standby_timeout"
+CONF_ON_DEEP_STANDBY = "on_deep_standby"
+CONF_ON_WAKE = "on_wake"
 CONF_LANGUAGE = "language"
 CONF_WEATHER = "weather"
 CONF_INACTIVITY_TIMEOUT = "inactivity_timeout"
@@ -192,6 +195,11 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
         # Fired on a discrete tap of a button/tile (e.g. to play an audible click).
         cv.Optional(CONF_ON_TAP): automation.validate_automation(single=True),
+        # Extended standby: after this much idle in the clock screen, on_deep_standby fires
+        # (e.g. turn the backlight off); on_wake fires on the next interaction.
+        cv.Optional(CONF_DEEP_STANDBY_TIMEOUT): cv.positive_time_period_milliseconds,
+        cv.Optional(CONF_ON_DEEP_STANDBY): automation.validate_automation(single=True),
+        cv.Optional(CONF_ON_WAKE): automation.validate_automation(single=True),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -216,6 +224,16 @@ async def to_code(config):
     if CONF_ON_TAP in config:
         await automation.build_automation(
             var.get_tap_trigger(), [], config[CONF_ON_TAP]
+        )
+    if CONF_DEEP_STANDBY_TIMEOUT in config:
+        cg.add(var.set_deep_standby_timeout(config[CONF_DEEP_STANDBY_TIMEOUT]))
+    if CONF_ON_DEEP_STANDBY in config:
+        await automation.build_automation(
+            var.get_deep_standby_trigger(), [], config[CONF_ON_DEEP_STANDBY]
+        )
+    if CONF_ON_WAKE in config:
+        await automation.build_automation(
+            var.get_wake_trigger(), [], config[CONF_ON_WAKE]
         )
 
     cg.add(var.set_profile(config[CONF_PROFILE]))

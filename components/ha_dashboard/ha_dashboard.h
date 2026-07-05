@@ -35,9 +35,19 @@ class HaDashboard : public Component {
   // so YAML can add audible click feedback. See handle_event_.
   Trigger<> *get_tap_trigger() { return &this->tap_trigger_; }
 
+  // Extended standby: on_deep_standby fires after deep_standby_timeout of idle in the clock
+  // screen (e.g. to turn the backlight off); on_wake fires on the next interaction (backlight
+  // on). No-op if deep_standby_timeout is unset.
+  Trigger<> *get_deep_standby_trigger() { return &this->deep_standby_trigger_; }
+  Trigger<> *get_wake_trigger() { return &this->wake_trigger_; }
+  // Toggle extended standby on demand (e.g. from the side button): enter it (backlight off) if
+  // awake, or wake if already in it. Works regardless of deep_standby_timeout.
+  void toggle_deep_standby();
+
   void set_profile(const std::string &profile) { this->profile_ = profile; }
   void set_language(const std::string &language) { this->language_ = language; }
   void set_inactivity_timeout(uint32_t ms) { this->timeout_ms_ = ms; }
+  void set_deep_standby_timeout(uint32_t ms) { this->deep_standby_ms_ = ms; }
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
@@ -98,6 +108,12 @@ class HaDashboard : public Component {
   void build_if_ready_();
   void handle_event_(InputEvent e, int idx);  // route voice/timer actions here, nav to controller
   Trigger<> tap_trigger_;                      // fired for click feedback on discrete taps
+  // Extended standby (backlight off after a long idle). Returns true if it just woke.
+  bool wake_from_deep_standby_();              // fire on_wake + clear the flag if in deep standby
+  Trigger<> deep_standby_trigger_;
+  Trigger<> wake_trigger_;
+  uint32_t deep_standby_ms_{0};                // 0 = feature disabled
+  bool deep_standby_active_{false};
   void refresh_mic_chip_();                    // reconcile the header mic chip with muted/available
   void push_timers_();                         // recompute + push timers to the renderer
   void tick_timers_(uint32_t now_ms);          // 1 s countdown for the header pill
