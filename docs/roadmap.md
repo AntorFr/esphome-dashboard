@@ -57,7 +57,9 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - [ ] Interfaces `Renderer` + `InputAdapter`
 - [ ] `LvglRenderer` + `layout` responsive + `widget_value_arc`
 - [ ] `InputEncoderTouch` (Dial) + `InputTouch` (D1001)
-- [ ] Binding HA : état in + commande luminosité out (throttlé)
+- [x] Binding HA : état in + commande luminosité out (throttlé) — carte `light` bout-en-bout
+  via le proxy `homeassistant_addon` `lights:` (on/off + luminosité) ; tap = toggle, sheet =
+  variateur ; compile OK test_d1001
 - [ ] `color_resolver` (live RGB + off-gray + grisé indispo)
 - [ ] i18n de base ; `entrypoint.yaml` + `boards/*` + `lvgl_base` + fonts
 - [ ] Cadrer init LVGL / buffers / PSRAM (compléter ADR-0003)

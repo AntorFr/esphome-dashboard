@@ -441,8 +441,13 @@ void Controller::primary_action_(Card &c) {
         call.perform();
       }
       break;
-    case CardType::SWITCH:
     case CardType::LIGHT:
+      if (c.light != nullptr)
+        c.light->toggle();
+      else
+        c.on = !c.on;
+      break;
+    case CardType::SWITCH:
     default:
       if (c.sw != nullptr)
         c.sw->toggle();
@@ -516,7 +521,9 @@ void Controller::sheet_action_(Card &c, InputEvent ev, int index) {
         auto call = c.cover->make_call();
         call.set_position(v);
         call.perform();
-      } else {  // light stub (no binding yet): optimistic local value
+      } else if (c.type == CardType::LIGHT && c.light != nullptr) {
+        c.light->set_brightness(v);
+      } else {  // unbound fallback: optimistic local value
         c.value_local = v;
         c.on = v > 0.0f;
       }
@@ -572,8 +579,15 @@ void Controller::commit_pending_(Card &c) {
       }
       break;
     case CardType::LIGHT:
+      if (c.light != nullptr)
+        c.light->set_brightness(v);
+      else {
+        c.value_local = v;
+        c.on = v > 0.0f;
+      }
+      break;
     default:
-      c.value_local = v;  // stub binding for now
+      c.value_local = v;
       c.on = v > 0.0f;
       break;
   }

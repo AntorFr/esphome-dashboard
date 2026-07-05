@@ -25,6 +25,12 @@ switch:
     id: sw_salon_prise
     optimistic: true
 
+# Light proxy (state in + command out) for a HA light entity, bound by a light card.
+homeassistant_addon:
+  lights:
+    - id: light_salon
+      entity_id: light.salon_plafond
+
 ha_dashboard:
   profile: reterminal_d1001
   font_small: ha_font_small
@@ -34,7 +40,7 @@ ha_dashboard:
     - name: Salon
       icon: sofa
       cards:
-        - { type: light, entity: light.salon_plafond }
+        - { type: light, light_id: light_salon, name: "Plafond salon" }
         - { type: switch, switch_id: sw_salon_prise, name: "Prise salon" }
     - name: Cuisine
       cards:

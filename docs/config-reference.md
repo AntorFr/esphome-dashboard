@@ -42,6 +42,13 @@ switch:
     id: sw_prise_salon
     entity_id: switch.salon_prise
 
+# Les cards cover/climate/media_player/light se lient au composant homeassistant_addon
+# (proxys qui reflètent l'état HA et recommandent vers HA).
+homeassistant_addon:
+  lights:
+    - id: light_salon
+      entity_id: light.salon_plafond
+
 ha_dashboard:
   profile: dial                 # dial | reterminal_d1001
   language: fr                  # fr | en
@@ -53,21 +60,24 @@ ha_dashboard:
       icon: sofa
       cards:
         - { type: switch, switch_id: sw_prise_salon, name: "Prise salon" }
-        - { type: light,  entity: light.salon_plafond }   # light = stub (binding à venir)
+        - { type: light,  light_id: light_salon, name: "Plafond salon" }
 ```
 
-### Schéma de card (état M0.5)
+### Schéma de card
 | `type` | Champ requis | Binding |
 |--------|--------------|---------|
-| `switch` | `switch_id` (id d'un esphome switch) | **réel** : `->state` / `->toggle()` |
-| `light`  | `entity` (entity_id) | stub (placeholder, binding réel = jalon suivant) |
+| `switch` | `switch_id` (esphome switch) | **réel** : `->state` / `->toggle()` |
+| `light`  | `light_id` (homeassistant_addon light) | **réel** : on/off + luminosité (tap = toggle, sheet = variateur) |
+| `cover`  | `cover_id` (homeassistant_addon cover) | **réel** : position / open-close-stop (+ `cover_kind`) |
+| `climate`| `climate_id` (homeassistant_addon climate) | **réel** : mode + consigne |
+| `media_player` | `media_player_id` (homeassistant_addon media_player) | **réel** : play/pause/next/prev + volume |
 
 Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (optionnel `#RRGGBB`).
 
 > Le board fournit `display:`, `touchscreen:`, `lvgl:` (+ encodeur/bouton sur le Dial).
 > Clé du composant = `ha_dashboard:` (= nom du dossier composant).
-> Domaines liables en `switch` (plateforme `homeassistant`) : switch, input_boolean, light,
-> fan, humidifier, remote, siren, automation. media_player / climate / cover = cartes M5.
+> `switch` se lie à un esphome switch (plateforme `homeassistant` : switch, input_boolean,
+> fan, siren…). light / cover / climate / media_player passent par `homeassistant_addon`.
 
 ## Schéma `dashboard:`
 
@@ -87,8 +97,8 @@ Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (option
 ### `cards[]`
 | Clé | Type | Défaut | Notes |
 |-----|------|--------|-------|
-| `type` | enum | requis | **v1 : `light`, `switch`** ; ensuite `cover`, `media_player`, `climate` |
-| `entity` | str | requis | entité HA (1 par card en v1) |
+| `type` | enum | requis | `switch`, `light`, `cover`, `media_player`, `climate` |
+| `<type>_id` | id | requis | binding : `switch_id` / `light_id` / `cover_id` / `climate_id` / `media_player_id` |
 | `color` | hex | optionnel | override ; pour une light, le live RGB l'emporte |
 | `name` | str | optionnel | défaut = nom convivial de l'entité |
 | `icon` | str | optionnel | défaut = icône du domaine |

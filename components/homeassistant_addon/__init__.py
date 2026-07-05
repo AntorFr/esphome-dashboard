@@ -15,11 +15,14 @@ Usage:
       id: my_thermostat
       entity_id: climate.living_room
 
-  # Media player (custom, not a standard ESPHome platform):
+  # Media player + light (custom, not standard ESPHome platforms):
   homeassistant_addon:
     media_players:
       - id: my_speaker
         entity_id: media_player.living_room
+    lights:
+      - id: my_lamp
+        entity_id: light.living_room
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
@@ -41,9 +44,13 @@ HomeassistantClimate = homeassistant_addon_ns.class_(
 HomeassistantMediaPlayer = homeassistant_addon_ns.class_(
     "HomeassistantMediaPlayer", cg.Component
 )
+HomeassistantLight = homeassistant_addon_ns.class_(
+    "HomeassistantLight", cg.Component
+)
 
-# Configuration keys for media player (not a standard platform)
+# Configuration keys for media player + light (not standard platforms)
 CONF_MEDIA_PLAYERS = "media_players"
+CONF_LIGHTS = "lights"
 CONF_VOLUME_STEP = "volume_step"
 
 # Media player schema (custom, since media_player is not a standard ESPHome platform)
@@ -56,23 +63,42 @@ MEDIA_PLAYER_SCHEMA = cv.Schema(
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
-# Main schema - only for media_players (cover and climate use platform syntax)
+# Light schema (custom, mirrors media_player: a plain Component that proxies a HA light).
+LIGHT_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(HomeassistantLight),
+        cv.Required(CONF_ENTITY_ID): cv.entity_id,
+        cv.Optional(CONF_INTERNAL, default=True): cv.boolean,
+    }
+).extend(cv.COMPONENT_SCHEMA)
+
+# Main schema - media_players + lights (cover and climate use platform syntax)
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.Optional(CONF_MEDIA_PLAYERS): cv.ensure_list(MEDIA_PLAYER_SCHEMA),
+        cv.Optional(CONF_LIGHTS): cv.ensure_list(LIGHT_SCHEMA),
     }
 )
 
 
 async def to_code(config):
-    # Only process media players here (cover and climate are handled by their platforms)
+    # Only process media players + lights here (cover and climate are handled by their platforms)
     for conf in config.get(CONF_MEDIA_PLAYERS, []):
         # Enable required API features
         cg.add_define("USE_API_HOMEASSISTANT_STATES")
         cg.add_define("USE_API_HOMEASSISTANT_SERVICES")
-        
+
         var = cg.new_Pvariable(conf[CONF_ID])
         await cg.register_component(var, conf)
-        
+
         cg.add(var.set_entity_id(conf[CONF_ENTITY_ID]))
         cg.add(var.set_volume_step(conf[CONF_VOLUME_STEP]))
+
+    for conf in config.get(CONF_LIGHTS, []):
+        cg.add_define("USE_API_HOMEASSISTANT_STATES")
+        cg.add_define("USE_API_HOMEASSISTANT_SERVICES")
+
+        var = cg.new_Pvariable(conf[CONF_ID])
+        await cg.register_component(var, conf)
+
+        cg.add(var.set_entity_id(conf[CONF_ENTITY_ID]))

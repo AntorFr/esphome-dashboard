@@ -102,6 +102,8 @@ class HaDashboard : public Component {
                         bool has_color);
   void add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media, const std::string &name,
                       uint32_t color, bool has_color);
+  void add_light_card(int group_index, homeassistant_addon::HomeassistantLight *light, const std::string &name,
+                      uint32_t color, bool has_color);
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // Music Library launcher group (D1001 tab): owns an HTTP backend + a LauncherModule, wired
   // to the speaker (queue_id) and profile (owner). See ADR-0007.

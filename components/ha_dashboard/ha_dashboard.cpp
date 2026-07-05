@@ -94,6 +94,15 @@ void HaDashboard::add_media_card(int group_index, homeassistant_addon::Homeassis
   c.media = media;
 }
 
+void HaDashboard::add_light_card(int group_index, homeassistant_addon::HomeassistantLight *light,
+                                 const std::string &name, uint32_t color, bool has_color) {
+  if (group_index < 0 || group_index >= (int) this->groups_.size())
+    return;
+  Card &c = push_card_(this->groups_, group_index, CardType::LIGHT,
+                       !name.empty() ? name : std::string("Light"), color, has_color);
+  c.light = light;
+}
+
 #ifdef USE_HA_DASHBOARD_LAUNCHER
 void HaDashboard::add_launcher_group(const std::string &name, const std::string &icon,
                                      http_request::HttpRequestComponent *http, const std::string &base_url,
@@ -173,6 +182,8 @@ void HaDashboard::build_if_ready_() {
         c.climate->add_on_state_callback([this](climate::Climate & /*unused*/) { this->controller_.refresh(); });
       if (c.media != nullptr)
         c.media->add_on_state_callback([this]() { this->controller_.refresh(); });
+      if (c.light != nullptr)
+        c.light->add_on_state_callback([this]() { this->controller_.refresh(); });
     }
   }
 

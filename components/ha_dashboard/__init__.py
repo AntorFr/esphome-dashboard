@@ -17,7 +17,10 @@ from esphome.components import (
     switch,
     time as time_comp,
 )
-from esphome.components.homeassistant_addon import HomeassistantMediaPlayer
+from esphome.components.homeassistant_addon import (
+    HomeassistantLight,
+    HomeassistantMediaPlayer,
+)
 from esphome.components.lvgl import lv_validation as lvalid
 from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
 
@@ -29,6 +32,7 @@ AUTO_LOAD = [
     "sensor",
     "binary_sensor",
     "switch",
+    "number",
     "time",
     "cover",
     "climate",
@@ -65,6 +69,7 @@ CONF_COVER_ID = "cover_id"
 CONF_COVER_KIND = "cover_kind"
 CONF_CLIMATE_ID = "climate_id"
 CONF_MEDIA_PLAYER_ID = "media_player_id"
+CONF_LIGHT_ID = "light_id"
 CONF_BASE_URL = "base_url"
 CONF_OWNER = "owner"
 CONF_PLAYER = "player"
@@ -99,13 +104,13 @@ def _hex_color(value):
 
 
 # Required binding id per card type (cv.enum yields the string key). switch -> esphome
-# switch ; cover/climate/media -> homeassistant_addon objects ; light -> entity (stub).
+# switch ; cover/climate/media/light -> homeassistant_addon objects.
 _REQUIRED_ID = {
     "switch": CONF_SWITCH_ID,
     "cover": CONF_COVER_ID,
     "climate": CONF_CLIMATE_ID,
     "media_player": CONF_MEDIA_PLAYER_ID,
-    "light": CONF_ENTITY,
+    "light": CONF_LIGHT_ID,
 }
 
 
@@ -124,6 +129,7 @@ CARD_SCHEMA = cv.All(
             cv.Optional(CONF_COVER_ID): cv.use_id(cover.Cover),
             cv.Optional(CONF_CLIMATE_ID): cv.use_id(climate.Climate),
             cv.Optional(CONF_MEDIA_PLAYER_ID): cv.use_id(HomeassistantMediaPlayer),
+            cv.Optional(CONF_LIGHT_ID): cv.use_id(HomeassistantLight),
             cv.Optional(CONF_ENTITY): cv.entity_id,
             cv.Optional(CONF_NAME): cv.string,
             cv.Optional(CONF_COLOR): _hex_color,
@@ -332,7 +338,10 @@ async def to_code(config):
             elif CONF_MEDIA_PLAYER_ID in card:
                 obj = await cg.get_variable(card[CONF_MEDIA_PLAYER_ID])
                 cg.add(var.add_media_card(group_index, obj, name, color, has_color))
-            else:  # light (stub)
+            elif CONF_LIGHT_ID in card:
+                obj = await cg.get_variable(card[CONF_LIGHT_ID])
+                cg.add(var.add_light_card(group_index, obj, name, color, has_color))
+            else:  # generic stub card (no live binding)
                 cg.add(
                     var.add_card(
                         group_index,

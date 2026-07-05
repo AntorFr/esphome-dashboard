@@ -5,6 +5,7 @@
 #include <vector>
 #include "esphome/components/climate/climate.h"
 #include "esphome/components/cover/cover.h"
+#include "esphome/components/homeassistant_addon/homeassistant_light.h"
 #include "esphome/components/homeassistant_addon/homeassistant_media_player.h"
 #include "esphome/components/switch/switch.h"
 
@@ -43,8 +44,9 @@ struct Card {
   cover::Cover *cover{nullptr};
   climate::Climate *climate{nullptr};
   homeassistant_addon::HomeassistantMediaPlayer *media{nullptr};
+  homeassistant_addon::HomeassistantLight *light{nullptr};
 
-  // État runtime local (utilisé pour les types sans binding, ex. light stub).
+  // État runtime local (utilisé pour les types sans binding, ex. light non lié).
   bool on{false};
   float value_local{0.0f};
 
@@ -70,6 +72,7 @@ struct Card {
       case CardType::CLIMATE:
         return this->climate != nullptr ? this->climate->mode != climate::CLIMATE_MODE_OFF : this->on;
       case CardType::LIGHT:
+        return this->light != nullptr ? this->light->is_on() : this->on;
       default:
         return this->on;
     }
@@ -94,6 +97,10 @@ struct Card {
         return t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
       }
       case CardType::LIGHT:
+        if (this->light != nullptr)
+          return this->light->is_on()
+                     ? (this->light->supports_brightness() ? this->light->get_brightness() : 1.0f)
+                     : 0.0f;
         return this->is_on() ? this->value_local : 0.0f;
       case CardType::SWITCH:
       default:
