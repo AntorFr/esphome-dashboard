@@ -517,10 +517,57 @@ void HaDashboard::handle_event_(InputEvent e, int idx) {
         this->click_switch_->toggle();
       this->push_settings_();
       break;
+    case InputEvent::OPEN_FORECAST:
+      this->renderer_.show_forecast_();
+      break;
+    case InputEvent::FORECAST_CLOSE:
+      break;  // the renderer hides its overlay itself
     default:
       this->controller_.handle(e, idx);
       break;
   }
+}
+
+void HaDashboard::set_forecast(const std::string &compact) {
+  static const char *const DOW_FR[8] = {"",     "Dim.", "Lun.", "Mar.",
+                                        "Mer.", "Jeu.", "Ven.", "Sam."};
+  int today = 0;  // ESPTime day_of_week: 1=Sunday .. 7=Saturday; 0 = unknown
+  if (this->time_ != nullptr) {
+    auto now = this->time_->now();
+    if (now.is_valid())
+      today = now.day_of_week;
+  }
+  std::vector<ForecastEntry> days;
+  size_t i = 0, start = 0;
+  while (start <= compact.size()) {
+    size_t sep = compact.find(';', start);
+    std::string part = compact.substr(start, sep == std::string::npos ? std::string::npos : sep - start);
+    if (!part.empty()) {
+      size_t p1 = part.find('|');
+      size_t p2 = part.find('|', p1 == std::string::npos ? p1 : p1 + 1);
+      if (p1 != std::string::npos && p2 != std::string::npos) {
+        ForecastEntry fe;
+        std::string cond = part.substr(0, p1);
+        fe.glyph = condition_icon(cond);
+        fe.lo = atoi(part.substr(p1 + 1, p2 - p1 - 1).c_str());
+        fe.hi = atoi(part.substr(p2 + 1).c_str());
+        if (i == 0)
+          fe.day = "Auj.";
+        else if (i == 1)
+          fe.day = "Dem.";
+        else if (today > 0)
+          fe.day = DOW_FR[((today - 1 + (int) i) % 7) + 1];
+        else
+          fe.day = "J+" + std::to_string(i);
+        days.push_back(fe);
+        i++;
+      }
+    }
+    if (sep == std::string::npos)
+      break;
+    start = sep + 1;
+  }
+  this->renderer_.set_forecast_(days);
 }
 
 void HaDashboard::push_settings_() {

@@ -58,6 +58,10 @@ class HaDashboard : public Component {
   void set_click_switch(switch_::Switch *s) { this->click_switch_ = s; }
   void set_battery_sensor(sensor::Sensor *s) { this->battery_sensor_ = s; }
   void set_charging_sensor(binary_sensor::BinarySensor *b) { this->charging_sensor_ = b; }
+
+  // Multi-day weather forecast: a compact string "condition|low|high;..." from a HA sensor
+  // (weather.get_forecasts reformatted). Parsed and shown when the weather widget is tapped.
+  void set_forecast(const std::string &compact);
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }

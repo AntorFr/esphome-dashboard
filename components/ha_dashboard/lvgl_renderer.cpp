@@ -45,6 +45,7 @@ static std::vector<CbData *> g_cbdata;
 static uint32_t accent_for(const Card &c);    // defined below
 static const char *icon_for(const Card &c);   // defined below (LVGL symbol fallback)
 static void load_screen_(lv_obj_t *scr);      // load a screen only if not already active
+static uint32_t weather_color(const char *g);  // condition -> tint (defined below)
 
 // Append "key=value" to a URL, chaining with ? or & (the cover_url may already carry ?fmt=).
 [[maybe_unused]] static std::string url_add(std::string u, const std::string &kv) {
@@ -1265,6 +1266,102 @@ void LvglRenderer::update_settings_(int volume, int brightness, int standby_min,
     lv_label_set_text(this->set_bat_chg_, charging ? "En charge" : "Batterie");
 }
 
+// ---- Weather forecast overlay (tap the header weather widget) ----
+static void forecast_close_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  if (self != nullptr)
+    self->hide_forecast_();
+}
+
+void LvglRenderer::build_forecast_() {
+  if (this->forecast_scr_ != nullptr)
+    return;
+  this->forecast_scr_ = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(this->forecast_scr_);
+  lv_obj_set_size(this->forecast_scr_, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_color(this->forecast_scr_, lv_color_hex(0x0B0B10), 0);
+  lv_obj_set_style_bg_opa(this->forecast_scr_, LV_OPA_COVER, 0);
+  lv_obj_set_flex_flow(this->forecast_scr_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(this->forecast_scr_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_all(this->forecast_scr_, 40, 0);
+  lv_obj_set_style_pad_row(this->forecast_scr_, 22, 0);
+  lv_obj_clear_flag(this->forecast_scr_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(this->forecast_scr_, LV_OBJ_FLAG_HIDDEN);
+
+  lv_obj_t *top = lv_obj_create(this->forecast_scr_);
+  lv_obj_remove_style_all(top);
+  lv_obj_set_width(top, lv_pct(100));
+  lv_obj_set_height(top, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(top, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(top, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *title = lv_label_create(top);
+  lv_label_set_text(title, "Prévisions");
+  lv_obj_set_style_text_color(title, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(title, this->font_large_, &lv_font_montserrat_48);
+  lv_obj_t *close = lv_button_create(top);
+  lv_obj_set_size(close, 74, 74);
+  lv_obj_set_style_radius(close, 37, 0);
+  lv_obj_set_style_bg_color(close, lv_color_hex(0x20202A), 0);
+  lv_obj_set_style_shadow_width(close, 0, 0);
+  lv_obj_t *cx = lv_label_create(close);
+  lv_label_set_text(cx, LV_SYMBOL_CLOSE);
+  lv_obj_center(cx);
+  lv_obj_set_style_text_color(cx, lv_color_hex(COL_MUTED), 0);
+  lv_obj_add_event_cb(close, forecast_close_cb, LV_EVENT_CLICKED, this);
+
+  this->forecast_list_ = lv_obj_create(this->forecast_scr_);
+  lv_obj_remove_style_all(this->forecast_list_);
+  lv_obj_set_width(this->forecast_list_, lv_pct(100));
+  lv_obj_set_flex_grow(this->forecast_list_, 1);
+  lv_obj_set_flex_flow(this->forecast_list_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(this->forecast_list_, 14, 0);
+}
+
+void LvglRenderer::set_forecast_(const std::vector<ForecastEntry> &days) {
+  this->build_forecast_();
+  lv_obj_clean(this->forecast_list_);
+  for (const auto &d : days) {
+    lv_obj_t *row = lv_obj_create(this->forecast_list_);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_width(row, lv_pct(100));
+    lv_obj_set_height(row, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(row, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(row, 20, 0);
+    lv_obj_set_style_pad_hor(row, 30, 0);
+    lv_obj_set_style_pad_ver(row, 22, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *day = lv_label_create(row);
+    lv_label_set_text(day, d.day.c_str());
+    lv_obj_set_width(day, 200);
+    lv_obj_set_style_text_color(day, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(day, this->font_medium_, &lv_font_montserrat_28);
+    lv_obj_t *ic = lv_label_create(row);
+    lv_label_set_text(ic, d.glyph.c_str());
+    lv_obj_set_style_text_color(ic, lv_color_hex(weather_color(d.glyph.c_str())), 0);
+    if (this->font_weather_ != nullptr)
+      lv_obj_set_style_text_font(ic, this->font_weather_->get_lv_font(), 0);
+    lv_obj_t *t = lv_label_create(row);
+    lv_label_set_text_fmt(t, "%d° / %d°", d.lo, d.hi);
+    lv_obj_set_style_text_color(t, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(t, this->font_medium_, &lv_font_montserrat_28);
+  }
+}
+
+void LvglRenderer::show_forecast_() {
+  this->build_forecast_();
+  lv_obj_clear_flag(this->forecast_scr_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(this->forecast_scr_);
+}
+
+void LvglRenderer::hide_forecast_() {
+  if (this->forecast_scr_ != nullptr)
+    lv_obj_add_flag(this->forecast_scr_, LV_OBJ_FLAG_HIDDEN);
+}
+
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // Detail list: recycle episode thumbnails to whatever rows are now on screen. Only (re)assign
@@ -2209,6 +2306,12 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_flex_flow(weather, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(weather, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
   lv_obj_clear_flag(weather, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(weather, LV_OBJ_FLAG_CLICKABLE);  // tap -> multi-day forecast overlay
+  {
+    auto *d = new CbData{this, InputEvent::OPEN_FORECAST, -1};
+    g_cbdata.push_back(d);
+    lv_obj_add_event_cb(weather, btn_event_cb, LV_EVENT_CLICKED, d);
+  }
 
   lv_obj_t *wrow = lv_obj_create(weather);  // icon + temperature, same line
   lv_obj_set_size(wrow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);

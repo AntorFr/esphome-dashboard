@@ -68,6 +68,11 @@ class LvglRenderer : public Renderer {
   void update_settings_(int volume, int brightness, int standby_min, bool click_on,
                         int battery_pct, bool charging);
 
+  // Multi-day weather forecast overlay (opened by tapping the header weather widget).
+  void show_forecast_();
+  void hide_forecast_();
+  void set_forecast_(const std::vector<ForecastEntry> &days);
+
  protected:
   lv_obj_t *make_screen_();
   const Card *current_card_(const ViewModel &vm) const;
@@ -289,6 +294,11 @@ class LvglRenderer : public Renderer {
   lv_obj_t *set_standby_val_{nullptr};
   lv_obj_t *set_click_tgl_{nullptr};    // pill button acting as a switch
   lv_obj_t *set_click_knob_{nullptr};   // the knob moved left/right for off/on
+
+  // Forecast overlay.
+  void build_forecast_();
+  lv_obj_t *forecast_scr_{nullptr};
+  lv_obj_t *forecast_list_{nullptr};
 
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
 

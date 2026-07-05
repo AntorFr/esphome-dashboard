@@ -81,6 +81,9 @@ enum class InputEvent : uint8_t {
   SET_BRIGHTNESS,          // set screen brightness (index = 0..100)
   SET_STANDBY,             // set standby delay in minutes (index = 0..30, 0 = never)
   TOGGLE_CLICK,            // toggle the touch click sound
+
+  OPEN_FORECAST,           // tap the header weather widget -> open the multi-day forecast
+  FORECAST_CLOSE,          // close the forecast overlay
 };
 
 // Voice-assistant overlay states (independent of NavState — the overlay sits on the top
@@ -106,6 +109,14 @@ struct TimerInfo {
   uint32_t remaining_s{0};
   uint32_t total_s{0};
   bool is_active{false};
+};
+
+// One day of the weather forecast (built by the component, laid out by the renderer).
+struct ForecastEntry {
+  std::string day;    // "Auj.", "Dem.", then the weekday
+  std::string glyph;  // MDI weather glyph (see condition_icon)
+  int lo{0};
+  int hi{0};
 };
 
 // Instantané de l'état de navigation passé au renderer.
