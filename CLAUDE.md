@@ -20,6 +20,10 @@ reTerminal D1001). Knowledge base lives in [`docs/`](docs/) — start with
   tests validate via `esphome config`.
 - Respect the layered architecture (ports & adapters) and the touch/view-lifecycle rules
   in [ADR-0005](docs/adr/0005-touch-view-lifecycle.md) — non negotiable.
+- **Always target the latest released ESPHome.** The ESP32-P4 + `esp32_hosted` (C6) and the
+  audio/speaker stack are moving fast upstream; before debugging a component issue, upgrade the
+  venv (`pip install -U esphome`) and re-test — many bugs are already fixed in a newer release.
+  Keep the venv on the newest version rather than pinning to an old one.
 - Validate changes with the local ESPHome venv:
   `. .venv/bin/activate && esphome config tests/test_dial.yaml tests/test_d1001.yaml`,
   and `esphome compile` for the affected target.
