@@ -163,3 +163,6 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - **Rétroéclairage adaptatif** à la luminosité ambiante : moduler `LCD_PWM` selon un capteur de
   lumière — à défaut de capteur dédié, évaluer l'usage de la **caméra** du D1001 comme proxy de
   luminosité (coût CPU/allumage caméra à mesurer).
+- **Menu réglages** (écran settings) : régler des paramètres depuis la tablette — ex. **volume**
+  du HP, luminosité, délai de veille, on/off du clic sonore — persistés en `preferences` et/ou
+  exposés à HA (`number`/`select`). Point d'entrée : icône dans le header ou geste dédié.
