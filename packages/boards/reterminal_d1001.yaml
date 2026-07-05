@@ -23,6 +23,10 @@ esphome:
     - priority: -100
       then:
         - output.turn_on: d1001_audio_pa
+        # Battery: enable the read path (EXP P6, else the GPIO18 ADC reads nothing) and enable
+        # charging (EXP P12 is active-low: low = charge enabled), per the Seeed BSP.
+        - output.turn_on: d1001_bat_read_en
+        - output.turn_off: d1001_bat_charge_en
 
 esp32:
   board: esp32-p4-evboard
@@ -103,6 +107,65 @@ output:
     pin:
       xl9535: d1001_expander
       number: 13
+  # Battery read enable (EXP P6) — held high so the GPIO18 ADC can read the battery voltage.
+  - platform: gpio
+    id: d1001_bat_read_en
+    pin:
+      xl9535: d1001_expander
+      number: 6
+  # Battery charge enable (EXP P12, active-low) — driven low at boot to allow charging.
+  - platform: gpio
+    id: d1001_bat_charge_en
+    pin:
+      xl9535: d1001_expander
+      number: 12
+
+# Battery gauge: no I2C fuel gauge — the voltage is read on GPIO18 (ADC1_CH2, 12 dB, on-board
+# 2:1 divider) and mapped to a percentage with Seeed's discharge curve. Charge status is a plain
+# GPIO (GPIO15, active-low). Pins/curve from the reTerminal-D1001 BSP.
+sensor:
+  - platform: adc
+    id: d1001_bat_adc
+    pin: GPIO18
+    attenuation: 12db
+    update_interval: 60s
+    samples: 8
+    internal: true
+    filters:
+      - multiply: 2.0   # on-board 2:1 divider -> actual battery volts
+  - platform: template
+    name: "Batterie"
+    id: d1001_battery
+    device_class: battery
+    state_class: measurement
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      static const float t[21] = {3.262f, 3.390f, 3.467f, 3.554f, 3.619f, 3.659f, 3.686f, 3.710f,
+                                  3.731f, 3.752f, 3.774f, 3.797f, 3.827f, 3.855f, 3.880f, 3.901f,
+                                  3.915f, 3.934f, 3.958f, 3.978f, 4.047f};
+      float v = id(d1001_bat_adc).state;
+      if (std::isnan(v))
+        return {};
+      if (v <= t[0])
+        return 0.0f;
+      if (v >= t[20])
+        return 100.0f;
+      for (int i = 1; i < 21; i++)
+        if (v < t[i])
+          return (i - 1) * 5.0f + 5.0f * (v - t[i - 1]) / (t[i] - t[i - 1]);
+      return 100.0f;
+
+binary_sensor:
+  - platform: gpio
+    name: "En charge"
+    id: d1001_charging
+    device_class: battery_charging
+    pin:
+      number: GPIO15
+      inverted: true   # charge-state line is active-low (low = charging)
+
 light:
   - platform: monochromatic
     id: d1001_backlight
