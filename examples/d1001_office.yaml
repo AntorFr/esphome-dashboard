@@ -30,6 +30,10 @@ esphome:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # Keep the radio always on. The ESP32 default (light) sleeps between beacons, which adds
+  # latency and drops time-sensitive streamed fetches (HA TTS/media over the C6/SDIO link) —
+  # the cause of the intermittent "TTS plays once then nothing". HA Voice PE also uses none.
+  power_save_mode: none
   ap:
     ssid: ${device_name}
     password: !secret ap_password
@@ -129,6 +133,7 @@ time:
 media_player:
   - platform: speaker
     id: d1001_media
+    name: "Enceinte D1001"   # exposed to HA so it can play TTS/announcements/media to the device
     announcement_pipeline:
       speaker: d1001_speaker
       format: NONE
