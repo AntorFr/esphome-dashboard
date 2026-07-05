@@ -1035,6 +1035,236 @@ void LvglRenderer::hide_timers_() {
     lv_obj_add_flag(this->timers_scr_, LV_OBJ_FLAG_HIDDEN);
 }
 
+// ---- Settings shade (pulled down from the top) ----
+static void settings_close_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  if (self != nullptr) {
+    self->emit(InputEvent::SETTINGS_CLOSE, -1);
+    self->hide_settings_();
+  }
+}
+static void settings_slider_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  auto *s = static_cast<lv_obj_t *>(lv_event_get_target(e));
+  if (self == nullptr || s == nullptr)
+    return;
+  auto ev = static_cast<InputEvent>((intptr_t) lv_obj_get_user_data(s));
+  self->emit(ev, (int) lv_slider_get_value(s));
+}
+static void settings_click_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  if (self != nullptr)
+    self->emit(InputEvent::TOGGLE_CLICK, -1);
+}
+
+void LvglRenderer::build_settings_() {
+  if (this->settings_scr_ != nullptr)
+    return;
+  this->settings_scr_ = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(this->settings_scr_);
+  lv_obj_set_size(this->settings_scr_, lv_pct(100), lv_pct(100));
+  lv_obj_set_style_bg_color(this->settings_scr_, lv_color_hex(0x0E0E12), 0);
+  lv_obj_set_style_bg_opa(this->settings_scr_, LV_OPA_COVER, 0);
+  lv_obj_set_flex_flow(this->settings_scr_, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(this->settings_scr_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_hor(this->settings_scr_, 34, 0);
+  lv_obj_set_style_pad_top(this->settings_scr_, 14, 0);
+  lv_obj_set_style_pad_bottom(this->settings_scr_, 30, 0);
+  lv_obj_set_style_pad_row(this->settings_scr_, 20, 0);
+  lv_obj_add_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
+
+  // Grab handle (came from the top)
+  lv_obj_t *grab = lv_obj_create(this->settings_scr_);
+  lv_obj_remove_style_all(grab);
+  lv_obj_set_size(grab, 130, 9);
+  lv_obj_set_style_radius(grab, 5, 0);
+  lv_obj_set_style_bg_color(grab, lv_color_hex(0x3A3A46), 0);
+  lv_obj_set_style_bg_opa(grab, LV_OPA_COVER, 0);
+
+  // Top bar: title + close
+  lv_obj_t *top = lv_obj_create(this->settings_scr_);
+  lv_obj_remove_style_all(top);
+  lv_obj_set_width(top, lv_pct(100));
+  lv_obj_set_height(top, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(top, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(top, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *title = lv_label_create(top);
+  lv_label_set_text(title, "Réglages");
+  lv_obj_set_style_text_color(title, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(title, this->font_large_, &lv_font_montserrat_48);
+  lv_obj_t *close = lv_button_create(top);
+  lv_obj_set_size(close, 74, 74);
+  lv_obj_set_style_radius(close, 37, 0);
+  lv_obj_set_style_bg_color(close, lv_color_hex(0x20202A), 0);
+  lv_obj_set_style_shadow_width(close, 0, 0);
+  lv_obj_t *cx = lv_label_create(close);
+  lv_label_set_text(cx, LV_SYMBOL_CLOSE);
+  lv_obj_center(cx);
+  lv_obj_set_style_text_color(cx, lv_color_hex(COL_MUTED), 0);
+  lv_obj_add_event_cb(close, settings_close_cb, LV_EVENT_CLICKED, this);
+
+  // Battery card
+  lv_obj_t *bat = lv_obj_create(this->settings_scr_);
+  lv_obj_remove_style_all(bat);
+  lv_obj_set_width(bat, lv_pct(100));
+  lv_obj_set_height(bat, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_color(bat, lv_color_hex(0x16211B), 0);
+  lv_obj_set_style_bg_opa(bat, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(bat, 24, 0);
+  lv_obj_set_style_pad_all(bat, 26, 0);
+  lv_obj_set_flex_flow(bat, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(bat, 14, 0);
+  lv_obj_clear_flag(bat, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *batrow = lv_obj_create(bat);
+  lv_obj_remove_style_all(batrow);
+  lv_obj_set_width(batrow, lv_pct(100));
+  lv_obj_set_height(batrow, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(batrow, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(batrow, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
+  lv_obj_clear_flag(batrow, LV_OBJ_FLAG_SCROLLABLE);
+  this->set_bat_chg_ = lv_label_create(batrow);
+  lv_label_set_text(this->set_bat_chg_, "Batterie");
+  lv_obj_set_style_text_color(this->set_bat_chg_, lv_color_hex(0x3DD68C), 0);
+  this->set_text_font_(this->set_bat_chg_, this->font_medium_, &lv_font_montserrat_28);
+  this->set_bat_pct_ = lv_label_create(batrow);
+  lv_label_set_text(this->set_bat_pct_, "-- %");
+  lv_obj_set_style_text_color(this->set_bat_pct_, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(this->set_bat_pct_, this->font_large_, &lv_font_montserrat_40);
+  this->set_bat_bar_ = lv_bar_create(bat);
+  lv_obj_set_size(this->set_bat_bar_, lv_pct(100), 22);
+  lv_bar_set_range(this->set_bat_bar_, 0, 100);
+  lv_obj_set_style_radius(this->set_bat_bar_, 11, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(this->set_bat_bar_, lv_color_hex(0x0F1512), LV_PART_MAIN);
+  lv_obj_set_style_radius(this->set_bat_bar_, 11, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(this->set_bat_bar_, lv_color_hex(0x3DD68C), LV_PART_INDICATOR);
+
+  // A labelled slider row (name + value, then the slider). event = which InputEvent to emit.
+  auto slider_row = [this](const char *name, uint32_t accent, int max, InputEvent ev,
+                           lv_obj_t **out_slider, lv_obj_t **out_val) {
+    lv_obj_t *box = lv_obj_create(this->settings_scr_);
+    lv_obj_remove_style_all(box);
+    lv_obj_set_width(box, lv_pct(100));
+    lv_obj_set_height(box, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_color(box, lv_color_hex(COL_TILE), 0);
+    lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(box, 22, 0);
+    lv_obj_set_style_pad_all(box, 26, 0);
+    lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(box, 16, 0);
+    lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *hdr = lv_obj_create(box);
+    lv_obj_remove_style_all(hdr);
+    lv_obj_set_width(hdr, lv_pct(100));
+    lv_obj_set_height(hdr, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(hdr, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(hdr, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(hdr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t *nm = lv_label_create(hdr);
+    lv_label_set_text(nm, name);
+    lv_obj_set_style_text_color(nm, lv_color_hex(COL_TEXT), 0);
+    this->set_text_font_(nm, this->font_medium_, &lv_font_montserrat_28);
+    *out_val = lv_label_create(hdr);
+    lv_label_set_text(*out_val, "--");
+    lv_obj_set_style_text_color(*out_val, lv_color_hex(accent), 0);
+    this->set_text_font_(*out_val, this->font_medium_, &lv_font_montserrat_28);
+    *out_slider = lv_slider_create(box);
+    lv_obj_set_width(*out_slider, lv_pct(100));
+    lv_obj_set_height(*out_slider, 16);
+    lv_slider_set_range(*out_slider, 0, max);
+    lv_obj_set_style_bg_color(*out_slider, lv_color_hex(0x3A3A44), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(*out_slider, lv_color_hex(accent), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(*out_slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(*out_slider, 10, LV_PART_KNOB);
+    lv_obj_set_user_data(*out_slider, (void *) (intptr_t) ev);
+    lv_obj_add_event_cb(*out_slider, settings_slider_cb, LV_EVENT_RELEASED, this);
+  };
+  slider_row("Volume", COL_VOICE, 100, InputEvent::SET_VOLUME, &this->set_vol_slider_, &this->set_vol_val_);
+  slider_row("Luminosité", COL_VOICE, 100, InputEvent::SET_BRIGHTNESS, &this->set_bright_slider_,
+             &this->set_bright_val_);
+  slider_row("Mise en veille", COL_VOICE, 30, InputEvent::SET_STANDBY, &this->set_standby_slider_,
+             &this->set_standby_val_);
+
+  // Click toggle row (name + switch)
+  lv_obj_t *cbox = lv_obj_create(this->settings_scr_);
+  lv_obj_remove_style_all(cbox);
+  lv_obj_set_width(cbox, lv_pct(100));
+  lv_obj_set_height(cbox, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_color(cbox, lv_color_hex(COL_TILE), 0);
+  lv_obj_set_style_bg_opa(cbox, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(cbox, 22, 0);
+  lv_obj_set_style_pad_all(cbox, 26, 0);
+  lv_obj_set_flex_flow(cbox, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(cbox, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(cbox, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_t *cnm = lv_label_create(cbox);
+  lv_label_set_text(cnm, "Clic tactile");
+  lv_obj_set_style_text_color(cnm, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(cnm, this->font_medium_, &lv_font_montserrat_28);
+  // Manual toggle (the LVGL switch widget isn't compiled in): a pill + a knob moved left/right.
+  this->set_click_tgl_ = lv_button_create(cbox);
+  lv_obj_set_size(this->set_click_tgl_, 100, 56);
+  lv_obj_set_style_radius(this->set_click_tgl_, 28, 0);
+  lv_obj_set_style_bg_color(this->set_click_tgl_, lv_color_hex(0x33333F), 0);
+  lv_obj_set_style_shadow_width(this->set_click_tgl_, 0, 0);
+  lv_obj_add_event_cb(this->set_click_tgl_, settings_click_cb, LV_EVENT_CLICKED, this);
+  this->set_click_knob_ = lv_obj_create(this->set_click_tgl_);
+  lv_obj_remove_style_all(this->set_click_knob_);
+  lv_obj_set_size(this->set_click_knob_, 44, 44);
+  lv_obj_set_style_radius(this->set_click_knob_, 22, 0);
+  lv_obj_set_style_bg_color(this->set_click_knob_, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_bg_opa(this->set_click_knob_, LV_OPA_COVER, 0);
+  lv_obj_align(this->set_click_knob_, LV_ALIGN_LEFT_MID, 0, 0);
+}
+
+void LvglRenderer::show_settings_() {
+  this->build_settings_();
+  lv_obj_clear_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(this->settings_scr_);
+}
+
+void LvglRenderer::hide_settings_() {
+  if (this->settings_scr_ != nullptr)
+    lv_obj_add_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
+}
+
+bool LvglRenderer::settings_visible_() const {
+  return this->settings_scr_ != nullptr && !lv_obj_has_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void LvglRenderer::update_settings_(int volume, int brightness, int standby_min, bool click_on,
+                                    int battery_pct, bool charging) {
+  if (this->settings_scr_ == nullptr)
+    return;
+  if (this->set_vol_slider_ != nullptr)
+    lv_slider_set_value(this->set_vol_slider_, volume, LV_ANIM_OFF);
+  if (this->set_vol_val_ != nullptr)
+    lv_label_set_text_fmt(this->set_vol_val_, "%d %%", volume);
+  if (this->set_bright_slider_ != nullptr)
+    lv_slider_set_value(this->set_bright_slider_, brightness, LV_ANIM_OFF);
+  if (this->set_bright_val_ != nullptr)
+    lv_label_set_text_fmt(this->set_bright_val_, "%d %%", brightness);
+  if (this->set_standby_slider_ != nullptr)
+    lv_slider_set_value(this->set_standby_slider_, standby_min, LV_ANIM_OFF);
+  if (this->set_standby_val_ != nullptr) {
+    if (standby_min <= 0)
+      lv_label_set_text(this->set_standby_val_, "Jamais");
+    else
+      lv_label_set_text_fmt(this->set_standby_val_, "%d min", standby_min);
+  }
+  if (this->set_click_tgl_ != nullptr) {
+    lv_obj_set_style_bg_color(this->set_click_tgl_, lv_color_hex(click_on ? COL_VOICE : 0x33333F), 0);
+    if (this->set_click_knob_ != nullptr)
+      lv_obj_align(this->set_click_knob_, click_on ? LV_ALIGN_RIGHT_MID : LV_ALIGN_LEFT_MID, 0, 0);
+  }
+  if (this->set_bat_bar_ != nullptr)
+    lv_bar_set_value(this->set_bat_bar_, battery_pct, LV_ANIM_OFF);
+  if (this->set_bat_pct_ != nullptr)
+    lv_label_set_text_fmt(this->set_bat_pct_, "%d %%", battery_pct);
+  if (this->set_bat_chg_ != nullptr)
+    lv_label_set_text(this->set_bat_chg_, charging ? "En charge" : "Batterie");
+}
+
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // Detail list: recycle episode thumbnails to whatever rows are now on screen. Only (re)assign
@@ -1447,6 +1677,32 @@ void LvglRenderer::menu_gesture_cb(lv_event_t *e) {
   }
 }
 
+// Dashboard: a swipe that starts near the top edge and drags downward opens the settings shade
+// (quick-settings style). Values are native screen coordinates (800x1280 on the D1001).
+void LvglRenderer::dash_swipe_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_indev_t *indev = lv_indev_active();
+  if (self == nullptr || indev == nullptr)
+    return;
+  lv_point_t p;
+  lv_indev_get_point(indev, &p);
+  if (code == LV_EVENT_PRESSED) {
+    self->dash_down_ = true;
+    self->dash_sx_ = p.x;
+    self->dash_sy_ = p.y;
+  } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+    if (!self->dash_down_)
+      return;
+    self->dash_down_ = false;
+    int dy = p.y - self->dash_sy_;
+    int dx = p.x - self->dash_sx_;
+    int adx = dx < 0 ? -dx : dx;
+    if (self->dash_sy_ < 240 && dy > 120 && dy > adx)
+      self->emit(InputEvent::OPEN_SETTINGS, -1);
+  }
+}
+
 // Map a config icon name to a Material Design Icons glyph (UTF-8). These codepoints must be
 // present in the ha_font_icons glyph subset (cf. packages/fonts/montserrat_fr.yaml).
 static const char *group_icon_glyph(const std::string &name) {
@@ -1832,8 +2088,26 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_flex_flow(this->dash_header_, LV_FLEX_FLOW_ROW);
   lv_obj_set_flex_align(this->dash_header_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
   lv_obj_clear_flag(this->dash_header_, LV_OBJ_FLAG_SCROLLABLE);
+  // Swipe down starting on the header -> open the settings shade. The clock/date container below
+  // bubbles its input events here so a swipe from it is caught too.
+  lv_obj_add_event_cb(this->dash_header_, dash_swipe_cb, LV_EVENT_PRESSED, this);
+  lv_obj_add_event_cb(this->dash_header_, dash_swipe_cb, LV_EVENT_RELEASED, this);
+  lv_obj_add_event_cb(this->dash_header_, dash_swipe_cb, LV_EVENT_PRESS_LOST, this);
+
+  // Subtle grab handle at the very top-centre: hints that the settings shade pulls down. It
+  // bubbles its input events so pressing it starts the swipe too.
+  lv_obj_t *hint = lv_obj_create(this->dash_header_);
+  lv_obj_remove_style_all(hint);
+  lv_obj_add_flag(hint, LV_OBJ_FLAG_IGNORE_LAYOUT);
+  lv_obj_add_flag(hint, LV_OBJ_FLAG_EVENT_BUBBLE);
+  lv_obj_set_size(hint, 96, 8);
+  lv_obj_set_style_radius(hint, 4, 0);
+  lv_obj_set_style_bg_color(hint, lv_color_hex(0x3A3A46), 0);
+  lv_obj_set_style_bg_opa(hint, LV_OPA_COVER, 0);
+  lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, -2);
 
   lv_obj_t *left = lv_obj_create(this->dash_header_);
+  lv_obj_add_flag(left, LV_OBJ_FLAG_EVENT_BUBBLE);  // clock/date swipe reaches the header cb
   lv_obj_set_size(left, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
   lv_obj_set_style_bg_opa(left, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(left, 0, 0);

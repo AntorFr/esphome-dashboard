@@ -73,6 +73,14 @@ enum class InputEvent : uint8_t {
   TIMER_STOP,             // stop the ringing (or a) timer (index = timer, -1 = the ringing one)
   TIMER_ADD_MIN,          // add one minute to the ringing timer
   OPEN_TIMERS,             // open the timers screen (tap the header timer pill)
+
+  // Settings screen (pulled down from the top). Values travel in `index`.
+  OPEN_SETTINGS,           // swipe down from the top -> open the settings shade
+  SETTINGS_CLOSE,          // close the settings shade
+  SET_VOLUME,              // set speaker volume (index = 0..100)
+  SET_BRIGHTNESS,          // set screen brightness (index = 0..100)
+  SET_STANDBY,             // set standby delay in minutes (index = 0..30, 0 = never)
+  TOGGLE_CLICK,            // toggle the touch click sound
 };
 
 // Voice-assistant overlay states (independent of NavState — the overlay sits on the top

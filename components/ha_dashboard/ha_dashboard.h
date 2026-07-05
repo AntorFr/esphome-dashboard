@@ -7,7 +7,9 @@
 #include <vector>
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/font/font.h"
+#include "esphome/components/number/number.h"
 #include "esphome/components/sensor/sensor.h"
+#include "esphome/components/switch/switch.h"
 #include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
@@ -48,6 +50,14 @@ class HaDashboard : public Component {
   void set_language(const std::string &language) { this->language_ = language; }
   void set_inactivity_timeout(uint32_t ms) { this->timeout_ms_ = ms; }
   void set_deep_standby_timeout(uint32_t ms) { this->deep_standby_ms_ = ms; }
+
+  // Settings screen backing entities (see the settings shade in the renderer).
+  void set_volume_number(number::Number *n) { this->volume_number_ = n; }
+  void set_brightness_number(number::Number *n) { this->brightness_number_ = n; }
+  void set_standby_number(number::Number *n) { this->standby_number_ = n; }
+  void set_click_switch(switch_::Switch *s) { this->click_switch_ = s; }
+  void set_battery_sensor(sensor::Sensor *s) { this->battery_sensor_ = s; }
+  void set_charging_sensor(binary_sensor::BinarySensor *b) { this->charging_sensor_ = b; }
   void set_encoder(sensor::Sensor *s) { this->encoder_ = s; }
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
@@ -114,6 +124,15 @@ class HaDashboard : public Component {
   Trigger<> wake_trigger_;
   uint32_t deep_standby_ms_{0};                // 0 = feature disabled
   bool deep_standby_active_{false};
+
+  // Settings screen: backing entities + push helper (reads them into the renderer widgets).
+  void push_settings_();
+  number::Number *volume_number_{nullptr};
+  number::Number *brightness_number_{nullptr};
+  number::Number *standby_number_{nullptr};
+  switch_::Switch *click_switch_{nullptr};
+  sensor::Sensor *battery_sensor_{nullptr};
+  binary_sensor::BinarySensor *charging_sensor_{nullptr};
   void refresh_mic_chip_();                    // reconcile the header mic chip with muted/available
   void push_timers_();                         // recompute + push timers to the renderer
   void tick_timers_(uint32_t now_ms);          // 1 s countdown for the header pill

@@ -60,6 +60,14 @@ class LvglRenderer : public Renderer {
   void show_timers_();
   void hide_timers_();
 
+  // Settings shade (pulled down from the top): battery + volume/brightness/standby/click.
+  void show_settings_();
+  void hide_settings_();
+  bool settings_visible_() const;
+  // Push current values from the component (entities + battery) into the widgets.
+  void update_settings_(int volume, int brightness, int standby_min, bool click_on,
+                        int battery_pct, bool charging);
+
  protected:
   lv_obj_t *make_screen_();
   const Card *current_card_(const ViewModel &vm) const;
@@ -77,6 +85,7 @@ class LvglRenderer : public Renderer {
   void set_carousel_translate_(float dx);          // follow horizontal drag
   void render_return_(float p);                    // return gauge progress 0..1
   static void carousel_gesture_cb(lv_event_t *e);  // slide / tap on the card screen
+  static void dash_swipe_cb(lv_event_t *e);        // swipe down from the top -> open settings
 
   // D1001 dashboard (tabs + tile grid).
   void build_dashboard_(const std::vector<Group> &groups);
@@ -147,6 +156,8 @@ class LvglRenderer : public Renderer {
   lv_obj_t *menu_name_lbl_{nullptr};
   bool m_down_{false};
   int m_sx_{0}, m_sy_{0};
+  bool dash_down_{false};   // dashboard swipe-down tracking (open settings)
+  int dash_sx_{0}, dash_sy_{0};
 
   // Card carousel widgets.
   lv_obj_t *card_title_{nullptr};
@@ -262,6 +273,22 @@ class LvglRenderer : public Renderer {
   lv_obj_t *timers_ring_time_{nullptr};
   lv_obj_t *timers_ring_name_{nullptr};
   lv_obj_t *timers_list_{nullptr};
+
+  // Settings shade (top-layer overlay pulled down from the top).
+  void build_settings_();
+  lv_obj_t *settings_scr_{nullptr};
+  lv_obj_t *set_bat_bar_{nullptr};
+  lv_obj_t *set_bat_pct_{nullptr};
+  lv_obj_t *set_bat_chg_{nullptr};
+  lv_obj_t *set_bat_glyph_{nullptr};
+  lv_obj_t *set_vol_slider_{nullptr};
+  lv_obj_t *set_vol_val_{nullptr};
+  lv_obj_t *set_bright_slider_{nullptr};
+  lv_obj_t *set_bright_val_{nullptr};
+  lv_obj_t *set_standby_slider_{nullptr};
+  lv_obj_t *set_standby_val_{nullptr};
+  lv_obj_t *set_click_tgl_{nullptr};    // pill button acting as a switch
+  lv_obj_t *set_click_knob_{nullptr};   // the knob moved left/right for off/on
 
   bool pull_armed_{false};  // pull-to-refresh: armed once the list is over-scrolled at the top
 

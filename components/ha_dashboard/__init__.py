@@ -11,6 +11,7 @@ from esphome.components import (
     climate,
     cover,
     http_request,
+    number,
     online_image,
     sensor,
     switch,
@@ -42,6 +43,13 @@ CONF_ON_TAP = "on_tap"
 CONF_DEEP_STANDBY_TIMEOUT = "deep_standby_timeout"
 CONF_ON_DEEP_STANDBY = "on_deep_standby"
 CONF_ON_WAKE = "on_wake"
+# Settings screen backing entities.
+CONF_VOLUME_NUMBER = "volume_number"
+CONF_BRIGHTNESS_NUMBER = "brightness_number"
+CONF_STANDBY_NUMBER = "standby_number"
+CONF_CLICK_SWITCH = "click_switch"
+CONF_BATTERY_SENSOR = "battery_sensor"
+CONF_CHARGING_SENSOR = "charging_sensor"
 CONF_LANGUAGE = "language"
 CONF_WEATHER = "weather"
 CONF_INACTIVITY_TIMEOUT = "inactivity_timeout"
@@ -200,6 +208,13 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_DEEP_STANDBY_TIMEOUT): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_ON_DEEP_STANDBY): automation.validate_automation(single=True),
         cv.Optional(CONF_ON_WAKE): automation.validate_automation(single=True),
+        # Settings screen backing entities (read/written by the on-device settings shade).
+        cv.Optional(CONF_VOLUME_NUMBER): cv.use_id(number.Number),
+        cv.Optional(CONF_BRIGHTNESS_NUMBER): cv.use_id(number.Number),
+        cv.Optional(CONF_STANDBY_NUMBER): cv.use_id(number.Number),
+        cv.Optional(CONF_CLICK_SWITCH): cv.use_id(switch.Switch),
+        cv.Optional(CONF_BATTERY_SENSOR): cv.use_id(sensor.Sensor),
+        cv.Optional(CONF_CHARGING_SENSOR): cv.use_id(binary_sensor.BinarySensor),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -235,6 +250,16 @@ async def to_code(config):
         await automation.build_automation(
             var.get_wake_trigger(), [], config[CONF_ON_WAKE]
         )
+    for key, setter in [
+        (CONF_VOLUME_NUMBER, var.set_volume_number),
+        (CONF_BRIGHTNESS_NUMBER, var.set_brightness_number),
+        (CONF_STANDBY_NUMBER, var.set_standby_number),
+        (CONF_CLICK_SWITCH, var.set_click_switch),
+        (CONF_BATTERY_SENSOR, var.set_battery_sensor),
+        (CONF_CHARGING_SENSOR, var.set_charging_sensor),
+    ]:
+        if key in config:
+            cg.add(setter(await cg.get_variable(config[key])))
 
     cg.add(var.set_profile(config[CONF_PROFILE]))
     cg.add(var.set_language(config[CONF_LANGUAGE]))

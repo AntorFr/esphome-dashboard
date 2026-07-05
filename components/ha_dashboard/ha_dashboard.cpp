@@ -491,10 +491,49 @@ void HaDashboard::handle_event_(InputEvent e, int idx) {
     case InputEvent::OPEN_TIMERS:
       // The renderer opens the timers overlay directly (see btn_event_cb); nothing to do here.
       break;
+    case InputEvent::OPEN_SETTINGS:
+      this->renderer_.show_settings_();
+      this->push_settings_();
+      break;
+    case InputEvent::SETTINGS_CLOSE:
+      break;  // the renderer hides its shade itself
+    case InputEvent::SET_VOLUME:
+      if (this->volume_number_ != nullptr)
+        this->volume_number_->make_call().set_value(idx).perform();
+      this->push_settings_();
+      break;
+    case InputEvent::SET_BRIGHTNESS:
+      if (this->brightness_number_ != nullptr)
+        this->brightness_number_->make_call().set_value(idx).perform();
+      this->push_settings_();
+      break;
+    case InputEvent::SET_STANDBY:
+      if (this->standby_number_ != nullptr)
+        this->standby_number_->make_call().set_value(idx).perform();
+      this->push_settings_();
+      break;
+    case InputEvent::TOGGLE_CLICK:
+      if (this->click_switch_ != nullptr)
+        this->click_switch_->toggle();
+      this->push_settings_();
+      break;
     default:
       this->controller_.handle(e, idx);
       break;
   }
+}
+
+void HaDashboard::push_settings_() {
+  auto num = [](number::Number *n) {
+    return (n != nullptr && !std::isnan(n->state)) ? (int) lroundf(n->state) : 0;
+  };
+  bool click = this->click_switch_ != nullptr && this->click_switch_->state;
+  int batt = (this->battery_sensor_ != nullptr && !std::isnan(this->battery_sensor_->state))
+                 ? (int) lroundf(this->battery_sensor_->state)
+                 : 0;
+  bool charging = this->charging_sensor_ != nullptr && this->charging_sensor_->state;
+  this->renderer_.update_settings_(num(this->volume_number_), num(this->brightness_number_),
+                                   num(this->standby_number_), click, batt, charging);
 }
 
 void HaDashboard::voice_listening() {

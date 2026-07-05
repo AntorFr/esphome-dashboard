@@ -230,6 +230,13 @@ voice_assistant:
 
 # === Entités Home Assistant liées (cartes binaires) ===
 switch:
+  # Touch click feedback on/off (settings entity, gates ha_dashboard on_tap).
+  - platform: template
+    name: "Clic tactile"
+    id: cfg_click
+    icon: mdi:gesture-tap
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
   - platform: homeassistant
     id: perf_mode
     entity_id: switch.capteur_bureau_mouse_keep_awake
@@ -272,25 +279,85 @@ homeassistant_addon:
       entity_id: media_player.bureau_2
       volume_step: 0.05
 
+# Configurable settings, exposed to HA AND driven by the on-device settings screen (single
+# source of truth). Each applies its effect in on_value and persists (restore_value).
+number:
+  - platform: template
+    name: "Volume"
+    id: cfg_volume
+    icon: mdi:volume-high
+    optimistic: true
+    restore_value: true
+    initial_value: 60
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+    on_value:
+      - media_player.volume_set:
+          id: d1001_media
+          volume: !lambda "return x / 100.0f;"
+  - platform: template
+    name: "Luminosité"
+    id: cfg_brightness
+    icon: mdi:brightness-6
+    optimistic: true
+    restore_value: true
+    initial_value: 100
+    min_value: 10
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+    on_value:
+      - light.turn_on:
+          id: d1001_backlight
+          brightness: !lambda "return x / 100.0f;"
+  - platform: template
+    name: "Mise en veille"
+    id: cfg_standby
+    icon: mdi:timer-outline
+    optimistic: true
+    restore_value: true
+    initial_value: 3
+    min_value: 0        # 0 = jamais (veille prolongée désactivée)
+    max_value: 30
+    step: 1
+    unit_of_measurement: "min"
+    mode: box
+    on_value:
+      - lambda: "id(d1001_dash)->set_deep_standby_timeout(x <= 0 ? 0 : (uint32_t)(x * 60000));"
+
 ha_dashboard:
   id: d1001_dash
   profile: reterminal_d1001
   language: fr
   inactivity_timeout: 120s
   time_id: sntp_time
-  # Audible click feedback on button/tile taps (short local WAV via the speaker media_player).
+  # Audible click feedback on button/tile taps — gated by the "Clic tactile" switch (HA entity).
   on_tap:
-    - media_player.speaker.play_on_device_media_file:
-        id: d1001_media
-        media_file: click_sound
-        announcement: true
-  # Extended standby: after this much idle in the clock screen, turn the backlight off; the next
-  # touch or wake word turns it back on. Must be > inactivity_timeout. Tune to taste.
-  deep_standby_timeout: 3min
+    - if:
+        condition:
+          switch.is_on: cfg_click
+        then:
+          - media_player.speaker.play_on_device_media_file:
+              id: d1001_media
+              media_file: click_sound
+              announcement: true
+  # Extended standby: the backlight turns off after the "Mise en veille" delay (the cfg_standby
+  # number drives set_deep_standby_timeout); the next touch or wake word turns it back on.
   on_deep_standby:
     - light.turn_off: d1001_backlight
   on_wake:
     - light.turn_on: d1001_backlight
+  # Settings shade (swipe down from the top): reads/writes these entities + shows the battery.
+  volume_number: cfg_volume
+  brightness_number: cfg_brightness
+  standby_number: cfg_standby
+  click_switch: cfg_click
+  battery_sensor: d1001_battery
+  charging_sensor: d1001_charging
   weather:
     entity: weather.petit_mars
   font_small: ha_font_small
