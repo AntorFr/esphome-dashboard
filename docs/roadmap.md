@@ -150,3 +150,16 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - Auto-rotation IMU (D1001).
 - Contrôle couleur/température des lumières.
 - Plusieurs entités par card.
+
+### Confort matériel / UX (D1001) — idées à cadrer
+- **Feedback tactile sonore** : petit « clic » à l'appui sur les boutons/tuiles (via le
+  speaker media_player, son local court — attention : MP3 mono cassé jusqu'à ESPHome 2026.7.0,
+  utiliser un WAV/FLAC court ou un ton généré). Doit rester non bloquant pour la loop tactile.
+- **Suivi de la batterie** : exposer niveau (%) + état de charge à HA (le D1001 a un chargeur sur
+  l'I2C système) et éventuellement l'afficher dans le header.
+- **Mode veille prolongée** : après inactivité longue, couper l'écran **et** le rétroéclairage
+  (light LCD_PWM off + éventuellement panneau MIPI-DSI), réveil au tactile/wake word. Étend le
+  mode veille horloge actuel.
+- **Rétroéclairage adaptatif** à la luminosité ambiante : moduler `LCD_PWM` selon un capteur de
+  lumière — à défaut de capteur dédié, évaluer l'usage de la **caméra** du D1001 comme proxy de
+  luminosité (coût CPU/allumage caméra à mesurer).
