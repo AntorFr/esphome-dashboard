@@ -168,3 +168,7 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
   exposés à HA (`number`/`select`). Point d'entrée : icône dans le header ou geste dédié.
   Y afficher aussi une **visualisation de la batterie** (niveau % + état de charge, déjà
   disponibles via les capteurs `Batterie` / `En charge`).
+- **Météo étendue** : tap sur l'icône météo du header → vue **prévisions multi-jours** (et/ou
+  horaires). Vérifier ce qui est dispo côté HA : action `weather.get_forecasts` (type
+  `daily`/`hourly`/`twice_daily`) ou les attributs `forecast` de l'entité `weather.*` ;
+  récupérer via l'API HA et rendre une petite liste (jour, icône, min/max, condition).
