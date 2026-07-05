@@ -5,6 +5,7 @@ Voir docs/config-reference.md et docs/architecture.md.
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome import automation
 from esphome.components import (
     binary_sensor,
     climate,
@@ -37,6 +38,7 @@ ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
 
 CONF_PROFILE = "profile"
+CONF_ON_TAP = "on_tap"
 CONF_LANGUAGE = "language"
 CONF_WEATHER = "weather"
 CONF_INACTIVITY_TIMEOUT = "inactivity_timeout"
@@ -188,6 +190,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_FONT_ICONS_LG): lvalid.lv_font,
         cv.Optional(CONF_FONT_VOICE): lvalid.lv_font,
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
+        # Fired on a discrete tap of a button/tile (e.g. to play an audible click).
+        cv.Optional(CONF_ON_TAP): automation.validate_automation(single=True),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -208,6 +212,11 @@ async def to_code(config):
 
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+
+    if CONF_ON_TAP in config:
+        await automation.build_automation(
+            var.get_tap_trigger(), [], config[CONF_ON_TAP]
+        )
 
     cg.add(var.set_profile(config[CONF_PROFILE]))
     cg.add(var.set_language(config[CONF_LANGUAGE]))

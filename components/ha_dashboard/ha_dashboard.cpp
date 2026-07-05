@@ -396,6 +396,25 @@ void HaDashboard::loop() {
 
 // Route overlay/header voice + timer actions to the component; navigation goes to the controller.
 void HaDashboard::handle_event_(InputEvent e, int idx) {
+  // Audible click feedback: fire on a discrete tap of a button/tile, but not on continuous
+  // gestures (carousel swipes, slider drags) or system events, which would spam the click.
+  switch (e) {
+    case InputEvent::WAKE:
+    case InputEvent::SLEEP:
+    case InputEvent::FOCUS_NEXT:
+    case InputEvent::FOCUS_PREV:
+    case InputEvent::ENCODER_CW:
+    case InputEvent::ENCODER_CCW:
+    case InputEvent::NP_SET_VOLUME:
+    case InputEvent::SHEET_SET_VALUE:
+    case InputEvent::LAUNCHER_REFRESH:
+    case InputEvent::LAUNCHER_LOAD_MORE:
+      break;
+    default:
+      this->tap_trigger_.trigger();
+      break;
+  }
+
   switch (e) {
     case InputEvent::VOICE_START:
       // Tap-to-talk / retry: start the assistant pipeline directly (bypassing the wake word).

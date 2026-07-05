@@ -189,6 +189,11 @@ speaker:
     channel: mono
     sample_rate: 16000
     bits_per_sample: 16bit
+    # Keep the I2S bus running instead of stopping ~500 ms after audio ends. Restarting the
+    # bus produces an audible "pop"/click transient (heard before the first sound after a few
+    # seconds idle, e.g. before a tap click or the wake-word ding). The whole chain is 16 kHz
+    # (via the resampler) so the bus never needs to reconfigure either.
+    timeout: never
 
 microphone:
   - platform: i2s_audio

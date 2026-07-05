@@ -164,6 +164,8 @@ media_player:
         file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/wake_word_triggered.flac
       - id: timer_sound
         file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/timer_finished.flac
+      - id: click_sound   # short UI click for touch feedback (WAV — avoids the mono-MP3 issue)
+        file: sounds/click.wav
 
 micro_wake_word:
   models:
@@ -263,6 +265,12 @@ ha_dashboard:
   language: fr
   inactivity_timeout: 120s
   time_id: sntp_time
+  # Audible click feedback on button/tile taps (short local WAV via the speaker media_player).
+  on_tap:
+    - media_player.speaker.play_on_device_media_file:
+        id: d1001_media
+        media_file: click_sound
+        announcement: true
   weather:
     entity: weather.petit_mars
   font_small: ha_font_small

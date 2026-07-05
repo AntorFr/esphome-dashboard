@@ -9,6 +9,7 @@
 #include "esphome/components/font/font.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/time/real_time_clock.h"
+#include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 #include "controller.h"
@@ -29,6 +30,10 @@ class HaDashboard : public Component {
   void loop() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::LATE; }
+
+  // Fires on a discrete tap of a button/tile (not on swipes, slider drags or system events),
+  // so YAML can add audible click feedback. See handle_event_.
+  Trigger<> *get_tap_trigger() { return &this->tap_trigger_; }
 
   void set_profile(const std::string &profile) { this->profile_ = profile; }
   void set_language(const std::string &language) { this->language_ = language; }
@@ -92,6 +97,7 @@ class HaDashboard : public Component {
  protected:
   void build_if_ready_();
   void handle_event_(InputEvent e, int idx);  // route voice/timer actions here, nav to controller
+  Trigger<> tap_trigger_;                      // fired for click feedback on discrete taps
   void refresh_mic_chip_();                    // reconcile the header mic chip with muted/available
   void push_timers_();                         // recompute + push timers to the renderer
   void tick_timers_(uint32_t now_ms);          // 1 s countdown for the header pill
