@@ -166,3 +166,5 @@ navigation minimale (veille / menu / groupe / card), dashboard quasi vide.
 - **Menu réglages** (écran settings) : régler des paramètres depuis la tablette — ex. **volume**
   du HP, luminosité, délai de veille, on/off du clic sonore — persistés en `preferences` et/ou
   exposés à HA (`number`/`select`). Point d'entrée : icône dans le header ou geste dédié.
+  Y afficher aussi une **visualisation de la batterie** (niveau % + état de charge, déjà
+  disponibles via les capteurs `Batterie` / `En charge`).
