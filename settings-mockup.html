@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — menu réglages (D1001)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+<style>
+  :root{
+    --bg:#0A0A0C; --screen:#0E0E12; --tile:#17171E; --tile2:#1f1f29; --track:#232330;
+    --text:#fff; --muted:#8A8A92; --iconoff:#6b6b73;
+    --media:#A06CFF; --voice:#35C6FF; --voice2:#7A5CFF; --ok:#3DD68C; --err:#FF5A5A; --timer:#FFB020;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px;line-height:1.45}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--muted);max-width:980px;margin:0 0 4px}.lead b{color:#cfd0d6}
+  .row{display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start;margin-top:22px}
+  .device-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .device-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .notes{max-width:520px;color:var(--muted);font-size:14px}
+  .notes h3{color:#cfd0d6;font-size:15px;margin:18px 0 6px}
+  .notes li{margin:3px 0}
+  .k{color:var(--voice)}
+
+  /* Portrait D1001 frame (800x1280 scaled) */
+  .port-frame{background:#1B1B22;border-radius:24px;padding:8px}
+  .screenwrap{overflow:hidden;border-radius:16px}
+  .screen{background:var(--screen);transform-origin:top left;position:relative;
+    display:flex;flex-direction:column}
+
+  /* Settings screen (native 800x1280) */
+  .set{position:absolute;inset:0;display:flex;flex-direction:column;background:
+      radial-gradient(120% 60% at 50% 0%, rgba(53,198,255,.06), rgba(10,10,14,0) 55%), var(--screen)}
+  .set-top{display:flex;align-items:center;gap:24px;padding:40px 40px 22px}
+  .set-back{width:76px;height:76px;border-radius:50%;background:#20202a;display:flex;align-items:center;justify-content:center;font-size:44px;color:var(--muted)}
+  .set-title{font-size:46px;font-weight:600}
+  .set-body{flex:1;overflow:hidden;padding:0 34px 30px;display:flex;flex-direction:column;gap:22px}
+
+  /* Battery card */
+  .bat{background:linear-gradient(180deg,#16211b,#141b18);border:1px solid #223028;border-radius:26px;padding:30px 34px;display:flex;align-items:center;gap:30px}
+  .bat .glyph{font-size:78px;color:var(--ok)}
+  .bat .col{flex:1;display:flex;flex-direction:column;gap:14px}
+  .bat .lbl{display:flex;justify-content:space-between;align-items:baseline}
+  .bat .lbl .name{font-size:30px;color:#cfd0d6}
+  .bat .lbl .pct{font-size:40px;font-weight:700}
+  .bat .barbg{height:26px;border-radius:14px;background:#0f1512;overflow:hidden}
+  .bat .barfill{height:100%;width:100%;border-radius:14px;background:linear-gradient(90deg,var(--ok),#63e6a4)}
+  .bat .chg{display:inline-flex;align-items:center;gap:10px;font-size:26px;color:var(--ok)}
+  .bat .chg .mdi{font-size:30px}
+
+  /* Setting rows */
+  .item{background:var(--tile);border-radius:24px;padding:28px 32px;display:flex;align-items:center;gap:28px}
+  .item .ic{width:76px;height:76px;border-radius:20px;background:#22222c;display:flex;align-items:center;justify-content:center;font-size:44px;color:var(--voice);flex:none}
+  .item .mid{flex:1;display:flex;flex-direction:column;gap:16px;min-width:0}
+  .item .name{font-size:32px;color:#fff}
+  .item .sub{font-size:24px;color:var(--muted)}
+  .item .val{font-size:34px;font-weight:600;color:#fff}
+  .chev{font-size:44px;color:var(--muted)}
+
+  /* Slider */
+  .slider{position:relative;height:20px}
+  .slider .strack{position:absolute;top:6px;left:0;right:0;height:10px;border-radius:6px;background:var(--track)}
+  .slider .sfill{position:absolute;top:6px;left:0;height:10px;border-radius:6px;background:var(--voice)}
+  .slider .sknob{position:absolute;top:-8px;width:36px;height:36px;border-radius:50%;background:#fff;box-shadow:0 0 0 8px rgba(53,198,255,.18),0 2px 8px rgba(0,0,0,.5);transform:translateX(-50%)}
+  .rowline{display:flex;align-items:center;gap:22px}
+  .rowline .val{min-width:110px;text-align:right}
+
+  /* Toggle */
+  .tgl{width:100px;height:56px;border-radius:28px;background:var(--voice);position:relative;flex:none}
+  .tgl.off{background:#33333f}
+  .tgl .dot{position:absolute;top:6px;width:44px;height:44px;border-radius:50%;background:#fff;transition:.2s;left:50px}
+  .tgl.off .dot{left:6px}
+
+  /* Standby picker (bottom sheet variant) */
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#14141b;border-radius:34px 34px 0 0;padding:16px 0 34px}
+  .sheet .handle{width:120px;height:8px;border-radius:4px;background:#33333f;margin:14px auto 8px}
+  .sheet h4{font-size:34px;font-weight:600;margin:14px 40px 18px}
+  .opt{display:flex;align-items:center;justify-content:space-between;padding:26px 40px;font-size:32px}
+  .opt.sel{color:var(--voice)}
+  .opt .mdi{font-size:40px}
+  .opt+.opt{border-top:1px solid #20202a}
+
+  /* Dashboard "access" screen */
+  .dash{position:absolute;inset:0;display:flex;flex-direction:column}
+  .dash-top{padding:40px 40px 0;display:flex;align-items:flex-start;justify-content:space-between}
+  .dash-time{font-size:80px;font-weight:500;line-height:.95}
+  .dash-date{font-size:26px;color:var(--muted);margin-top:10px}
+  .dash-right{display:flex;align-items:center;gap:20px}
+  /* Real weather widget: icon + temperature + condition text (wide) */
+  .dash-weather{display:inline-flex;align-items:center;gap:14px;color:#cfd0d6}
+  .dash-weather .mdi{font-size:52px;color:#7FB5FF}
+  .dash-weather .t{font-size:38px;font-weight:500}
+  .dash-weather .cond{font-size:28px;color:var(--muted)}
+  /* Swipe-down affordance (top of the dashboard) */
+  .grab{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:130px;height:9px;border-radius:5px;background:#3a3a46}
+  .swipe-hint{position:absolute;top:150px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--voice);opacity:.9}
+  .swipe-hint .mdi{font-size:60px;animation:bob 1.6s ease-in-out infinite}
+  .swipe-hint .lab{font-size:26px;font-weight:600}
+  @keyframes bob{0%,100%{transform:translateY(0);opacity:.55}50%{transform:translateY(14px);opacity:1}}
+  /* Settings pulled down as a shade */
+  .shade-handle{width:130px;height:9px;border-radius:5px;background:#3a3a46;margin:14px auto 0}
+  .peek{position:absolute;left:0;right:0;top:0;height:180px;padding:20px 40px 0;opacity:.4}
+  .peek .dash-time{font-size:64px}
+  .chip{width:84px;height:84px;border-radius:50%;background:#20202a;display:flex;align-items:center;justify-content:center;font-size:46px;color:var(--muted)}
+  /* Coloured pills (real states) */
+  .chip.mic{color:var(--voice);box-shadow:0 0 0 3px rgba(53,198,255,.35),0 0 22px rgba(53,198,255,.35)}
+  .chip.music{color:var(--media);box-shadow:0 0 0 3px rgba(160,108,255,.35),0 0 22px rgba(160,108,255,.30)}
+  .pill.timer{height:84px;border-radius:42px;background:rgba(255,176,32,.14);color:var(--timer);display:inline-flex;align-items:center;gap:12px;padding:0 26px;font-size:34px;font-weight:600}
+  .pill.timer .mdi{font-size:44px}
+  .chip.gear{color:#fff;background:#20202a;position:relative}
+  .chip.gear::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:4px solid var(--voice);box-shadow:0 0 26px rgba(53,198,255,.6);animation:ring 1.8s ease-out infinite}
+  @keyframes ring{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+  .callout{position:absolute;top:150px;right:40px;background:var(--voice);color:#04121a;font-size:24px;font-weight:600;padding:12px 20px;border-radius:14px}
+  .callout::after{content:"";position:absolute;top:-14px;right:34px;border:8px solid transparent;border-bottom-color:var(--voice)}
+  .dash-tabs{display:flex;gap:34px;padding:30px 40px 0;border-bottom:1px solid #232330;font-size:30px;color:var(--muted)}
+  .dash-tabs .t.active{color:#fff;padding-bottom:14px;border-bottom:4px solid var(--timer)}
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:30px 40px}
+  .dtile{background:var(--tile);border-radius:24px;padding:30px;min-height:180px;display:flex;flex-direction:column;justify-content:space-between}
+  .dtile .mdi{font-size:56px;color:var(--timer)}
+  .dtile.off .mdi{color:var(--iconoff)}
+  .dtile .nm{font-size:30px}.dtile .st{font-size:24px;color:var(--muted)}
+</style>
+</head>
+<body>
+<h1>Maquette — menu réglages (D1001)</h1>
+<p class="lead">Accès par un <b>glissement du haut vers le bas</b> (volet façon quick-settings) — le header est déjà
+saturé de pastilles, donc pas d'icône en plus. Portrait 800×1280, même langage visuel que le dashboard /
+l'assistant vocal. <b>À valider avant implémentation.</b></p>
+
+<div class="row" id="stage"></div>
+
+<div class="notes">
+  <h3>Contenu</h3>
+  <ul>
+    <li><b>Batterie</b> : jauge (% + barre) et état de charge — déjà dispo via les capteurs <span class="k">Batterie</span> / <span class="k">En charge</span>.</li>
+    <li><b>Volume</b> HP — slider, appliqué au media_player (persisté).</li>
+    <li><b>Luminosité</b> — slider sur le rétroéclairage <span class="k">LCD_PWM</span>.</li>
+    <li><b>Mise en veille</b> — délai avant veille prolongée (picker : 1/3/5/10 min, Jamais).</li>
+    <li><b>Clic tactile</b> — on/off du son de clic.</li>
+  </ul>
+  <h3>Interactions</h3>
+  <ul>
+    <li>Sliders : glisser = ajuste en direct (throttlé), valeur persistée en <span class="k">preferences</span>.</li>
+    <li>Lignes « picker » (veille) : tap → bottom-sheet d'options (2e écran).</li>
+    <li>Réglages exposables aussi à HA (<span class="k">number</span> / <span class="k">select</span> / <span class="k">switch</span>).</li>
+  </ul>
+  <h3>Point d'entrée = slide ↓ (résout la saturation du header)</h3>
+  <ul>
+    <li>Le header porte déjà : <b>heure/date + météo (icône+°+condition, large) + musique (now-playing)
+      + minuteur (parfois) + micro</b> — pastilles <b>colorées</b>. Aucune place pour une icône ⚙.</li>
+    <li>Donc entrée par <b>glissement depuis le haut</b> (écran 1 : poignée + chevron). Le volet
+      Réglages descend (écran 2, poignée en haut, fermeture par ✕ ou glisser vers le haut).</li>
+    <li>À gérer côté implémentation : distinguer le geste « slide depuis le tout en haut » d'un
+      simple scroll de la grille (zone de déclenchement ~haut de l'écran / edge-swipe).</li>
+  </ul>
+  <h3>À trancher (ta revue)</h3>
+  <ul>
+    <li>Zone de déclenchement du slide (bord haut only ? hauteur ?) et geste de fermeture.</li>
+    <li>Liste des réglages (en ajouter ? ex. wifi, redémarrer, infos device).</li>
+    <li>Accent visuel (cyan proposé) et carte batterie en haut du volet.</li>
+  </ul>
+</div>
+
+<script>
+const W=800,H=1280,SCALE=0.44;
+function frame(inner){
+  return '<div class="port-frame"><div class="screenwrap" style="width:'+(W*SCALE)+'px;height:'+(H*SCALE)+'px">'
+    +'<div class="screen" style="width:'+W+'px;height:'+H+'px;transform:scale('+SCALE+')">'+inner+'</div></div></div>';
+}
+function slider(pct){
+  return '<div class="slider"><div class="strack"></div><div class="sfill" style="width:'+pct+'%"></div>'
+       +'<div class="sknob" style="left:'+pct+'%"></div></div>';
+}
+function item(icon,name,mid,tail){
+  return '<div class="item"><div class="ic"><span class="mdi mdi-'+icon+'"></span></div>'
+       +'<div class="mid">'+mid+'</div>'+(tail||'')+'</div>';
+}
+
+// ---- Main settings screen ----
+const battery =
+  '<div class="bat"><span class="glyph mdi mdi-battery-charging-100"></span>'
+  +'<div class="col"><div class="lbl"><span class="name">Batterie</span><span class="pct">100 %</span></div>'
+  +'<div class="barbg"><div class="barfill"></div></div>'
+  +'<span class="chg"><span class="mdi mdi-power-plug"></span>En charge</span></div></div>';
+
+const main =
+  '<div class="set">'
+  +'<div class="shade-handle"></div>'
+  +'<div class="set-top"><div class="set-title">Réglages</div><div class="set-back" style="margin-left:auto"><span class="mdi mdi-close"></span></div></div>'
+  +'<div class="set-body">'
+  + battery
+  + item('volume-high','', '<div class="name">Volume</div><div class="rowline">'+slider(60)+'<span class="val">60&nbsp;%</span></div>')
+  + item('brightness-6','', '<div class="name">Luminosité</div><div class="rowline">'+slider(80)+'<span class="val">80&nbsp;%</span></div>')
+  + item('timer-outline','', '<div class="name">Mise en veille</div><div class="sub">Écran éteint après inactivité</div>', '<span class="val">3&nbsp;min</span><span class="chev mdi mdi-chevron-right"></span>')
+  + item('gesture-tap','', '<div class="name">Clic tactile</div><div class="sub">Son au toucher</div>', '<div class="tgl"><div class="dot"></div></div>')
+  +'</div></div>';
+
+// ---- Variant: standby-delay picker (bottom sheet) ----
+const picker =
+  '<div class="set">'
+  +'<div class="shade-handle"></div>'
+  +'<div class="set-top"><div class="set-title">Réglages</div><div class="set-back" style="margin-left:auto"><span class="mdi mdi-close"></span></div></div>'
+  +'<div class="set-body" style="filter:blur(1px);opacity:.5">'+battery+item('volume-high','', '<div class="name">Volume</div><div class="rowline">'+slider(60)+'<span class="val">60&nbsp;%</span></div>')+'</div>'
+  +'<div class="scrim"></div>'
+  +'<div class="sheet"><div class="handle"></div><h4>Mise en veille</h4>'
+  +'<div class="opt"><span>1 minute</span></div>'
+  +'<div class="opt sel"><span>3 minutes</span><span class="mdi mdi-check"></span></div>'
+  +'<div class="opt"><span>5 minutes</span></div>'
+  +'<div class="opt"><span>10 minutes</span></div>'
+  +'<div class="opt"><span>Jamais</span></div>'
+  +'</div></div>';
+
+// ---- Access screen: dashboard home with the settings entry point (gear in the header) ----
+function dtile(icon,name,st,off){return '<div class="dtile'+(off?' off':'')+'"><span class="mdi mdi-'+icon+'"></span><div><div class="nm">'+name+'</div><div class="st">'+st+'</div></div></div>';}
+function dashHeader(){
+  return '<div class="dash-top">'
+  +'<div><div class="dash-time">14:32</div><div class="dash-date">vendredi 4 juillet</div></div>'
+  +'<div class="dash-right">'
+  +'<div class="dash-weather"><span class="mdi mdi-weather-partly-cloudy"></span><span class="t">19°</span><span class="cond">Nuageux</span></div>'
+  +'<div class="chip music"><span class="mdi mdi-music"></span></div>'
+  +'<div class="pill timer"><span class="mdi mdi-timer-outline"></span>4:12</div>'
+  +'<div class="chip mic"><span class="mdi mdi-microphone"></span></div>'
+  +'</div></div>';
+}
+const dashBody =
+  '<div class="dash-tabs"><span class="t active">Salon</span><span class="t">Chambre</span><span class="t">Musique</span></div>'
+  +'<div class="dash-grid">'
+  + dtile('lightbulb','Plafonnier','Allumé · 60 %')
+  + dtile('sofa-outline','Ambiance','Éteint',true)
+  + dtile('thermostat','Chauffage','21 °C')
+  + dtile('garage','Portail','Fermé',true)
+  +'</div>';
+// Screen 1: dashboard (full header, no gear) + swipe-down affordance
+const access =
+  '<div class="dash">'+dashHeader()+dashBody+'</div>'
+  +'<div class="grab"></div>'
+  +'<div class="swipe-hint"><span class="mdi mdi-chevron-down"></span><span class="lab">Réglages</span></div>';
+
+document.getElementById('stage').innerHTML =
+    '<div class="device-wrap"><div class="device-label">1 · Dashboard — glisser ↓ depuis le haut</div>'+frame(access)+'</div>'
+  + '<div class="device-wrap"><div class="device-label">2 · Réglages (volet descendu)</div>'+frame(main)+'</div>'
+  + '<div class="device-wrap"><div class="device-label">3 · Picker « mise en veille »</div>'+frame(picker)+'</div>';
+</script>
+</body>
+</html>
