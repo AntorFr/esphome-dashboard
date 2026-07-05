@@ -125,8 +125,27 @@ time:
 # Audio hardware (I2S buses, ES8311/ES7210, speaker, microphone, PA) lives in the board package.
 # NB: the board sets execute_from_psram (CONFIG_SPIRAM_XIP_FROM_PSRAM) — required on the P4 or
 # the audio stack asserts esp_task_stack_is_sane_cache_disabled at boot.
-# Speaker media_player: plays the voice_assistant TTS AND short feedback sounds. Routes to the
-# board's d1001_speaker; the pipeline resamples sources down to the speaker's 16 kHz.
+# Always-on MIXER speaker chain (mirrors HA Voice PE) so short announcements/TTS actually play.
+# Problem: the speaker media_player waits to buffer INITIAL_BUFFER_MS before it starts its own
+# i2s, and a short MP3 (HA's TTS) finishes decoding first -> it never starts -> silence. Routing
+# the pipeline through a resampler into an always-running mixer keeps the i2s live, so the decoded
+# PCM flows out immediately. The resampler also converts any source rate to the hardware's 16 kHz.
+#   announcement_pipeline -> announcement_resampling_speaker -> announcement_mixing_input
+#                         -> mixing_speaker -> d1001_speaker (i2s, always on)
+speaker:
+  - platform: mixer
+    id: mixing_speaker
+    output_speaker: d1001_speaker      # the board's raw i2s speaker (16 kHz, ES8311)
+    source_speakers:
+      - id: announcement_mixing_input
+      - id: media_mixing_input
+  - platform: resampler
+    id: announcement_resampling_speaker
+    output_speaker: announcement_mixing_input
+  - platform: resampler
+    id: media_resampling_speaker
+    output_speaker: media_mixing_input
+
 # format: NONE compiles ALL decoders (MP3/FLAC/WAV/OPUS). Required because HA streams the TTS
 # response as an .mp3 URL (api/tts_proxy/*.mp3); a fixed FLAC format would only build the FLAC
 # decoder, so the MP3 reader failed with ESP_ERR_NOT_SUPPORTED and looped forever.
@@ -135,7 +154,10 @@ media_player:
     id: d1001_media
     name: "Enceinte D1001"   # exposed to HA so it can play TTS/announcements/media to the device
     announcement_pipeline:
-      speaker: d1001_speaker
+      speaker: announcement_resampling_speaker
+      format: NONE
+    media_pipeline:
+      speaker: media_resampling_speaker
       format: NONE
     files:
       - id: wake_sound

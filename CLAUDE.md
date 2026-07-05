@@ -24,6 +24,11 @@ reTerminal D1001). Knowledge base lives in [`docs/`](docs/) — start with
   audio/speaker stack are moving fast upstream; before debugging a component issue, upgrade the
   venv (`pip install -U esphome`) and re-test — many bugs are already fixed in a newer release.
   Keep the venv on the newest version rather than pinning to an old one.
+- **Mono-MP3 playback patch (interim).** ESPHome 2026.5.x–2026.6.x has a regression where mono MP3
+  (local files, HA media, and HA TTS — which is mono) decodes its header then plays nothing;
+  stereo MP3 and FLAC are fine (issue esphome#16829, fixed by PR #17106, ships in 2026.7.0). Until
+  the venv is on >= 2026.7.0, run `scripts/patch_esphome_mono_mp3.sh` once after (re)creating the
+  venv (idempotent). Remove this step after upgrading past the fix.
 - Validate changes with the local ESPHome venv:
   `. .venv/bin/activate && esphome config tests/test_dial.yaml tests/test_d1001.yaml`,
   and `esphome compile` for the affected target.
