@@ -1,0 +1,29 @@
+# Minimal ESP32-P4 config to compile-gate the experimental p4_camera_light component
+# (esp_video / SC2356 integration — ADR-0008). Not a full device.
+esphome:
+  name: test-camera-light
+
+esp32:
+  board: esp32-p4-evboard
+  cpu_frequency: 360MHz
+  flash_size: 32MB
+  framework:
+    type: esp-idf
+    advanced:
+      enable_idf_experimental_features: true
+      execute_from_psram: true
+
+psram:
+  speed: 200MHZ
+
+logger:
+
+external_components:
+  - source:
+      type: local
+      path: ../components
+
+sensor:
+  - platform: p4_camera_light
+    name: "Ambient Light"
+    update_interval: 60s
