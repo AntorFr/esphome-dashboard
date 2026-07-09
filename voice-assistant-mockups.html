@@ -42,13 +42,12 @@
   .va-x{width:74px;height:74px;border-radius:50%;background:#20202a;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--muted)}
   .va-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;width:100%;padding:0 46px}
 
-  /* ============ NESTOR — Karotz/Nabaztag silhouette (SVG bell body + swivel ears) ============ */
-  /* Shape traced from the real device icons: NOT an egg — a rounded BELL (narrow rounded top
-     flaring to a wide, near-flat base), two long ears set close together (swivelling per state),
-     small round eyes, a little nose + mouth, and ONE soft belly light low on the body (the single
-     Karotz LED) that glows the neon state colour. Body/face are a static SVG; only the belly
-     light + ear posture + eye squint change per state (via --c / classes). */
-  .nab-wrap{position:relative;width:460px;height:600px;display:flex;align-items:flex-end;justify-content:center;
+  /* ============ NESTOR — Karotz hero render + CSS state-coloured belly light ============ */
+  /* Uses the generated Karotz PNG (assets/karotz-nabaztag-white-belly-transparent.png, neutral
+     belly) as the figure, and layers the single belly LED as a CSS glow so it themes per state.
+     Ears are baked into the image (fixed pose); state reads from the belly colour + pulse rings +
+     the surrounding UI (waveform / status). Per-state the wrap sets --c (accent) + --glow. */
+  .nab-wrap{position:relative;width:440px;height:470px;display:flex;align-items:center;justify-content:center;
     --c:var(--voice); --glow:rgba(53,198,255,.5)}
   .nab-wrap.think{--c:var(--voice2); --glow:rgba(122,92,255,.5)}
   .nab-wrap.speak{--c:var(--voice); --glow:rgba(53,198,255,.55)}
@@ -56,43 +55,25 @@
   .nab-wrap.mute{--c:#4a4a56; --glow:rgba(0,0,0,0)}
   .nab-wrap.timer{--c:var(--timer); --glow:rgba(255,176,32,.55)}
 
-  .ring{position:absolute;bottom:24px;border-radius:50%;border:2px solid var(--c);opacity:0}
-  .r1{width:340px;height:340px;animation:pulse 2.6s ease-out infinite}
-  .r2{width:340px;height:340px;animation:pulse 2.6s ease-out infinite 1.3s}
-  @keyframes pulse{0%{transform:scale(.6);opacity:.5}100%{transform:scale(1.05);opacity:0}}
+  .ring{position:absolute;left:51%;top:70%;border-radius:50%;border:2px solid var(--c);opacity:0;transform:translate(-50%,-50%)}
+  .r1{width:300px;height:300px;animation:pulse 2.6s ease-out infinite}
+  .r2{width:300px;height:300px;animation:pulse 2.6s ease-out infinite 1.3s}
+  @keyframes pulse{0%{transform:translate(-50%,-50%) scale(.5);opacity:.5}100%{transform:translate(-50%,-50%) scale(1.05);opacity:0}}
 
-  .nab{position:relative;width:340px;height:521px;animation:hop 3.8s ease-in-out infinite}
-  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-  .nab-svg{width:100%;height:100%;overflow:visible;
-    filter:drop-shadow(0 20px 20px rgba(0,0,0,.32)) drop-shadow(0 0 42px var(--glow))}
-  .nab-svg .ear{transform-box:view-box;transition:transform .55s cubic-bezier(.2,.8,.2,1)}
-  .nab-svg .ear.l{transform-origin:132px 232px;transform:rotate(-7deg)}
-  .nab-svg .ear.r{transform-origin:168px 232px;transform:rotate(7deg)}
-  .nab-svg .eye{transform-box:fill-box;transform-origin:center;transition:transform .3s}
-  .nab-svg .eye-hl{transition:opacity .3s}
+  .nab{position:relative;width:380px;height:380px;animation:hop 3.8s ease-in-out infinite}
+  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .nab-img{width:100%;height:100%;object-fit:contain;display:block;
+    filter:drop-shadow(0 18px 20px rgba(0,0,0,.4)) drop-shadow(0 0 44px var(--glow))}
 
-  /* belly light = the single Karotz LED (kept in CSS so it themes per state) */
-  .belly{position:absolute;left:50%;top:83%;transform:translate(-50%,-50%);width:150px;height:150px;border-radius:50%;
-    background:radial-gradient(circle at 50% 48%,var(--c),rgba(255,255,255,0) 66%);filter:blur(3px);
+  /* belly light — the single Karotz LED, layered over the render, themed per state */
+  .belly{position:absolute;left:51%;top:70%;transform:translate(-50%,-50%);width:150px;height:150px;border-radius:50%;
+    background:radial-gradient(circle,var(--c),rgba(255,255,255,0) 66%);filter:blur(4px);
     animation:bellyPulse 3.2s ease-in-out infinite;pointer-events:none}
-  @keyframes bellyPulse{0%,100%{opacity:.82;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.07)}}
+  @keyframes bellyPulse{0%,100%{opacity:.75;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
 
-  /* ---- states: swivel ears (Karotz), eye squint, belly ---- */
-  .nab.listen .ear.l{animation:twitchL 2.2s ease-in-out infinite}
-  .nab.listen .ear.r{animation:twitchR 2.2s ease-in-out infinite}
-  @keyframes twitchL{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(-12deg)}}
-  @keyframes twitchR{0%,100%{transform:rotate(7deg)}50%{transform:rotate(12deg)}}
-  .nab.think .ear.l{animation:wiggleL 1.4s ease-in-out infinite}
-  .nab.think .ear.r{animation:wiggleR 1.4s ease-in-out infinite}
-  @keyframes wiggleL{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
-  @keyframes wiggleR{0%,100%{transform:rotate(7deg)}50%{transform:rotate(-7deg)}}
-  .nab.speak .ear.l{transform:rotate(-4deg)} .nab.speak .ear.r{transform:rotate(4deg)}
-  .nab.err .ear.l,.nab.mute.off .ear.l{transform:rotate(-42deg)}
-  .nab.err .ear.r,.nab.mute.off .ear.r{transform:rotate(42deg)}
-  .nab.mute .ear.l{transform:rotate(-30deg)} .nab.mute .ear.r{transform:rotate(30deg)}
-  .nab.mute .eye,.nab.err .eye{transform:scaleY(.16)}
-  .nab.mute .eye-hl,.nab.err .eye-hl{opacity:0}
-  .nab.mute .belly{background:radial-gradient(circle at 50% 48%,#3a3a44,rgba(255,255,255,0) 66%);animation:none}
+  /* ---- states ---- */
+  .nab.mute .belly{background:radial-gradient(circle,#3a3a44,rgba(255,255,255,0) 66%);animation:none}
+  .nab.mute .nab-img{filter:grayscale(.35) brightness(.9) drop-shadow(0 18px 20px rgba(0,0,0,.4))}
   .nab.mute{animation:none}
   .nab.alarm{animation:shake .5s ease-in-out infinite}
   @keyframes shake{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
@@ -165,7 +146,7 @@
 <body>
 <h1>Maquettes — <b>Nestor</b>, l'assistant vocal (D1001)</h1>
 <p class="lead"><b>reTerminal D1001</b> (micro + HP) : wake-word local « <b>Ok Nestor</b> » (<code>micro_wake_word</code>) + pipeline HA Assist (<code>voice_assistant</code>).
-Nestor se présente comme un <b>Nabaztag / Karotz</b> — l'un des tout premiers objets connectés (le lapin à oreilles articulées et ventre lumineux) — <b>réinterprété néon</b> : l'ancien orbe devient un <b>lapin porcelaine</b> dont les <b>oreilles lisent l'état</b> (dressées = écoute, frétillantes = réflexion, tombantes = erreur, repliées = coupé) et dont le <b>ventre-halo</b> porte la couleur d'état. Overlay <b>plein écran opaque</b>, build-once + update-in-place (ADR-0005).</p>
+Nestor se présente comme un <b>Nabaztag / Karotz</b> — l'un des tout premiers objets connectés (le lapin à oreilles articulées et ventre lumineux) — <b>réinterprété néon</b> : l'ancien orbe devient <b>Nestor</b>, un rendu Karotz dont le <b>ventre lumineux</b> prend la couleur de l'état (cyan écoute · violet réflexion · ambre minuterie · rouge erreur), entouré d'<b>anneaux pulsés</b> et de la waveform. Overlay <b>plein écran opaque</b>, build-once + update-in-place (ADR-0005).</p>
 <div class="legend">
   <span><i class="dot" style="background:var(--voice)"></i> écoute / actif</span>
   <span><i class="dot" style="background:var(--voice2)"></i> réflexion</span>
@@ -188,33 +169,15 @@ function vaTop(showX){
 }
 
 /* Nestor the Karotz. cls = state (listen|think|speak|err|mute|mute off|alarm|timer),
-   rings = number of pulse rings (0..2). SVG bell silhouette + swivel ears; the belly
-   light (state colour) is a CSS layer over the SVG. */
-var nbSeq=0;
+   rings = number of pulse rings (0..2). Generated Karotz render + a CSS belly light. */
 function nab(cls, rings){
-  var id='ng'+(nbSeq++);
   var r='';
   if(rings>=1) r+='<div class="ring r1"></div>';
   if(rings>=2) r+='<div class="ring r2"></div>';
-  var svg='<svg class="nab-svg" viewBox="0 0 300 460" preserveAspectRatio="xMidYMid meet">'
-    +'<defs><radialGradient id="'+id+'" cx="42%" cy="20%" r="85%">'
-    +'<stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#f0f2f9"/><stop offset="100%" stop-color="#d6d9e6"/>'
-    +'</radialGradient></defs>'
-    +'<g class="ear l"><path d="M116,236 C108,168 108,74 120,40 C125,24 139,24 144,40 C156,74 156,168 148,236 Z" fill="url(#'+id+')" stroke="#c8cbda" stroke-width="1.5"/>'
-    +'<path d="M126,220 C120,168 120,92 128,64 C131,52 137,52 140,64 C148,92 148,168 142,220 Z" fill="#f4d7df" opacity=".7"/></g>'
-    +'<g class="ear r"><path d="M184,236 C192,168 192,74 180,40 C175,24 161,24 156,40 C144,74 144,168 152,236 Z" fill="url(#'+id+')" stroke="#c8cbda" stroke-width="1.5"/>'
-    +'<path d="M174,220 C180,168 180,92 172,64 C169,52 163,52 160,64 C152,92 152,168 158,220 Z" fill="#f4d7df" opacity=".7"/></g>'
-    +'<path d="M150,196 C177,196 189,220 191,246 C198,300 220,360 231,404 C238,428 228,442 206,442 L94,442 C72,442 62,428 69,404 C80,360 102,300 109,246 C111,220 123,196 150,196 Z" fill="url(#'+id+')" stroke="#c8cbda" stroke-width="1.5"/>'
-    +'<ellipse cx="134" cy="234" rx="22" ry="14" fill="#ffffff" opacity=".45"/>'
-    +'<ellipse class="eye" cx="126" cy="280" rx="12" ry="15" fill="#22242e"/>'
-    +'<ellipse class="eye" cx="174" cy="280" rx="12" ry="15" fill="#22242e"/>'
-    +'<circle class="eye-hl" cx="122" cy="274" r="3.6" fill="#fff" opacity=".9"/>'
-    +'<circle class="eye-hl" cx="170" cy="274" r="3.6" fill="#fff" opacity=".9"/>'
-    +'<path d="M140,308 Q150,304 160,308 Q160,319 150,325 Q140,319 140,308 Z" fill="#2a2c3a"/>'
-    +'<path d="M150,325 L150,334 M150,334 Q140,340 133,335 M150,334 Q160,340 167,335" stroke="#2a2c3a" stroke-width="2.6" fill="none" stroke-linecap="round"/>'
-    +'</svg>';
   return '<div class="nab-wrap '+cls.split(' ')[0]+'">'+r
-    +'<div class="nab '+cls+'">'+svg+'<div class="belly"></div></div></div>';
+    +'<div class="nab '+cls+'">'
+    +'<img class="nab-img" src="assets/karotz-nabaztag-white-belly-transparent.png" alt="Nestor">'
+    +'<div class="belly"></div></div></div>';
 }
 
 /* ---------- core loop ---------- */
@@ -303,16 +266,16 @@ function timerAlarm(){
 
 /* ---------- render ---------- */
 var GROUPS=[
-  {title:'Boucle vocale de Nestor', icon:'mdi-rabbit', tag:'les 4 états cœur — les oreilles racontent le pipeline',
+  {title:'Boucle vocale de Nestor', icon:'mdi-rabbit', tag:'les 4 états cœur — le ventre colore le pipeline',
    items:[['Écoute',listening()],['Réflexion',thinking()],['Réponse',responding()],['Erreur',errored()]],
    ux:[['Déclenchement','Wake-word « Ok Nestor », ou tap sur la pastille Nestor (header)'],
-       ['Écoute','Oreilles dressées + ventre cyan pulsé + waveform (niveau audio) ; « Je vous écoute… » (pas de texte reconnu)'],
+       ['Écoute','Ventre cyan pulsé + anneaux + waveform (niveau audio) ; « Je vous écoute… » (pas de texte reconnu)'],
        ['Fin de parole','VAD auto (silence) ou tap ; passe en réflexion'],
-       ['Réflexion','Oreilles qui frétillent + ventre violet + points animés (« Un instant… »)'],
-       ['Réponse','Ventre haut-parleur + lecture TTS (barre) ; musique atténuée (ducking)'],
+       ['Réflexion','Ventre violet + points animés (« Un instant… »)'],
+       ['Réponse','Ventre cyan + lecture TTS (barre) ; musique atténuée (ducking)'],
        ['Fermeture','Auto-dismiss après le TTS → retour à l\'écran précédent'],
-       ['Erreur','Oreilles tombantes + ventre rouge + « Réessayer » / « Fermer »']],
-   q:'<b>Design :</b> l\'orbe devient <u>Nestor</u> (Nabaztag/Karotz réinterprété). Le langage néon est conservé — fonds sombres, accents <code>--voice</code>/<code>--voice2</code>, le <u>ventre-halo</u> remplace la lueur de l\'orbe. La <u>posture des oreilles</u> code l\'état sans texte. Follow-up (<code>continue_conversation</code>) : réponse → retour en écoute.'},
+       ['Erreur','Ventre rouge + « Réessayer » / « Fermer »']],
+   q:'<b>Design :</b> l\'orbe devient <u>Nestor</u> (Nabaztag/Karotz réinterprété). Le langage néon est conservé — fonds sombres, accents <code>--voice</code>/<code>--voice2</code>, le <u>ventre lumineux</u> du rendu Karotz remplace la lueur de l\'orbe et code l\'état par sa couleur (oreilles figées dans l\'image). Follow-up (<code>continue_conversation</code>) : réponse → retour en écoute.'},
 
   {title:'Pastille Nestor (header) + états', icon:'mdi-rabbit-variant', tag:'surface persistante + micro coupé / indisponible',
    items:[['Armé (veille wake-word)',frame(miniDash('armed','mdi-rabbit'))],
@@ -323,7 +286,7 @@ var GROUPS=[
    raw:true,
    ux:[['Pastille','Icône lapin (Nestor) dans le header : armé (halo cyan) / écoute (plein) / coupé (rouge, micro barré)'],
        ['Tap pastille','Tap-to-talk (lance l\'écoute) ; appui long = couper/réactiver le micro'],
-       ['Micro coupé','Nestor « dort » : oreilles repliées, ventre éteint ; bouton « Réactiver »'],
+       ['Micro coupé','Nestor « dort » : rendu atténué (grisé), ventre éteint ; bouton « Réactiver »'],
        ['Indisponible','HA hors ligne ou pas de pipeline Assist']],
    q:'<b>Validé :</b> pastille <u>toujours visible</u> ; le <u>wake-word réveille depuis la veille</u> (overlay par-dessus l\'horloge, retour veille après la réponse). Icône <u>lapin</u> = identité de Nestor.'},
 
@@ -335,7 +298,7 @@ var GROUPS=[
    ux:[['Création','Par la voix (« minuteur de 6 minutes ») — événements timer de HA Assist'],
        ['Pastille header','Apparaît quand ≥1 minuterie tourne : ⏱ + temps restant (la plus proche), badge unique ; tap = écran minuteries'],
        ['Actives','Anneau de progression + liste des minuteries en cours'],
-       ['Sonnerie','Nestor secoue les oreilles (ventre ambre) + son ; « Arrêter » / « +1 min »']],
+       ['Sonnerie','Nestor sursaute (secousse) + ventre ambre + son ; « Arrêter » / « +1 min »']],
    q:'<b>Validé :</b> minuteries en <u>v1</u>. Pastille header <u>unique</u> même si plusieurs → tap ouvre l\'écran « minuteries actives ».'}
 ];
 
