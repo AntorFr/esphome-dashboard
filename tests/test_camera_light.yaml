@@ -1,7 +1,15 @@
-# Minimal ESP32-P4 config to compile-gate the experimental p4_camera_light component
-# (esp_video / SC2356 integration — ADR-0008). Not a full device.
+# Standalone ESP32-P4 prototype to test the experimental p4_camera_light component on real
+# D1001 hardware (ADR-0008, stage 2). No display/touch: esp_video owns the camera SCCB bus
+# (I2C on GPIO37/38) itself, while the XL9535 expander (I2C on GPIO20/21) sequences the camera
+# power (CAM_EN/PWDN/RST). Flash it, then watch `esphome logs`: the sensor should publish a
+# mean-luma % that tracks how much light hits the camera (cover it -> low, shine a light -> high).
 esphome:
   name: test-camera-light
+  on_boot:
+    # Latch the system 3V3 rail (XL9535 P1.0 = pin 10) before anything else needs power.
+    - priority: 600
+      then:
+        - output.turn_on: pwr_hold
 
 esp32:
   board: esp32-p4-evboard
@@ -16,6 +24,12 @@ esp32:
 psram:
   speed: 200MHZ
 
+# Internal LDO for the P4 MIPI PHY (same rail the display uses).
+esp_ldo:
+  - id: ldo_mipi_phy
+    channel: 3
+    voltage: 2.5V
+
 logger:
 
 external_components:
@@ -23,7 +37,38 @@ external_components:
       type: local
       path: ../components
 
+# System I2C (expander/RTC/IMU/codec) — hosts the XL9535 that gates camera power.
+i2c:
+  - id: i2c_sys
+    sda: GPIO20
+    scl: GPIO21
+    frequency: 400kHz
+
+xl9535:
+  - id: d1001_expander
+    i2c_id: i2c_sys
+    address: 0x20
+
+output:
+  # System power hold (P1.0 = pin 10). Held on at boot.
+  - platform: gpio
+    id: pwr_hold
+    pin:
+      xl9535: d1001_expander
+      number: 10
+
 sensor:
   - platform: p4_camera_light
     name: "Ambient Light"
-    update_interval: 60s
+    update_interval: 30s
+    # Camera power/reset lines on the XL9535 (octal numbering): EN=P0.1(1), PWDN=P0.3(3),
+    # RST=P1.1(11). Sequenced in the component's setup() before esp_video_init.
+    enable_pin:
+      xl9535: d1001_expander
+      number: 1
+    power_down_pin:
+      xl9535: d1001_expander
+      number: 3
+    reset_pin:
+      xl9535: d1001_expander
+      number: 11

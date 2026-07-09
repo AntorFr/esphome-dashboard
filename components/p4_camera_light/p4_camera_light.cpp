@@ -24,12 +24,36 @@ static constexpr int SCCB_SDA_PIN = 37;
 static constexpr int SCCB_FREQ = 100000;
 
 void P4CameraLight::setup() {
+  this->power_up_();
   if (this->init_camera_()) {
     this->ready_ = true;
     ESP_LOGCONFIG(TAG, "camera up (%" PRIu32 "x%" PRIu32 ")", this->width_, this->height_);
   } else {
-    ESP_LOGE(TAG, "camera init failed — sensor is reported as an ambient-light proxy only");
+    ESP_LOGE(TAG, "camera init failed — check the XL9535 power sequence / SCCB wiring");
     this->mark_failed();
+  }
+}
+
+// Bring the sensor out of power-down/reset. On the D1001 CAM_EN/PWDN/RST are XL9535 expander
+// pins; the order + delays match the Seeed BSP (esp32_p4_re_terminal_d1001.c).
+void P4CameraLight::power_up_() {
+  if (this->enable_pin_ != nullptr) {
+    this->enable_pin_->setup();
+    this->enable_pin_->digital_write(true);  // CAM_EN = 1 (camera power on)
+    delay(50);
+  }
+  if (this->power_down_pin_ != nullptr) {
+    this->power_down_pin_->setup();
+    this->power_down_pin_->digital_write(true);  // CAM_PWDN = 1 (per BSP)
+  }
+  if (this->reset_pin_ != nullptr) {
+    this->reset_pin_->setup();
+    this->reset_pin_->digital_write(true);   // release, then pulse low
+    delay(10);
+    this->reset_pin_->digital_write(false);
+    delay(10);
+    this->reset_pin_->digital_write(true);
+    delay(50);
   }
 }
 

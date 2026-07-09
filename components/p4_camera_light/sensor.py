@@ -5,6 +5,7 @@ sdkconfig. Stage 1 (integration gate): prove esp_video links/boots under ESPHome
 """
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome import pins
 from esphome.components import sensor
 from esphome.components.esp32 import (
     add_idf_component,
@@ -13,6 +14,8 @@ from esphome.components.esp32 import (
 )
 from esphome.components.esp32.const import VARIANT_ESP32P4
 from esphome.const import (
+    CONF_ENABLE_PIN,
+    CONF_RESET_PIN,
     DEVICE_CLASS_ILLUMINANCE,
     STATE_CLASS_MEASUREMENT,
     UNIT_PERCENT,
@@ -21,6 +24,10 @@ from esphome.const import (
 from . import p4_camera_light_ns
 
 DEPENDENCIES = ["esp32"]
+
+# On the D1001 the camera power/reset/enable lines hang off the XL9535 I2C expander (not GPIOs),
+# so they are provided as ESPHome pins and sequenced in setup() before esp_video_init (ADR-0008).
+CONF_POWER_DOWN_PIN = "power_down_pin"
 
 P4CameraLight = p4_camera_light_ns.class_(
     "P4CameraLight", cg.PollingComponent, sensor.Sensor
@@ -33,6 +40,12 @@ CONFIG_SCHEMA = cv.All(
         accuracy_decimals=1,
         device_class=DEVICE_CLASS_ILLUMINANCE,
         state_class=STATE_CLASS_MEASUREMENT,
+    ).extend(
+        {
+            cv.Optional(CONF_ENABLE_PIN): pins.gpio_output_pin_schema,
+            cv.Optional(CONF_POWER_DOWN_PIN): pins.gpio_output_pin_schema,
+            cv.Optional(CONF_RESET_PIN): pins.gpio_output_pin_schema,
+        }
     ).extend(cv.polling_component_schema("60s")),
     only_on_variant(supported=[VARIANT_ESP32P4]),
 )
@@ -41,6 +54,13 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     var = await sensor.new_sensor(config)
     await cg.register_component(var, config)
+
+    if CONF_ENABLE_PIN in config:
+        cg.add(var.set_enable_pin(await cg.gpio_pin_expression(config[CONF_ENABLE_PIN])))
+    if CONF_POWER_DOWN_PIN in config:
+        cg.add(var.set_power_down_pin(await cg.gpio_pin_expression(config[CONF_POWER_DOWN_PIN])))
+    if CONF_RESET_PIN in config:
+        cg.add(var.set_reset_pin(await cg.gpio_pin_expression(config[CONF_RESET_PIN])))
 
     # Espressif V4L2 camera stack + camera sensor drivers (includes SC2356).
     add_idf_component(name="espressif/esp_video", ref="1.2.0")
