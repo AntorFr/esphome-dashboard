@@ -112,8 +112,12 @@
   .mic-chip.listen{background:var(--voice);color:#04222e}
   .mic-chip.listen::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px solid var(--voice);animation:pulse 1.8s ease-out infinite;opacity:1}
   .mic-chip.muted{color:var(--err)}
-  .mic-chip svg{height:54px;width:auto;display:block}      /* Nestor silhouette glyph */
-  .va-badge svg{height:34px;width:auto;color:var(--voice)}
+  /* Nestor chip = the white Karotz icon used as a CSS mask, so it takes the state colour. */
+  .nestor-mask{display:inline-block;
+    -webkit-mask:url(assets/karotz-icon-54.png) center/contain no-repeat;
+            mask:url(assets/karotz-icon-54.png) center/contain no-repeat}
+  .mic-chip .nestor-mask{width:54px;height:54px;background:currentColor}   /* tints per state */
+  .va-badge .nestor-mask{width:34px;height:34px;background:var(--voice)}
   .timer-pill{display:inline-flex;align-items:center;gap:10px;height:86px;padding:0 26px;border-radius:44px;background:var(--tile);color:var(--timer);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums}
   .timer-pill .mdi{font-size:44px}
   .wx{font-size:44px;text-align:right}
@@ -161,13 +165,9 @@ Nestor se présente comme un <b>Nabaztag / Karotz</b> — l'un des tout premiers
 
 <script>
 var SCALE=0.40, W=800, H=1280;
-// Nestor silhouette (bell body + two ears with a V-notch) — a vector glyph, fill:currentColor
-// so it takes the chip's per-state colour. Reads down to ~24px.
-var NESTOR_GLYPH='<svg viewBox="0 0 100 124" fill="currentColor" aria-label="Nestor">'
-  +'<path d="M40,60 C33,40 30,18 34,9 C36,4 42,4 45,11 C50,24 48,42 49,60 Z"/>'
-  +'<path d="M60,60 C67,40 70,18 66,9 C64,4 58,4 55,11 C50,24 52,42 51,60 Z"/>'
-  +'<path d="M50,50 C60,50 64,58 65,66 C68,86 75,104 81,113 C83,117 80,120 75,120 L25,120 C20,120 17,117 19,113 C25,104 32,86 35,66 C36,58 40,50 50,50 Z"/>'
-  +'</svg>';
+// Nestor chip: the white Karotz PNG (assets/karotz-icon-54.png) drawn as a CSS mask, so it
+// recolours to the chip's per-state colour (cyan armed / dark on filled listen / red muted).
+var NESTOR_GLYPH='<span class="nestor-mask" aria-label="Nestor"></span>';
 function frame(inner){
   return '<div class="port-frame"><div class="screenwrap" style="width:'+(W*SCALE)+'px;height:'+(H*SCALE)+'px">'
     +'<div class="screen" style="width:'+W+'px;height:'+H+'px;transform:scale('+SCALE+')">'+inner+'</div></div></div>';
