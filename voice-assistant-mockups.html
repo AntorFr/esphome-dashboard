@@ -112,6 +112,8 @@
   .mic-chip.listen{background:var(--voice);color:#04222e}
   .mic-chip.listen::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px solid var(--voice);animation:pulse 1.8s ease-out infinite;opacity:1}
   .mic-chip.muted{color:var(--err)}
+  .mic-chip svg{height:54px;width:auto;display:block}      /* Nestor silhouette glyph */
+  .va-badge svg{height:34px;width:auto;color:var(--voice)}
   .timer-pill{display:inline-flex;align-items:center;gap:10px;height:86px;padding:0 26px;border-radius:44px;background:var(--tile);color:var(--timer);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums}
   .timer-pill .mdi{font-size:44px}
   .wx{font-size:44px;text-align:right}
@@ -159,12 +161,19 @@ Nestor se présente comme un <b>Nabaztag / Karotz</b> — l'un des tout premiers
 
 <script>
 var SCALE=0.40, W=800, H=1280;
+// Nestor silhouette (bell body + two ears with a V-notch) — a vector glyph, fill:currentColor
+// so it takes the chip's per-state colour. Reads down to ~24px.
+var NESTOR_GLYPH='<svg viewBox="0 0 100 124" fill="currentColor" aria-label="Nestor">'
+  +'<path d="M40,60 C33,40 30,18 34,9 C36,4 42,4 45,11 C50,24 48,42 49,60 Z"/>'
+  +'<path d="M60,60 C67,40 70,18 66,9 C64,4 58,4 55,11 C50,24 52,42 51,60 Z"/>'
+  +'<path d="M50,50 C60,50 64,58 65,66 C68,86 75,104 81,113 C83,117 80,120 75,120 L25,120 C20,120 17,117 19,113 C25,104 32,86 35,66 C36,58 40,50 50,50 Z"/>'
+  +'</svg>';
 function frame(inner){
   return '<div class="port-frame"><div class="screenwrap" style="width:'+(W*SCALE)+'px;height:'+(H*SCALE)+'px">'
     +'<div class="screen" style="width:'+W+'px;height:'+H+'px;transform:scale('+SCALE+')">'+inner+'</div></div></div>';
 }
 function vaTop(showX){
-  return '<div class="va-top"><div class="va-badge"><i class="mdi mdi-rabbit"></i>Nestor</div>'
+  return '<div class="va-top"><div class="va-badge">'+NESTOR_GLYPH+'Nestor</div>'
     +(showX!==false?'<div class="va-x"><i class="mdi mdi-close"></i></div>':'<div style="width:74px"></div>')+'</div>';
 }
 
@@ -220,7 +229,7 @@ function errored(){
 function miniDash(chipCls, chipIcon, timer){
   var pill = timer ? '<div class="timer-pill"><i class="mdi mdi-timer-outline"></i>'+timer+'</div>' : '';
   return '<div class="d-hdr"><div><div class="clk">9:41</div><div class="dt">jeudi 2 juillet</div></div>'
-    +'<div class="hdr-right">'+pill+'<div class="mic-chip '+chipCls+'"><i class="mdi '+chipIcon+'"></i></div>'
+    +'<div class="hdr-right">'+pill+'<div class="mic-chip '+chipCls+'">'+NESTOR_GLYPH+'</div>'
     +'<div class="wx">☀️ 24°</div></div></div>'
     +'<div class="d-tabs"><div class="d-tab">⚙</div><div class="d-tab on">⌂</div><div class="d-tab">🔧</div><div class="d-tab">♫</div></div>'
     +'<div class="d-grid"><div class="mtile"></div><div class="mtile"></div><div class="mtile"></div></div>';
