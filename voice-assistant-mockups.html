@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maquettes — assistant vocal (D1001)</title>
+<title>Maquettes — Nestor, l'assistant vocal (D1001)</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
 <style>
   :root{
@@ -14,7 +14,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:28px;line-height:1.45}
   h1{font-size:22px;margin:0 0 4px}
-  .lead{color:var(--muted);max-width:960px;margin:0 0 8px}.lead b{color:#cfd0d6}
+  .lead{color:var(--muted);max-width:980px;margin:0 0 8px}.lead b{color:#cfd0d6}
   .legend{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 10px;font-size:13px;color:var(--muted)}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -38,28 +38,85 @@
   .va.err{background:radial-gradient(120% 80% at 50% 22%, rgba(255,90,90,.12), rgba(10,10,14,0) 60%),#0B0B10}
   .va-top{width:100%;display:flex;align-items:center;justify-content:space-between;padding:34px 34px 0}
   .va-badge{display:inline-flex;align-items:center;gap:12px;font-size:26px;color:var(--muted)}
-  .va-badge .mdi{font-size:34px}
+  .va-badge .mdi{font-size:34px;color:var(--voice)}
   .va-x{width:74px;height:74px;border-radius:50%;background:#20202a;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--muted)}
   .va-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;width:100%;padding:0 46px}
 
-  /* Orb */
-  .orb-wrap{position:relative;width:460px;height:460px;display:flex;align-items:center;justify-content:center}
-  .ring{position:absolute;border-radius:50%;border:2px solid rgba(53,198,255,.35)}
-  .r1{width:460px;height:460px;animation:pulse 2.6s ease-out infinite}
-  .r2{width:460px;height:460px;animation:pulse 2.6s ease-out infinite 1.3s}
-  @keyframes pulse{0%{transform:scale(.62);opacity:.7}100%{transform:scale(1);opacity:0}}
-  .orb{width:300px;height:300px;border-radius:50%;
-    background:radial-gradient(circle at 38% 32%, #9Feaff, var(--voice) 46%, var(--voice2) 100%);
-    box-shadow:0 0 90px rgba(53,198,255,.55),0 0 180px rgba(122,92,255,.30);
-    display:flex;align-items:center;justify-content:center;font-size:150px;color:rgba(255,255,255,.95);
-    animation:breathe 3.4s ease-in-out infinite}
-  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-  .orb.think{background:radial-gradient(circle at 38% 32%,#c9b8ff,var(--voice2) 55%,#4B39B0 100%);box-shadow:0 0 90px rgba(122,92,255,.5)}
-  .orb.speak{background:radial-gradient(circle at 38% 32%,#9Feaff,var(--voice) 46%,var(--voice2) 100%)}
-  .orb.err{background:radial-gradient(circle at 38% 32%,#ffb3b3,var(--err) 55%,#B21F1F 100%);box-shadow:0 0 90px rgba(255,90,90,.5)}
-  .orb.mute{background:radial-gradient(circle at 38% 32%,#3a3a44,#26262f 60%,#1a1a20 100%);box-shadow:none;color:var(--muted)}
-  .think-dots{display:flex;gap:20px}
-  .think-dots i{width:26px;height:26px;border-radius:50%;background:#fff;opacity:.9;animation:blink 1.2s infinite}
+  /* ============ NESTOR — Nabaztag/Karotz-inspired rabbit ============ */
+  /* The old glowing orb becomes a porcelain-white connected-rabbit: two articulated ears whose
+     posture reads the state, and a belly halo that carries the neon state colour. Per-state the
+     wrap sets --c (accent) + --glow, shared by the pulse rings, the ear LEDs and the belly. */
+  .nab-wrap{position:relative;width:460px;height:480px;display:flex;align-items:center;justify-content:center;
+    --c:var(--voice); --glow:rgba(53,198,255,.5)}
+  .nab-wrap.think{--c:var(--voice2); --glow:rgba(122,92,255,.5)}
+  .nab-wrap.speak{--c:var(--voice); --glow:rgba(53,198,255,.55)}
+  .nab-wrap.err{--c:var(--err); --glow:rgba(255,90,90,.5)}
+  .nab-wrap.mute{--c:#4a4a56; --glow:rgba(0,0,0,0)}
+  .nab-wrap.timer{--c:var(--timer); --glow:rgba(255,176,32,.55)}
+
+  .ring{position:absolute;border-radius:50%;border:2px solid var(--c);opacity:0}
+  .r1{width:440px;height:440px;animation:pulse 2.6s ease-out infinite}
+  .r2{width:440px;height:440px;animation:pulse 2.6s ease-out infinite 1.3s}
+  @keyframes pulse{0%{transform:scale(.60);opacity:.6}100%{transform:scale(1);opacity:0}}
+
+  .nab{position:relative;width:300px;height:410px;display:flex;align-items:flex-end;justify-content:center;
+    animation:hop 3.6s ease-in-out infinite}
+  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+  /* Ears: white shells with a glowing LED core; pivot from the base (top of the head). */
+  .ear{position:absolute;top:-8px;width:74px;height:216px;border-radius:38px 38px 30px 30px;
+    background:linear-gradient(160deg,#ffffff,#e4e6f1 60%,#cfd2e2);
+    box-shadow:inset 0 8px 16px rgba(255,255,255,.9),inset 0 -30px 40px rgba(120,124,150,.28),0 10px 26px rgba(0,0,0,.35);
+    transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+  .ear span{position:absolute;left:50%;top:20px;transform:translateX(-50%);width:22px;height:150px;border-radius:12px;
+    background:linear-gradient(var(--c),color-mix(in srgb,var(--c) 60%,#000));opacity:.9;
+    box-shadow:0 0 18px var(--c),0 0 40px var(--glow)}
+  .ear.l{left:56px;transform-origin:60% 92%;transform:rotate(-13deg)}
+  .ear.r{right:56px;transform-origin:40% 92%;transform:rotate(13deg)}
+
+  /* Head/body — one glossy porcelain egg (Nabaztag silhouette) with a neon rim glow. */
+  .head{position:relative;width:288px;height:300px;border-radius:47% 47% 45% 45%/56% 56% 44% 44%;
+    background:radial-gradient(circle at 42% 30%,#ffffff,#eceef7 52%,#d2d5e4 100%);
+    box-shadow:0 0 70px var(--glow),0 26px 50px rgba(0,0,0,.45),
+      inset 0 14px 26px rgba(255,255,255,.95),inset 0 -34px 60px rgba(120,124,150,.22);
+    display:flex;flex-direction:column;align-items:center}
+  /* Face: minimal neon eyes. */
+  .face{display:flex;gap:52px;margin-top:70px}
+  .eye{width:26px;height:34px;border-radius:50%;background:#2a2c3a;box-shadow:inset 0 0 0 3px rgba(255,255,255,.15)}
+  .nab.speak .eye,.nab.listen .eye{background:#22242f}
+  .nab.mute .eye,.nab.err .eye{height:8px;margin-top:14px;border-radius:6px}  /* closed/sad */
+  /* Belly halo: the connected-object light. Carries the state colour + icon. */
+  .belly{position:absolute;bottom:34px;width:150px;height:150px;border-radius:50%;
+    background:radial-gradient(circle at 40% 34%,#ffffff,var(--c) 62%);
+    box-shadow:0 0 44px var(--c),0 0 90px var(--glow),inset 0 0 22px rgba(255,255,255,.55);
+    display:flex;align-items:center;justify-content:center;font-size:74px;color:rgba(255,255,255,.95);
+    animation:bellyPulse 3.2s ease-in-out infinite}
+  @keyframes bellyPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.05);filter:brightness(1.18)}}
+
+  /* ---- state ear postures + animations ---- */
+  .nab.listen .ear.l{animation:twitchL 2.2s ease-in-out infinite}
+  .nab.listen .ear.r{animation:twitchR 2.2s ease-in-out infinite}
+  @keyframes twitchL{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(-18deg)}}
+  @keyframes twitchR{0%,100%{transform:rotate(13deg)}50%{transform:rotate(18deg)}}
+  .nab.think .ear.l{animation:wiggleL 1.4s ease-in-out infinite}
+  .nab.think .ear.r{animation:wiggleR 1.4s ease-in-out infinite}
+  @keyframes wiggleL{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(2deg)}}
+  @keyframes wiggleR{0%,100%{transform:rotate(13deg)}50%{transform:rotate(-2deg)}}
+  .nab.speak .ear.l{transform:rotate(-8deg)} .nab.speak .ear.r{transform:rotate(8deg)}
+  /* drooped ears (sad) for error / unavailable */
+  .nab.err .ear.l,.nab.mute.off .ear.l{transform:rotate(-52deg)}
+  .nab.err .ear.r,.nab.mute.off .ear.r{transform:rotate(52deg)}
+  /* muted: folded flat + desaturated, belly light off */
+  .nab.mute .ear.l{transform:rotate(-40deg)} .nab.mute .ear.r{transform:rotate(40deg)}
+  .nab.mute .ear span{background:#3a3a44;box-shadow:none;opacity:.5}
+  .nab.mute .belly{background:radial-gradient(circle at 40% 34%,#40414c,#26262f 60%,#1a1a20);box-shadow:none;color:var(--muted);animation:none}
+  .nab.mute{animation:none}
+  /* timer alarm: whole rabbit shakes */
+  .nab.alarm{animation:shake .5s ease-in-out infinite}
+  @keyframes shake{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+
+  .think-dots{display:flex;gap:16px}
+  .think-dots i{width:22px;height:22px;border-radius:50%;background:#fff;opacity:.9;animation:blink 1.2s infinite}
   .think-dots i:nth-child(2){animation-delay:.2s}.think-dots i:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
   /* waveform (listening / speaking) */
@@ -75,11 +132,6 @@
   .va-status{font-size:44px;font-weight:600;text-align:center}
   .va-status.sm{font-size:34px;color:var(--muted);font-weight:500}
   .va-partial{font-size:34px;color:var(--muted);font-style:italic;text-align:center;max-width:640px}
-  .bubbles{display:flex;flex-direction:column;gap:18px;width:100%;max-width:660px}
-  .bub{padding:22px 28px;border-radius:26px;font-size:32px;line-height:1.3;max-width:88%}
-  .bub.user{align-self:flex-end;background:#26303c;border-bottom-right-radius:8px}
-  .bub.asst{align-self:flex-start;background:linear-gradient(135deg,#1c2b3a,#241d3a);border-bottom-left-radius:8px}
-  .bub .who{font-size:19px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
   .va-hint{padding:26px;text-align:center;color:#6E6E78;font-size:24px}
   .va-actions{display:flex;gap:20px}
   .va-btn{padding:20px 34px;border-radius:20px;background:#20202a;font-size:28px;display:flex;align-items:center;gap:12px}
@@ -87,7 +139,7 @@
   .tts-bar{width:70%;max-width:560px;height:12px;border-radius:6px;background:#20202a;position:relative}
   .tts-bar .f{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:6px;background:var(--voice)}
 
-  /* ---- mini dashboard header with mic chip ---- */
+  /* ---- mini dashboard header with Nestor chip ---- */
   .d-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:34px 30px 12px}
   .d-hdr .clk{font-size:70px;font-weight:600;line-height:1}
   .d-hdr .dt{color:var(--muted);font-size:30px;margin-top:8px}
@@ -95,7 +147,7 @@
   .mic-chip{width:86px;height:86px;border-radius:50%;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:46px;color:#cfd0d6;position:relative}
   .mic-chip.armed{color:var(--voice);box-shadow:0 0 0 3px rgba(53,198,255,.35)}
   .mic-chip.listen{background:var(--voice);color:#04222e}
-  .mic-chip.listen::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px solid var(--voice);animation:pulse 1.8s ease-out infinite}
+  .mic-chip.listen::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px solid var(--voice);animation:pulse 1.8s ease-out infinite;opacity:1}
   .mic-chip.muted{color:var(--err)}
   .timer-pill{display:inline-flex;align-items:center;gap:10px;height:86px;padding:0 26px;border-radius:44px;background:var(--tile);color:var(--timer);font-size:38px;font-weight:600;font-variant-numeric:tabular-nums}
   .timer-pill .mdi{font-size:44px}
@@ -118,8 +170,6 @@
   .timer-item .mdi{font-size:44px;color:var(--timer)}
   .timer-item .tt{font-size:40px;font-weight:600;font-variant-numeric:tabular-nums}
   .timer-item .tn{font-size:26px;color:var(--muted)}
-  .ring-alarm .orb{animation:shake .5s ease-in-out infinite}
-  @keyframes shake{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
 
   .ux{flex:1;min-width:300px;max-width:460px}
   .ux h3{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 8px}
@@ -128,14 +178,12 @@
   .ux td:first-child{color:var(--muted);white-space:nowrap;width:150px}
   .ux .q{margin-top:12px;padding:10px 12px;border-radius:10px;background:#06181c;border:1px solid #123a42;font-size:13px}
   .ux .q b{color:var(--voice)}
-  .states{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 0;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
-<h1>Maquettes — assistant vocal (D1001)</h1>
-<p class="lead"><b>reTerminal D1001</b> (micro + HP) : wake-word local (<code>micro_wake_word</code>) + pipeline HA Assist (<code>voice_assistant</code>).
-L'assistant est une <b>couche overlay plein écran</b> par-dessus l'écran courant (dashboard / launcher / veille), build-once + update-in-place (ADR-0005) — <b>pas</b> un état du carrousel.
-Choix <b>validés</b> : overlay <b>opaque</b> (comme les autres écrans), <b>orbe animé</b> + niveau audio, <b>pas de texte reconnu affiché</b> (statut seul), <b>pastille micro</b> dans le header, <b>minuteries en v1</b> (pastille header unique → écran minuteries).</p>
+<h1>Maquettes — <b>Nestor</b>, l'assistant vocal (D1001)</h1>
+<p class="lead"><b>reTerminal D1001</b> (micro + HP) : wake-word local « <b>Ok Nestor</b> » (<code>micro_wake_word</code>) + pipeline HA Assist (<code>voice_assistant</code>).
+Nestor se présente comme un <b>Nabaztag / Karotz</b> — l'un des tout premiers objets connectés (le lapin à oreilles articulées et ventre lumineux) — <b>réinterprété néon</b> : l'ancien orbe devient un <b>lapin porcelaine</b> dont les <b>oreilles lisent l'état</b> (dressées = écoute, frétillantes = réflexion, tombantes = erreur, repliées = coupé) et dont le <b>ventre-halo</b> porte la couleur d'état. Overlay <b>plein écran opaque</b>, build-once + update-in-place (ADR-0005).</p>
 <div class="legend">
   <span><i class="dot" style="background:var(--voice)"></i> écoute / actif</span>
   <span><i class="dot" style="background:var(--voice2)"></i> réflexion</span>
@@ -153,16 +201,30 @@ function frame(inner){
     +'<div class="screen" style="width:'+W+'px;height:'+H+'px;transform:scale('+SCALE+')">'+inner+'</div></div></div>';
 }
 function vaTop(showX){
-  return '<div class="va-top"><div class="va-badge"><i class="mdi mdi-assistant"></i>Assistant</div>'
+  return '<div class="va-top"><div class="va-badge"><i class="mdi mdi-rabbit"></i>Nestor</div>'
     +(showX!==false?'<div class="va-x"><i class="mdi mdi-close"></i></div>':'<div style="width:74px"></div>')+'</div>';
+}
+
+/* Nestor the rabbit. cls = state (listen|think|speak|err|mute|mute off|alarm|timer),
+   icon = MDI glyph shown in the belly halo, rings = number of pulse rings (0..2). */
+function nab(cls, icon, rings){
+  var r = '';
+  if(rings>=1) r += '<div class="ring r1"></div>';
+  if(rings>=2) r += '<div class="ring r2"></div>';
+  var body = (icon?'<i class="mdi '+icon+'"></i>':'');
+  return '<div class="nab-wrap '+cls.split(' ')[0]+'">'+r
+    +'<div class="nab '+cls+'">'
+    +'<div class="ear l"><span></span></div><div class="ear r"><span></span></div>'
+    +'<div class="head"><div class="face"><div class="eye"></div><div class="eye"></div></div>'
+    +'<div class="belly">'+body+'</div></div>'
+    +'</div></div>';
 }
 
 /* ---------- core loop ---------- */
 function listening(){
   return '<div class="va">'+vaTop()
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="ring r1"></div><div class="ring r2"></div>'
-    +'<div class="orb"><i class="mdi mdi-microphone"></i></div></div>'
+    +nab('listen','mdi-microphone',2)
     +'<div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>'
     +'<div class="va-status">Je vous écoute…</div>'
     +'</div><div class="va-hint">Touchez pour annuler · relâche auto en fin de phrase</div></div>';
@@ -170,14 +232,15 @@ function listening(){
 function thinking(){
   return '<div class="va">'+vaTop()
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="orb think"><div class="think-dots"><i></i><i></i><i></i></div></div></div>'
+    +nab('think','',0)
+    +'<div class="think-dots"><i></i><i></i><i></i></div>'
     +'<div class="va-status">Un instant…</div>'
     +'</div><div class="va-hint">Reconnaissance + intention</div></div>';
 }
 function responding(){
   return '<div class="va">'+vaTop()
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="orb speak"><i class="mdi mdi-volume-high"></i></div></div>'
+    +nab('speak','mdi-volume-high',0)
     +'<div class="va-status">Réponse…</div>'
     +'<div class="tts-bar"><div class="f"></div></div>'
     +'</div><div class="va-hint">Lecture vocale (musique atténuée)</div></div>';
@@ -185,15 +248,15 @@ function responding(){
 function errored(){
   return '<div class="va err">'+vaTop()
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="orb err"><i class="mdi mdi-alert"></i></div></div>'
+    +nab('err','mdi-alert',0)
     +'<div class="va-status">Je n\'ai pas compris</div>'
-    +'<div class="va-partial">Reformulez, ou touchez le micro pour réessayer.</div>'
+    +'<div class="va-partial">Reformulez, ou touchez Nestor pour réessayer.</div>'
     +'<div class="va-actions"><div class="va-btn pri"><i class="mdi mdi-microphone"></i>Réessayer</div>'
     +'<div class="va-btn"><i class="mdi mdi-close"></i>Fermer</div></div>'
     +'</div><div class="va-hint"></div></div>';
 }
 
-/* ---------- header mic chip states ---------- */
+/* ---------- header Nestor chip states ---------- */
 function miniDash(chipCls, chipIcon, timer){
   var pill = timer ? '<div class="timer-pill"><i class="mdi mdi-timer-outline"></i>'+timer+'</div>' : '';
   return '<div class="d-hdr"><div><div class="clk">9:41</div><div class="dt">jeudi 2 juillet</div></div>'
@@ -205,16 +268,16 @@ function miniDash(chipCls, chipIcon, timer){
 function muted(){
   return '<div class="va">'+vaTop(false)
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="orb mute"><i class="mdi mdi-microphone-off"></i></div></div>'
+    +nab('mute off','mdi-microphone-off',0)
     +'<div class="va-status sm">Micro coupé</div>'
     +'<div class="va-actions"><div class="va-btn pri"><i class="mdi mdi-microphone"></i>Réactiver</div></div>'
-    +'</div><div class="va-hint">Le wake-word est désactivé</div></div>';
+    +'</div><div class="va-hint">Nestor dort — le wake-word est désactivé</div></div>';
 }
 function unavailable(){
   return '<div class="va">'+vaTop(false)
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="orb mute"><i class="mdi mdi-cloud-off-outline"></i></div></div>'
-    +'<div class="va-status sm">Assistant indisponible</div>'
+    +nab('mute off','mdi-cloud-off-outline',0)
+    +'<div class="va-status sm">Nestor indisponible</div>'
     +'<div class="va-partial">Home Assistant est hors ligne, ou aucun pipeline Assist n\'est configuré.</div>'
     +'</div><div class="va-hint"></div></div>';
 }
@@ -233,8 +296,7 @@ function timerActive(){
 function timerAlarm(){
   return '<div class="va ring-alarm">'+vaTop(false)
     +'<div class="va-mid">'
-    +'<div class="orb-wrap"><div class="ring r1" style="border-color:rgba(255,176,32,.4)"></div>'
-    +'<div class="orb" style="background:radial-gradient(circle at 38% 32%,#ffe0a0,var(--timer) 55%,#C97E00 100%);box-shadow:0 0 90px rgba(255,176,32,.55)"><i class="mdi mdi-timer-alert"></i></div></div>'
+    +nab('timer alarm','mdi-timer-alert',1)
     +'<div class="va-status">Minuterie terminée</div>'
     +'<div class="va-partial">« pâtes » · 6:00</div>'
     +'<div class="va-actions"><div class="va-btn pri" style="background:var(--timer);color:#3a2600"><i class="mdi mdi-check"></i>Arrêter</div>'
@@ -244,40 +306,40 @@ function timerAlarm(){
 
 /* ---------- render ---------- */
 var GROUPS=[
-  {title:'Boucle vocale', icon:'mdi-waveform', tag:'les 4 états cœur du pipeline Assist',
+  {title:'Boucle vocale de Nestor', icon:'mdi-rabbit', tag:'les 4 états cœur — les oreilles racontent le pipeline',
    items:[['Écoute',listening()],['Réflexion',thinking()],['Réponse',responding()],['Erreur',errored()]],
-   ux:[['Déclenchement','Wake-word local, ou tap sur la pastille micro (header)'],
-       ['Écoute','Orbe + waveform = niveau audio live ; « Je vous écoute… » (pas de texte reconnu)'],
+   ux:[['Déclenchement','Wake-word « Ok Nestor », ou tap sur la pastille Nestor (header)'],
+       ['Écoute','Oreilles dressées + ventre cyan pulsé + waveform (niveau audio) ; « Je vous écoute… » (pas de texte reconnu)'],
        ['Fin de parole','VAD auto (silence) ou tap ; passe en réflexion'],
-       ['Réflexion','Orbe + points animés (« Un instant… »)'],
-       ['Réponse','Orbe haut-parleur + lecture TTS (barre) ; musique atténuée (ducking)'],
+       ['Réflexion','Oreilles qui frétillent + ventre violet + points animés (« Un instant… »)'],
+       ['Réponse','Ventre haut-parleur + lecture TTS (barre) ; musique atténuée (ducking)'],
        ['Fermeture','Auto-dismiss après le TTS → retour à l\'écran précédent'],
-       ['Erreur','Orbe rouge + « Réessayer » / « Fermer »']],
-   q:'<b>Validé :</b> overlay <u>opaque</u> (comme les autres écrans), orbe animé, <u>sans texte reconnu</u> (statut seul). Réécoute enchaînée (follow-up) = <u>pilotée par le pipeline</u> (HA renvoie <code>continue_conversation</code>) : réponse → retour en écoute au lieu de fermer.'},
+       ['Erreur','Oreilles tombantes + ventre rouge + « Réessayer » / « Fermer »']],
+   q:'<b>Design :</b> l\'orbe devient <u>Nestor</u> (Nabaztag/Karotz réinterprété). Le langage néon est conservé — fonds sombres, accents <code>--voice</code>/<code>--voice2</code>, le <u>ventre-halo</u> remplace la lueur de l\'orbe. La <u>posture des oreilles</u> code l\'état sans texte. Follow-up (<code>continue_conversation</code>) : réponse → retour en écoute.'},
 
-  {title:'Pastille micro (header) + états', icon:'mdi-microphone-settings', tag:'surface persistante + micro coupé / indisponible',
-   items:[['Armé (veille wake-word)',frame(miniDash('armed','mdi-microphone'))],
-          ['Écoute (depuis header)',frame(miniDash('listen','mdi-microphone'))],
+  {title:'Pastille Nestor (header) + états', icon:'mdi-rabbit-variant', tag:'surface persistante + micro coupé / indisponible',
+   items:[['Armé (veille wake-word)',frame(miniDash('armed','mdi-rabbit'))],
+          ['Écoute (depuis header)',frame(miniDash('listen','mdi-rabbit'))],
           ['Micro coupé',frame(miniDash('muted','mdi-microphone-off'))],
           ['Plein écran — coupé',frame(muted())],
           ['Plein écran — indisponible',frame(unavailable())]],
    raw:true,
-   ux:[['Pastille','Toujours visible dans le header : armé (halo cyan) / écoute (plein) / coupé (rouge)'],
+   ux:[['Pastille','Icône lapin (Nestor) dans le header : armé (halo cyan) / écoute (plein) / coupé (rouge, micro barré)'],
        ['Tap pastille','Tap-to-talk (lance l\'écoute) ; appui long = couper/réactiver le micro'],
-       ['Micro coupé','Wake-word désactivé ; bouton « Réactiver »'],
+       ['Micro coupé','Nestor « dort » : oreilles repliées, ventre éteint ; bouton « Réactiver »'],
        ['Indisponible','HA hors ligne ou pas de pipeline Assist']],
-   q:'<b>Validé :</b> pastille <u>toujours visible</u> ; le <u>wake-word réveille depuis la veille</u> (overlay par-dessus l\'horloge, retour veille après la réponse).'},
+   q:'<b>Validé :</b> pastille <u>toujours visible</u> ; le <u>wake-word réveille depuis la veille</u> (overlay par-dessus l\'horloge, retour veille après la réponse). Icône <u>lapin</u> = identité de Nestor.'},
 
   {title:'Minuteries Assist', icon:'mdi-timer-outline', tag:'« mets un minuteur de X » — pastille header + sonnerie plein écran',
-   items:[['Pastille header (active)',frame(miniDash('armed','mdi-microphone','04:37'))],
+   items:[['Pastille header (active)',frame(miniDash('armed','mdi-rabbit','04:37'))],
           ['Minuterie(s) active(s)',frame(timerActive())],
           ['Alarme (sonne)',frame(timerAlarm())]],
    raw:true,
    ux:[['Création','Par la voix (« minuteur de 6 minutes ») — événements timer de HA Assist'],
-       ['Pastille header','Apparaît quand ≥1 minuterie tourne : ⏱ + temps restant (la plus proche), badge unique (pas de compteur) ; tap = écran minuteries'],
+       ['Pastille header','Apparaît quand ≥1 minuterie tourne : ⏱ + temps restant (la plus proche), badge unique ; tap = écran minuteries'],
        ['Actives','Anneau de progression + liste des minuteries en cours'],
-       ['Sonnerie','Plein écran + son ; « Arrêter » / « +1 min »']],
-   q:'<b>Validé :</b> minuteries en <u>v1</u>. Pastille header <u>unique</u> même si plusieurs (pas de compteur) → tap ouvre l\'écran « minuteries actives ».'}
+       ['Sonnerie','Nestor secoue les oreilles (ventre ambre) + son ; « Arrêter » / « +1 min »']],
+   q:'<b>Validé :</b> minuteries en <u>v1</u>. Pastille header <u>unique</u> même si plusieurs → tap ouvre l\'écran « minuteries actives ».'}
 ];
 
 document.getElementById('app').innerHTML = GROUPS.map(function(g){
