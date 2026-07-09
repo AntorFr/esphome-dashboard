@@ -42,11 +42,13 @@
   .va-x{width:74px;height:74px;border-radius:50%;background:#20202a;display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--muted)}
   .va-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;width:100%;padding:0 46px}
 
-  /* ============ NESTOR — Nabaztag/Karotz-inspired rabbit ============ */
-  /* The old glowing orb becomes a porcelain-white connected-rabbit: two articulated ears whose
-     posture reads the state, and a belly halo that carries the neon state colour. Per-state the
-     wrap sets --c (accent) + --glow, shared by the pulse rings, the ear LEDs and the belly. */
-  .nab-wrap{position:relative;width:460px;height:480px;display:flex;align-items:center;justify-content:center;
+  /* ============ NESTOR — faithful Karotz/Nabaztag connected rabbit ============ */
+  /* Silhouette from the real device: one glossy-white upright EGG body, two long ears set
+     CLOSE TOGETHER at the top (swivelling per state), two small round eyes HIGH on the face,
+     a tiny nose, and ONE big belly light LOW on the body (Karotz had a single belly LED) that
+     glows the neon state colour. Eyes-up / light-down separation = reads as a rabbit, not a
+     nose. Per-state the wrap sets --c (accent) + --glow, shared by the rings, rim + belly. */
+  .nab-wrap{position:relative;width:460px;height:560px;display:flex;align-items:flex-end;justify-content:center;
     --c:var(--voice); --glow:rgba(53,198,255,.5)}
   .nab-wrap.think{--c:var(--voice2); --glow:rgba(122,92,255,.5)}
   .nab-wrap.speak{--c:var(--voice); --glow:rgba(53,198,255,.55)}
@@ -54,62 +56,69 @@
   .nab-wrap.mute{--c:#4a4a56; --glow:rgba(0,0,0,0)}
   .nab-wrap.timer{--c:var(--timer); --glow:rgba(255,176,32,.55)}
 
-  .ring{position:absolute;border-radius:50%;border:2px solid var(--c);opacity:0}
-  .r1{width:440px;height:440px;animation:pulse 2.6s ease-out infinite}
-  .r2{width:440px;height:440px;animation:pulse 2.6s ease-out infinite 1.3s}
-  @keyframes pulse{0%{transform:scale(.60);opacity:.6}100%{transform:scale(1);opacity:0}}
+  .ring{position:absolute;bottom:40px;border-radius:50%;border:2px solid var(--c);opacity:0}
+  .r1{width:360px;height:360px;animation:pulse 2.6s ease-out infinite}
+  .r2{width:360px;height:360px;animation:pulse 2.6s ease-out infinite 1.3s}
+  @keyframes pulse{0%{transform:scale(.62);opacity:.55}100%{transform:scale(1.05);opacity:0}}
 
-  .nab{position:relative;width:300px;height:410px;display:flex;align-items:flex-end;justify-content:center;
-    animation:hop 3.6s ease-in-out infinite}
-  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  .nab{position:relative;width:360px;height:540px;display:flex;align-items:flex-end;justify-content:center;
+    animation:hop 3.8s ease-in-out infinite}
+  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 
-  /* Ears: white shells with a glowing LED core; pivot from the base (top of the head). */
-  .ear{position:absolute;top:-8px;width:74px;height:216px;border-radius:38px 38px 30px 30px;
-    background:linear-gradient(160deg,#ffffff,#e4e6f1 60%,#cfd2e2);
-    box-shadow:inset 0 8px 16px rgba(255,255,255,.9),inset 0 -30px 40px rgba(120,124,150,.28),0 10px 26px rgba(0,0,0,.35);
-    transition:transform .5s cubic-bezier(.2,.8,.2,1)}
-  .ear span{position:absolute;left:50%;top:20px;transform:translateX(-50%);width:22px;height:150px;border-radius:12px;
-    background:linear-gradient(var(--c),color-mix(in srgb,var(--c) 60%,#000));opacity:.9;
-    box-shadow:0 0 18px var(--c),0 0 40px var(--glow)}
-  .ear.l{left:56px;transform-origin:60% 92%;transform:rotate(-13deg)}
-  .ear.r{right:56px;transform-origin:40% 92%;transform:rotate(13deg)}
+  /* Long ears — close together, emerging from behind the top of the body; pivot at the base. */
+  .ear{position:absolute;bottom:296px;width:60px;height:250px;border-radius:30px 30px 22px 22px;
+    background:linear-gradient(168deg,#ffffff,#e7e9f3 58%,#d0d3e2);
+    box-shadow:inset 0 10px 16px rgba(255,255,255,.9),inset 0 -30px 44px rgba(120,124,150,.26),0 10px 22px rgba(0,0,0,.32);
+    transition:transform .5s cubic-bezier(.2,.8,.2,1);z-index:0}
+  .ear::after{content:"";position:absolute;left:50%;top:22px;transform:translateX(-50%);
+    width:20px;height:150px;border-radius:11px;background:linear-gradient(#f6d9e2,#ecc2cf);opacity:.55}  /* inner-ear blush */
+  .ear.l{left:116px;transform-origin:50% 100%;transform:rotate(-8deg)}
+  .ear.r{right:116px;transform-origin:50% 100%;transform:rotate(8deg)}
 
-  /* Head/body — one glossy porcelain egg (Nabaztag silhouette) with a neon rim glow. */
-  .head{position:relative;width:288px;height:300px;border-radius:47% 47% 45% 45%/56% 56% 44% 44%;
-    background:radial-gradient(circle at 42% 30%,#ffffff,#eceef7 52%,#d2d5e4 100%);
-    box-shadow:0 0 70px var(--glow),0 26px 50px rgba(0,0,0,.45),
-      inset 0 14px 26px rgba(255,255,255,.95),inset 0 -34px 60px rgba(120,124,150,.22);
-    display:flex;flex-direction:column;align-items:center}
-  /* Face: minimal neon eyes. */
-  .face{display:flex;gap:52px;margin-top:70px}
-  .eye{width:26px;height:34px;border-radius:50%;background:#2a2c3a;box-shadow:inset 0 0 0 3px rgba(255,255,255,.15)}
-  .nab.speak .eye,.nab.listen .eye{background:#22242f}
-  .nab.mute .eye,.nab.err .eye{height:8px;margin-top:14px;border-radius:6px}  /* closed/sad */
-  /* Belly halo: the connected-object light. Carries the state colour + icon. */
-  .belly{position:absolute;bottom:34px;width:150px;height:150px;border-radius:50%;
-    background:radial-gradient(circle at 40% 34%,#ffffff,var(--c) 62%);
-    box-shadow:0 0 44px var(--c),0 0 90px var(--glow),inset 0 0 22px rgba(255,255,255,.55);
-    display:flex;align-items:center;justify-content:center;font-size:74px;color:rgba(255,255,255,.95);
+  /* Body — one glossy-white upright egg (fuller at the bottom). */
+  .body{position:relative;width:264px;height:340px;z-index:1;
+    border-radius:49% 49% 47% 47% / 60% 60% 40% 40%;
+    background:radial-gradient(120% 92% at 42% 24%,#ffffff,#eef0f8 46%,#d5d8e6 100%);
+    box-shadow:0 0 68px var(--glow),0 30px 58px rgba(0,0,0,.5),
+      inset 0 18px 30px rgba(255,255,255,.95),inset 0 -48px 74px rgba(120,124,150,.20)}
+  .sheen{position:absolute;top:26px;left:42px;width:96px;height:64px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(255,255,255,.92),transparent);filter:blur(2px)}
+  /* Face: small round eyes HIGH, tiny nose. */
+  .eyes{position:absolute;top:84px;left:0;right:0;display:flex;justify-content:center;gap:58px}
+  .eye{width:26px;height:32px;border-radius:50%;background:#23252f;
+    box-shadow:inset -3px -4px 0 rgba(0,0,0,.28),0 0 0 4px rgba(255,255,255,.05)}
+  .eye::after{content:"";position:absolute;top:5px;left:6px;width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.85)}
+  .nose{position:absolute;top:126px;left:50%;transform:translateX(-50%);width:16px;height:11px;
+    border-radius:0 0 50% 50%;background:#e7a9ba;opacity:.85}
+  /* Belly light — the single Karotz LED, LOW on the body; soft internal glow, not a hard disc. */
+  .belly{position:absolute;left:50%;bottom:40px;transform:translateX(-50%);width:158px;height:158px;border-radius:50%;
+    background:radial-gradient(circle at 50% 48%,var(--c),rgba(255,255,255,0) 66%);
+    box-shadow:0 0 46px var(--glow);display:flex;align-items:center;justify-content:center;
     animation:bellyPulse 3.2s ease-in-out infinite}
-  @keyframes bellyPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.05);filter:brightness(1.18)}}
+  .belly i{font-size:58px;color:rgba(255,255,255,.95);text-shadow:0 0 16px var(--c),0 0 30px var(--c)}
+  @keyframes bellyPulse{0%,100%{opacity:.85;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.06)}}
 
-  /* ---- state ear postures + animations ---- */
+  /* ---- state: eyes ---- */
+  .nab.mute .eye,.nab.err .eye{height:7px;margin-top:12px;border-radius:6px}     /* closed / sad */
+  .nab.mute .eye::after,.nab.err .eye::after{display:none}
+  /* ---- state: ear postures (Karotz swivel ears) ---- */
   .nab.listen .ear.l{animation:twitchL 2.2s ease-in-out infinite}
   .nab.listen .ear.r{animation:twitchR 2.2s ease-in-out infinite}
-  @keyframes twitchL{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(-18deg)}}
-  @keyframes twitchR{0%,100%{transform:rotate(13deg)}50%{transform:rotate(18deg)}}
+  @keyframes twitchL{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(-11deg)}}
+  @keyframes twitchR{0%,100%{transform:rotate(6deg)}50%{transform:rotate(11deg)}}
   .nab.think .ear.l{animation:wiggleL 1.4s ease-in-out infinite}
   .nab.think .ear.r{animation:wiggleR 1.4s ease-in-out infinite}
-  @keyframes wiggleL{0%,100%{transform:rotate(-13deg)}50%{transform:rotate(2deg)}}
-  @keyframes wiggleR{0%,100%{transform:rotate(13deg)}50%{transform:rotate(-2deg)}}
-  .nab.speak .ear.l{transform:rotate(-8deg)} .nab.speak .ear.r{transform:rotate(8deg)}
-  /* drooped ears (sad) for error / unavailable */
-  .nab.err .ear.l,.nab.mute.off .ear.l{transform:rotate(-52deg)}
-  .nab.err .ear.r,.nab.mute.off .ear.r{transform:rotate(52deg)}
-  /* muted: folded flat + desaturated, belly light off */
-  .nab.mute .ear.l{transform:rotate(-40deg)} .nab.mute .ear.r{transform:rotate(40deg)}
-  .nab.mute .ear span{background:#3a3a44;box-shadow:none;opacity:.5}
-  .nab.mute .belly{background:radial-gradient(circle at 40% 34%,#40414c,#26262f 60%,#1a1a20);box-shadow:none;color:var(--muted);animation:none}
+  @keyframes wiggleL{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(6deg)}}
+  @keyframes wiggleR{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-6deg)}}
+  .nab.speak .ear.l{transform:rotate(-5deg)} .nab.speak .ear.r{transform:rotate(5deg)}
+  /* drooped ears for error / unavailable */
+  .nab.err .ear.l,.nab.mute.off .ear.l{transform:rotate(-58deg)}
+  .nab.err .ear.r,.nab.mute.off .ear.r{transform:rotate(58deg)}
+  /* muted: folded, belly light off */
+  .nab.mute .ear.l{transform:rotate(-44deg)} .nab.mute .ear.r{transform:rotate(44deg)}
+  .nab.mute .ear::after{opacity:.25}
+  .nab.mute .belly{background:radial-gradient(circle at 50% 48%,#3a3a44,rgba(255,255,255,0) 66%);box-shadow:none;animation:none}
+  .nab.mute .belly i{color:var(--muted);text-shadow:none}
   .nab.mute{animation:none}
   /* timer alarm: whole rabbit shakes */
   .nab.alarm{animation:shake .5s ease-in-out infinite}
@@ -214,8 +223,10 @@ function nab(cls, icon, rings){
   var body = (icon?'<i class="mdi '+icon+'"></i>':'');
   return '<div class="nab-wrap '+cls.split(' ')[0]+'">'+r
     +'<div class="nab '+cls+'">'
-    +'<div class="ear l"><span></span></div><div class="ear r"><span></span></div>'
-    +'<div class="head"><div class="face"><div class="eye"></div><div class="eye"></div></div>'
+    +'<div class="ear l"></div><div class="ear r"></div>'
+    +'<div class="body"><div class="sheen"></div>'
+    +'<div class="eyes"><div class="eye"></div><div class="eye"></div></div>'
+    +'<div class="nose"></div>'
     +'<div class="belly">'+body+'</div></div>'
     +'</div></div>';
 }
