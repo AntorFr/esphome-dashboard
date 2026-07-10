@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Test — police Nestor (glyph U+F0001)</title>
+<style>
+  @font-face{ font-family:"Nestor"; src:url("nestor.ttf?v=1783643629") format("truetype"); }
+  body{margin:0;background:#0A0A0C;color:#fff;font-family:-apple-system,sans-serif;padding:40px}
+  h1{font-size:20px;font-weight:600}
+  p{color:#8A8A92}
+  .row{display:flex;align-items:flex-end;gap:40px;flex-wrap:wrap;margin:30px 0;padding:24px;background:#0E0E12;border-radius:16px}
+  .g{font-family:"Nestor";line-height:1}
+  .lbl{display:block;color:#8A8A92;font-size:12px;text-align:center;margin-top:8px}
+  /* chip mock: the glyph inside a round tile, tinted per state */
+  .chip{width:86px;height:86px;border-radius:50%;background:#2C2C38;display:flex;align-items:center;justify-content:center}
+  .chip .g{font-size:54px}
+  .chip.armed .g{color:#35C6FF}
+  .chip.listen{background:#35C6FF}.chip.listen .g{color:#04222E}
+  .chip.muted .g{color:#FF5A5A}
+  .cell{display:flex;flex-direction:column;align-items:center}
+</style>
+</head>
+<body>
+<h1>Police « Nestor » — U+F0001 (plein) &amp; U+F0002 (visage découpé)</h1>
+<p>Si tu vois les silhouettes Karotz ci-dessous, le TTF est bon. (Sinon : le navigateur bloque la police en <code>file://</code> — sers le dossier : <code>cd assets/fonts &amp;&amp; python3 -m http.server 8080</code> puis <code>http://localhost:8080/nestor-test.html</code>.)</p>
+
+<h2 style="font-size:15px;color:#cfd0d6;margin:24px 0 0">Silhouette pleine — U+F0001</h2>
+<div class="row">
+  <div class="cell"><span class="g" style="font-size:24px">&#xF0001;</span><span class="lbl">24 px</span></div>
+  <div class="cell"><span class="g" style="font-size:54px">&#xF0001;</span><span class="lbl">54 px</span></div>
+  <div class="cell"><span class="g" style="font-size:120px">&#xF0001;</span><span class="lbl">120 px</span></div>
+  <div class="cell"><div class="chip armed"><span class="g">&#xF0001;</span></div><span class="lbl">armé</span></div>
+  <div class="cell"><div class="chip listen"><span class="g">&#xF0001;</span></div><span class="lbl">écoute</span></div>
+  <div class="cell"><div class="chip muted"><span class="g">&#xF0001;</span></div><span class="lbl">coupé</span></div>
+  <span class="g" style="font-size:150px;color:#35C6FF">&#xF0001;</span>
+  <span class="g" style="font-size:150px;color:#FF5A5A">&#xF0001;</span>
+</div>
+
+<h2 style="font-size:15px;color:#cfd0d6;margin:24px 0 0">Visage découpé (yeux + nez transparents) — U+F0002</h2>
+<div class="row">
+  <div class="cell"><span class="g" style="font-size:24px">&#xF0002;</span><span class="lbl">24 px</span></div>
+  <div class="cell"><span class="g" style="font-size:54px">&#xF0002;</span><span class="lbl">54 px</span></div>
+  <div class="cell"><span class="g" style="font-size:120px">&#xF0002;</span><span class="lbl">120 px</span></div>
+  <div class="cell"><div class="chip armed"><span class="g">&#xF0002;</span></div><span class="lbl">armé</span></div>
+  <div class="cell"><div class="chip listen"><span class="g">&#xF0002;</span></div><span class="lbl">écoute</span></div>
+  <div class="cell"><div class="chip muted"><span class="g">&#xF0002;</span></div><span class="lbl">coupé</span></div>
+  <span class="g" style="font-size:150px;color:#35C6FF">&#xF0002;</span>
+  <span class="g" style="font-size:150px;color:#FF5A5A">&#xF0002;</span>
+</div>
+<p>Teinte par <code>color</code> comme un glyph MDI. Sur la variante visage, les yeux/nez sont des <b>trous</b> : ils laissent voir le fond (sombre dans la pastille) → un visage même quand le corps est coloré.</p>
+</body>
+</html>
