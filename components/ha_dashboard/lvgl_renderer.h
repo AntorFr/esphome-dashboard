@@ -44,6 +44,10 @@ class LvglRenderer : public Renderer {
   void set_font_icons(font::Font *f) { this->font_icons_ = f; }
   void set_font_icons_lg(font::Font *f) { this->font_icons_lg_ = f; }
   void set_font_voice(font::Font *f) { this->font_voice_ = f; }
+  // Nestor mascot glyph fonts (Karotz silhouette): chip size + full-screen size. Optional —
+  // the chip/overlay fall back to the MDI mic glyph when unset.
+  void set_font_nestor(font::Font *f) { this->font_nestor_ = f; }
+  void set_font_nestor_lg(font::Font *f) { this->font_nestor_lg_ = f; }
   // Button-hold return gauge (driven from the component while the encoder button is held).
   void set_return_progress(float p) { this->render_return_(p); }
 
@@ -197,6 +201,8 @@ class LvglRenderer : public Renderer {
   font::Font *font_icons_{nullptr};
   font::Font *font_icons_lg_{nullptr};  // larger MDI set for classic-card tile/sheet icons
   font::Font *font_voice_{nullptr};     // large MDI glyphs for the voice overlay orb
+  font::Font *font_nestor_{nullptr};    // Nestor mascot glyph, header-chip size
+  font::Font *font_nestor_lg_{nullptr}; // Nestor mascot glyph, full-screen size
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};

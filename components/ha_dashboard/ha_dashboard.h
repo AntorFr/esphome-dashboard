@@ -73,6 +73,8 @@ class HaDashboard : public Component {
   void set_font_icons(font::Font *f) { this->renderer_.set_font_icons(f); }
   void set_font_icons_lg(font::Font *f) { this->renderer_.set_font_icons_lg(f); }
   void set_font_voice(font::Font *f) { this->renderer_.set_font_voice(f); }
+  void set_font_nestor(font::Font *f) { this->renderer_.set_font_nestor(f); }
+  void set_font_nestor_lg(font::Font *f) { this->renderer_.set_font_nestor_lg(f); }
 
   // --- Voice assistant (called from voice_assistant / micro_wake_word YAML automations) ---
   void voice_listening();

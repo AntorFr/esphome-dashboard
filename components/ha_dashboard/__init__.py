@@ -85,6 +85,8 @@ CONF_FONT_WEATHER = "font_weather"
 CONF_FONT_ICONS = "font_icons"
 CONF_FONT_ICONS_LG = "font_icons_lg"
 CONF_FONT_VOICE = "font_voice"
+CONF_FONT_NESTOR = "font_nestor"        # Nestor mascot glyph, header-chip size
+CONF_FONT_NESTOR_LG = "font_nestor_lg"  # Nestor mascot glyph, full-screen size
 
 PROFILES = ["dial", "reterminal_d1001"]
 
@@ -206,6 +208,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_FONT_ICONS): lvalid.lv_font,
         cv.Optional(CONF_FONT_ICONS_LG): lvalid.lv_font,
         cv.Optional(CONF_FONT_VOICE): lvalid.lv_font,
+        cv.Optional(CONF_FONT_NESTOR): lvalid.lv_font,
+        cv.Optional(CONF_FONT_NESTOR_LG): lvalid.lv_font,
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
         # Fired on a discrete tap of a button/tile (e.g. to play an audible click).
         cv.Optional(CONF_ON_TAP): automation.validate_automation(single=True),
@@ -290,6 +294,8 @@ async def to_code(config):
         (CONF_FONT_ICONS, var.set_font_icons),
         (CONF_FONT_ICONS_LG, var.set_font_icons_lg),
         (CONF_FONT_VOICE, var.set_font_voice),
+        (CONF_FONT_NESTOR, var.set_font_nestor),
+        (CONF_FONT_NESTOR_LG, var.set_font_nestor_lg),
     ):
         if conf in config:
             cg.add(setter(await cg.get_variable(config[conf])))

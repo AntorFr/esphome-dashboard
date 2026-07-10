@@ -109,3 +109,20 @@ font:
       - "\U000F06DA"  # garage-open
       - "\U000F0299"  # gate (closed)
       - "\U000F116A"  # gate-open
+  # Nestor — the Karotz voice-assistant mascot as a silhouette glyph (tinted per state via text
+  # colour). Glyph U+F0002 = the face variant (transparent eye/nose cut-outs). Two sizes: the
+  # header mic chip (small) and the full-screen voice overlay (large). See assets/fonts/nestor.ttf.
+  - file:
+      type: web
+      url: "https://github.com/AntorFr/esphome-dashboard/raw/main/assets/fonts/nestor.ttf"
+    id: ha_font_nestor
+    size: 48
+    bpp: 4
+    glyphs: ["\U000F0002"]
+  - file:
+      type: web
+      url: "https://github.com/AntorFr/esphome-dashboard/raw/main/assets/fonts/nestor.ttf"
+    id: ha_font_nestor_lg
+    size: 210
+    bpp: 4
+    glyphs: ["\U000F0002"]

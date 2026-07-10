@@ -75,6 +75,7 @@ static const char *const MDI_ALERT = "\U000F0028";
 static const char *const MDI_CLOUD_OFF = "\U000F0164";
 static const char *const MDI_TIMER = "\U000F051B";
 static const char *const MDI_TIMER_ALERT = "\U000F1ACD";
+static const char *const NESTOR_GLYPH = "\U000F0002";  // Nestor Karotz silhouette (face variant)
 // Voice palette.
 static constexpr uint32_t COL_VOICE = 0x35C6FF;
 static constexpr uint32_t COL_VOICE2 = 0x7A5CFF;
@@ -639,6 +640,13 @@ void LvglRenderer::build_voice_() {
   lv_obj_set_style_text_color(this->voice_orb_icon_, lv_color_hex(0xFFFFFF), 0);
   if (this->font_voice_ != nullptr)
     lv_obj_set_style_text_font(this->voice_orb_icon_, this->font_voice_->get_lv_font(), 0);
+  // Nestor mode: the orb becomes the big Karotz silhouette glyph (no circle), tinted per state.
+  if (this->font_nestor_lg_ != nullptr) {
+    lv_obj_set_style_bg_opa(this->voice_orb_, LV_OPA_TRANSP, 0);
+    lv_obj_set_size(this->voice_orb_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_label_set_text(this->voice_orb_icon_, NESTOR_GLYPH);
+    lv_obj_set_style_text_font(this->voice_orb_icon_, this->font_nestor_lg_->get_lv_font(), 0);
+  }
 
   // Listening level bars.
   this->voice_wave_ = lv_obj_create(this->voice_root_);
@@ -773,9 +781,16 @@ void LvglRenderer::voice_apply_(VoiceState st) {
       break;
   }
 
-  lv_obj_set_style_bg_color(this->voice_orb_, lv_color_hex(orb), 0);
-  lv_obj_set_style_bg_grad_color(this->voice_orb_, lv_color_hex(orb2), 0);
-  lv_label_set_text(this->voice_orb_icon_, glyph);
+  if (this->font_nestor_lg_ != nullptr) {
+    // Nestor: tint the silhouette glyph with the state accent (dark greys -> a visible muted
+    // grey so a "sleeping" Nestor still reads on the dark overlay). Keep the glyph itself.
+    uint32_t nc = (st == VoiceState::MUTED || st == VoiceState::UNAVAILABLE) ? 0x6B6B73 : orb;
+    lv_obj_set_style_text_color(this->voice_orb_icon_, lv_color_hex(nc), 0);
+  } else {
+    lv_obj_set_style_bg_color(this->voice_orb_, lv_color_hex(orb), 0);
+    lv_obj_set_style_bg_grad_color(this->voice_orb_, lv_color_hex(orb2), 0);
+    lv_label_set_text(this->voice_orb_icon_, glyph);
+  }
   lv_label_set_text(this->voice_status_, status);
   if (sub[0] != '\0')
     lv_label_set_text(this->voice_sub_, sub);
@@ -837,7 +852,10 @@ void LvglRenderer::set_mic_state(MicState st) {
   }
   lv_obj_set_style_bg_color(this->mic_chip_, lv_color_hex(bg), 0);
   if (this->mic_chip_icon_ != nullptr) {
-    lv_label_set_text(this->mic_chip_icon_, glyph);
+    // Nestor mode keeps the rabbit glyph in every state (colour tells the story); MDI mode
+    // swaps to the slashed-mic glyph when muted.
+    if (this->font_nestor_ == nullptr)
+      lv_label_set_text(this->mic_chip_icon_, glyph);
     lv_obj_set_style_text_color(this->mic_chip_icon_, lv_color_hex(fg), 0);
   }
 }
@@ -2272,6 +2290,11 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_text_color(this->mic_chip_icon_, lv_color_hex(COL_VOICE), 0);
   if (this->font_icons_lg_ != nullptr)
     lv_obj_set_style_text_font(this->mic_chip_icon_, this->font_icons_lg_->get_lv_font(), 0);
+  // Nestor mode: the chip shows the Karotz silhouette glyph instead of the MDI mic.
+  if (this->font_nestor_ != nullptr) {
+    lv_label_set_text(this->mic_chip_icon_, NESTOR_GLYPH);
+    lv_obj_set_style_text_font(this->mic_chip_icon_, this->font_nestor_->get_lv_font(), 0);
+  }
   {
     auto *d = new CbData{this, InputEvent::VOICE_START, -1};
     g_cbdata.push_back(d);
