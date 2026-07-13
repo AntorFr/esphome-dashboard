@@ -475,6 +475,7 @@ void Controller::sheet_action_(Card &c, InputEvent ev, int index) {
       break;
     case InputEvent::SHEET_MODE:
       if (c.climate != nullptr) {
+        // index = mode code (0 off, 1 heat, 2 cool, 3 heat_cool, 4 auto).
         climate::ClimateMode m = climate::CLIMATE_MODE_OFF;
         if (index == 1)
           m = climate::CLIMATE_MODE_HEAT;
@@ -482,6 +483,8 @@ void Controller::sheet_action_(Card &c, InputEvent ev, int index) {
           m = climate::CLIMATE_MODE_COOL;
         else if (index == 3)
           m = climate::CLIMATE_MODE_HEAT_COOL;
+        else if (index == 4)
+          m = climate::CLIMATE_MODE_AUTO;
         auto call = c.climate->make_call();
         call.set_mode(m);
         call.perform();

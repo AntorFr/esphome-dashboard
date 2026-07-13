@@ -473,23 +473,22 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
     lv_obj_t *mr = sheet_row_(this->sheet_body_);
     const lv_font_t *mdi = this->font_icons_lg_ != nullptr ? this->font_icons_lg_->get_lv_font()
                                                            : &lv_font_montserrat_48;
-    struct M { const char *g; const lv_font_t *f; const char *label; };
-    M ms[4] = {{LV_SYMBOL_POWER, &lv_font_montserrat_48, "Éteint"}, {MDI_FIRE, mdi, "Chauffe"},
-               {MDI_SNOW, mdi, "Froid"}, {LV_SYMBOL_REFRESH, &lv_font_montserrat_48, "Auto"}};
-    // Offer only the modes relevant to the device kind (mode indices: 0 off, 1 heat, 2 cool,
-    // 3 auto). radiator = off/heat ; ac = off/cool ; thermostat (default) = all four.
-    int allowed[4], nmodes;
-    if (c.climate_kind == "radiator") {
-      allowed[0] = 0; allowed[1] = 1; nmodes = 2;
-    } else if (c.climate_kind == "ac") {
-      allowed[0] = 0; allowed[1] = 2; nmodes = 2;
-    } else {
-      allowed[0] = 0; allowed[1] = 1; allowed[2] = 2; allowed[3] = 3; nmodes = 4;
-    }
-    for (int j = 0; j < 4; j++)
-      this->sheet_modes_[j] = nullptr;
-    for (int j = 0; j < nmodes; j++) {
-      int i = allowed[j];
+    struct M { climate::ClimateMode mode; const char *g; const lv_font_t *f; const char *label; };
+    // Indexed by mode code (0 off, 1 heat, 2 cool, 3 heat_cool, 4 auto).
+    M ms[5] = {
+        {climate::CLIMATE_MODE_OFF, LV_SYMBOL_POWER, &lv_font_montserrat_48, "Éteint"},
+        {climate::CLIMATE_MODE_HEAT, MDI_FIRE, mdi, "Chauffe"},
+        {climate::CLIMATE_MODE_COOL, MDI_SNOW, mdi, "Froid"},
+        {climate::CLIMATE_MODE_HEAT_COOL, MDI_THERMOSTAT, mdi, "Auto"},
+        {climate::CLIMATE_MODE_AUTO, LV_SYMBOL_REFRESH, &lv_font_montserrat_48, "Auto"},
+    };
+    // Offer only the modes the entity actually supports (from HA's hvac_modes via the proxy).
+    auto ctraits = c.climate != nullptr ? c.climate->get_traits() : climate::ClimateTraits();
+    for (int k = 0; k < 5; k++)
+      this->sheet_modes_[k] = nullptr;
+    for (int i = 0; i < 5; i++) {
+      if (c.climate != nullptr && !ctraits.supports_mode(ms[i].mode))
+        continue;
       lv_obj_t *b = lv_button_create(mr);
       lv_obj_set_size(b, 120, 120);
       lv_obj_set_style_radius(b, 18, 0);
@@ -553,17 +552,17 @@ void LvglRenderer::refresh_sheet_() {
     lv_label_set_text(this->sheet_value_lbl_, buf);
     std::snprintf(buf, sizeof(buf), "actuel %.1f°", cur);
     lv_label_set_text(this->sheet_sub_lbl_, buf);
-    int cur_mode = 0;  // 0 off / 1 heat / 2 cool / 3 auto
+    int cur_mode = 0;  // mode code: 0 off / 1 heat / 2 cool / 3 heat_cool / 4 auto
     if (c.climate != nullptr) {
       switch (c.climate->mode) {
         case climate::CLIMATE_MODE_HEAT: cur_mode = 1; break;
         case climate::CLIMATE_MODE_COOL: cur_mode = 2; break;
-        case climate::CLIMATE_MODE_HEAT_COOL:
-        case climate::CLIMATE_MODE_AUTO: cur_mode = 3; break;
+        case climate::CLIMATE_MODE_HEAT_COOL: cur_mode = 3; break;
+        case climate::CLIMATE_MODE_AUTO: cur_mode = 4; break;
         default: cur_mode = 0; break;
       }
     }
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
       if (this->sheet_modes_[i] != nullptr)
         lv_obj_set_style_border_color(this->sheet_modes_[i],
                                       lv_color_hex(i == cur_mode ? accent_for(c) : COL_TILE), 0);

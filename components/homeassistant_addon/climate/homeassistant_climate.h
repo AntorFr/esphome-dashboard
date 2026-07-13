@@ -10,6 +10,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/string_ref.h"
 #include "esphome/components/climate/climate.h"
+#include <set>
 
 namespace esphome {
 namespace homeassistant_addon {
@@ -51,6 +52,7 @@ class HomeassistantClimate : public climate::Climate, public Component {
   void parse_target_temperature(const std::string &state);
   void parse_hvac_mode(const std::string &state);
   void parse_hvac_action(const std::string &state);
+  void parse_hvac_modes(const std::string &modes);  // the entity's supported hvac_modes list
   
   // Convert between ESPHome and HA modes
   static climate::ClimateMode ha_mode_to_esphome(const std::string &mode);
@@ -64,6 +66,10 @@ class HomeassistantClimate : public climate::Climate, public Component {
   
   // Track if we've received initial state
   bool received_state_{false};
+
+  // Supported HVAC modes as reported by HA (empty until the hvac_modes attribute arrives, in
+  // which case traits() advertises the full fallback set).
+  std::set<climate::ClimateMode> supported_modes_;
 };
 
 }  // namespace homeassistant_addon

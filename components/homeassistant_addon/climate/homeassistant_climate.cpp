@@ -55,6 +55,53 @@ void HomeassistantClimate::setup() {
         this->parse_hvac_action(state_str);
         this->publish_state();
       });
+
+  // Subscribe to the supported hvac_modes list so the dashboard only offers real modes.
+  api::global_api_server->subscribe_home_assistant_state(
+      this->entity_id_, std::string("hvac_modes"),
+      [this](StringRef state) {
+        std::string state_str = state.str();
+        ESP_LOGD(TAG, "'%s': Got hvac_modes: %s", this->entity_id_, state_str.c_str());
+        this->parse_hvac_modes(state_str);
+        this->publish_state();
+      });
+}
+
+// HA reports hvac_modes as a list (e.g. "['off', 'heat', 'auto']"). Match exact tokens so
+// "heat_cool" is not mistaken for heat + cool.
+void HomeassistantClimate::parse_hvac_modes(const std::string &modes) {
+  if (modes.empty() || modes == "unknown" || modes == "unavailable")
+    return;
+  std::set<climate::ClimateMode> found;
+  size_t i = 0;
+  while (i < modes.size()) {
+    char c = modes[i];
+    if ((c >= 'a' && c <= 'z') || c == '_') {
+      size_t j = i;
+      while (j < modes.size() && ((modes[j] >= 'a' && modes[j] <= 'z') || modes[j] == '_'))
+        j++;
+      std::string t = modes.substr(i, j - i);
+      i = j;
+      if (t == "off")
+        found.insert(climate::CLIMATE_MODE_OFF);
+      else if (t == "heat_cool")
+        found.insert(climate::CLIMATE_MODE_HEAT_COOL);
+      else if (t == "heat")
+        found.insert(climate::CLIMATE_MODE_HEAT);
+      else if (t == "cool")
+        found.insert(climate::CLIMATE_MODE_COOL);
+      else if (t == "auto")
+        found.insert(climate::CLIMATE_MODE_AUTO);
+      else if (t == "dry")
+        found.insert(climate::CLIMATE_MODE_DRY);
+      else if (t == "fan_only")
+        found.insert(climate::CLIMATE_MODE_FAN_ONLY);
+    } else {
+      i++;
+    }
+  }
+  if (!found.empty())
+    this->supported_modes_ = found;
 }
 
 void HomeassistantClimate::dump_config() {
@@ -71,15 +118,22 @@ float HomeassistantClimate::get_setup_priority() const {
 
 climate::ClimateTraits HomeassistantClimate::traits() {
   auto traits = climate::ClimateTraits();
-  
-  // Supported modes
-  traits.set_supported_modes({
-      climate::CLIMATE_MODE_OFF,
-      climate::CLIMATE_MODE_HEAT,
-      climate::CLIMATE_MODE_COOL,
-      climate::CLIMATE_MODE_HEAT_COOL,
-      climate::CLIMATE_MODE_AUTO,
-  });
+
+  // Supported modes: the entity's real hvac_modes once HA has reported them, else a permissive
+  // fallback. OFF is always included (ESPHome requires it).
+  if (!this->supported_modes_.empty()) {
+    traits.add_supported_mode(climate::CLIMATE_MODE_OFF);
+    for (auto mode : this->supported_modes_)
+      traits.add_supported_mode(mode);
+  } else {
+    traits.set_supported_modes({
+        climate::CLIMATE_MODE_OFF,
+        climate::CLIMATE_MODE_HEAT,
+        climate::CLIMATE_MODE_COOL,
+        climate::CLIMATE_MODE_HEAT_COOL,
+        climate::CLIMATE_MODE_AUTO,
+    });
+  }
   
   // Temperature settings
   traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);

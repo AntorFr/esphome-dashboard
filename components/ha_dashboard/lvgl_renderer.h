@@ -250,7 +250,7 @@ class LvglRenderer : public Renderer {
   lv_obj_t *sheet_sub_lbl_{nullptr};    // climate current / media artist
   lv_obj_t *sheet_pp_icon_{nullptr};    // media play/pause glyph
   lv_obj_t *sheet_slider_{nullptr};     // volume / position / brightness
-  lv_obj_t *sheet_modes_[4]{nullptr, nullptr, nullptr, nullptr};  // climate mode buttons
+  lv_obj_t *sheet_modes_[5]{};  // climate mode buttons, indexed by mode code (0 off,1 heat,2 cool,3 heat_cool,4 auto)
 
   // --- Voice assistant overlay (top layer, built once; restyled per state) ---
   void build_voice_();               // create the overlay tree on lv_layer_top()
