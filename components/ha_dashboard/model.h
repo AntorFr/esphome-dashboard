@@ -38,7 +38,8 @@ struct Card {
   std::string name;
   uint32_t color{0};       // override couleur (0xRRGGBB) ; sinon défaut par domaine
   bool has_color{false};
-  std::string cover_kind;  // "shutter|garage|gate" YAML override ; vide = auto (device_class)
+  std::string cover_kind;    // "shutter|garage|gate" YAML override ; vide = auto (device_class)
+  std::string climate_kind;  // "radiator|ac|thermostat" ; vide = thermostat (reversible)
 
   switch_::Switch *sw{nullptr};
   cover::Cover *cover{nullptr};

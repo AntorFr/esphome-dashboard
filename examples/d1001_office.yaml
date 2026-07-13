@@ -423,7 +423,7 @@ ha_dashboard:
       icon: home
       cards:
         - { type: media_player, media_player_id: media_bureau, name: "Enceinte", color: "#A06CFF" }
-        - { type: climate, climate_id: climate_chauffage, name: "Chauffage", color: "#03A964" }
+        - { type: climate, climate_id: climate_chauffage, name: "Chauffage", climate_kind: radiator }
         - { type: cover, cover_id: cover_portail, name: "Portail", color: "#577EFF", cover_kind: gate }
     # Music Library launcher tab (kids): favourites of profile "Timothée" -> his speaker.
     - name: "Histoires"

@@ -67,6 +67,7 @@ CONF_COLOR = "color"
 CONF_SWITCH_ID = "switch_id"
 CONF_COVER_ID = "cover_id"
 CONF_COVER_KIND = "cover_kind"
+CONF_CLIMATE_KIND = "climate_kind"
 CONF_CLIMATE_ID = "climate_id"
 CONF_MEDIA_PLAYER_ID = "media_player_id"
 CONF_LIGHT_ID = "light_id"
@@ -137,6 +138,9 @@ CARD_SCHEMA = cv.All(
             cv.Optional(CONF_COLOR): _hex_color,
             # Cover presentation override (else auto from HA device_class): shutter|garage|gate.
             cv.Optional(CONF_COVER_KIND): cv.one_of("shutter", "garage", "gate", lower=True),
+            # Climate device kind: radiator (heat-only) | ac (cool-only) | thermostat (reversible,
+            # default). Drives the tile icon and which modes the control sheet offers.
+            cv.Optional(CONF_CLIMATE_KIND): cv.one_of("radiator", "ac", "thermostat", lower=True),
         }
     ),
     _validate_card,
@@ -340,7 +344,8 @@ async def to_code(config):
                                           card.get(CONF_COVER_KIND, "")))
             elif CONF_CLIMATE_ID in card:
                 obj = await cg.get_variable(card[CONF_CLIMATE_ID])
-                cg.add(var.add_climate_card(group_index, obj, name, color, has_color))
+                cg.add(var.add_climate_card(group_index, obj, name, color, has_color,
+                                            card.get(CONF_CLIMATE_KIND, "")))
             elif CONF_MEDIA_PLAYER_ID in card:
                 obj = await cg.get_variable(card[CONF_MEDIA_PLAYER_ID])
                 cg.add(var.add_media_card(group_index, obj, name, color, has_color))

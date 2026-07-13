@@ -101,7 +101,7 @@ class HaDashboard : public Component {
   void add_cover_card(int group_index, cover::Cover *cover, const std::string &name, uint32_t color, bool has_color,
                       const std::string &cover_kind);
   void add_climate_card(int group_index, climate::Climate *climate, const std::string &name, uint32_t color,
-                        bool has_color);
+                        bool has_color, const std::string &climate_kind);
   void add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media, const std::string &name,
                       uint32_t color, bool has_color);
   void add_light_card(int group_index, homeassistant_addon::HomeassistantLight *light, const std::string &name,

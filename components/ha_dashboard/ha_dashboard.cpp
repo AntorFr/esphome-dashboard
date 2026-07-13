@@ -77,12 +77,13 @@ void HaDashboard::add_cover_card(int group_index, cover::Cover *cover, const std
 }
 
 void HaDashboard::add_climate_card(int group_index, climate::Climate *climate, const std::string &name, uint32_t color,
-                                   bool has_color) {
+                                   bool has_color, const std::string &climate_kind) {
   if (group_index < 0 || group_index >= (int) this->groups_.size())
     return;
   Card &c = push_card_(this->groups_, group_index, CardType::CLIMATE,
                        !name.empty() ? name : std::string("Climate"), color, has_color);
   c.climate = climate;
+  c.climate_kind = climate_kind;
 }
 
 void HaDashboard::add_media_card(int group_index, homeassistant_addon::HomeassistantMediaPlayer *media,

@@ -69,7 +69,7 @@ ha_dashboard:
 | `switch` | `switch_id` (esphome switch) | **réel** : `->state` / `->toggle()` |
 | `light`  | `light_id` (homeassistant_addon light) | **réel** : on/off + luminosité (tap = toggle, sheet = variateur) |
 | `cover`  | `cover_id` (homeassistant_addon cover) | **réel** : position / open-close-stop (+ `cover_kind`) |
-| `climate`| `climate_id` (homeassistant_addon climate) | **réel** : mode + consigne |
+| `climate`| `climate_id` (homeassistant_addon climate) | **réel** : mode + consigne (+ `climate_kind`) |
 | `media_player` | `media_player_id` (homeassistant_addon media_player) | **réel** : play/pause/next/prev + volume |
 
 Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (optionnel `#RRGGBB`).
@@ -102,6 +102,8 @@ Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (option
 | `color` | hex | optionnel | override ; pour une light, le live RGB l'emporte |
 | `name` | str | optionnel | défaut = nom convivial de l'entité |
 | `icon` | str | optionnel | défaut = icône du domaine |
+| `cover_kind` | enum | optionnel (cover) | `shutter` \| `garage` \| `gate` — illustration + sens du mouvement |
+| `climate_kind` | enum | optionnel (climate) | `radiator` (chauffe seul) \| `ac` (froid seul) \| `thermostat` (réversible, défaut). Pilote l'icône (radiateur/climatiseur/thermostat) et les modes du sheet. Couleur auto : chauffe = ambre, refroidit = bleu. |
 
 ## Ce qui est auto-injecté (l'utilisateur ne l'écrit pas)
 

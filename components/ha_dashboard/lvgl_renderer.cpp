@@ -67,6 +67,8 @@ static const char *const MDI_SPEAKER = "\U000F04C3";
 static const char *const MDI_THERMOSTAT = "\U000F0393";
 static const char *const MDI_FIRE = "\U000F0238";
 static const char *const MDI_SNOW = "\U000F0717";
+static const char *const MDI_RADIATOR = "\U000F0438";       // heat-only climate tile
+static const char *const MDI_AC = "\U000F001B";             // air-conditioner (cool-only) tile
 // Voice-assistant glyphs (ha_font_voice for the orb; ha_font_icons_lg for the header chip/pill).
 static const char *const MDI_MIC = "\U000F036C";
 static const char *const MDI_MIC_OFF = "\U000F036D";
@@ -124,7 +126,20 @@ static const char *card_mdi_glyph(const Card &c) {
     }
     case CardType::MEDIA_PLAYER:
       return MDI_SPEAKER;
-    case CardType::CLIMATE:
+    case CardType::CLIMATE: {
+      if (c.climate_kind == "radiator")
+        return MDI_RADIATOR;
+      if (c.climate_kind == "ac")
+        return MDI_AC;
+      // thermostat / reversible: reflect what it's actually doing.
+      if (c.climate != nullptr) {
+        if (c.climate->action == climate::CLIMATE_ACTION_COOLING)
+          return MDI_SNOW;
+        if (c.climate->action == climate::CLIMATE_ACTION_HEATING)
+          return MDI_FIRE;
+      }
+      return MDI_THERMOSTAT;
+    }
     default:
       return MDI_THERMOSTAT;
   }
@@ -461,7 +476,20 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
     struct M { const char *g; const lv_font_t *f; const char *label; };
     M ms[4] = {{LV_SYMBOL_POWER, &lv_font_montserrat_48, "Éteint"}, {MDI_FIRE, mdi, "Chauffe"},
                {MDI_SNOW, mdi, "Froid"}, {LV_SYMBOL_REFRESH, &lv_font_montserrat_48, "Auto"}};
-    for (int i = 0; i < 4; i++) {
+    // Offer only the modes relevant to the device kind (mode indices: 0 off, 1 heat, 2 cool,
+    // 3 auto). radiator = off/heat ; ac = off/cool ; thermostat (default) = all four.
+    int allowed[4], nmodes;
+    if (c.climate_kind == "radiator") {
+      allowed[0] = 0; allowed[1] = 1; nmodes = 2;
+    } else if (c.climate_kind == "ac") {
+      allowed[0] = 0; allowed[1] = 2; nmodes = 2;
+    } else {
+      allowed[0] = 0; allowed[1] = 1; allowed[2] = 2; allowed[3] = 3; nmodes = 4;
+    }
+    for (int j = 0; j < 4; j++)
+      this->sheet_modes_[j] = nullptr;
+    for (int j = 0; j < nmodes; j++) {
+      int i = allowed[j];
       lv_obj_t *b = lv_button_create(mr);
       lv_obj_set_size(b, 120, 120);
       lv_obj_set_style_radius(b, 18, 0);
@@ -2119,7 +2147,20 @@ void LvglRenderer::build_card_view_() {
 static uint32_t accent_for(const Card &c) {
   if (c.has_color)
     return c.color;
-  return c.type == CardType::SWITCH ? 0x3DD68C : 0xFFB020;
+  if (c.type == CardType::SWITCH)
+    return 0x3DD68C;
+  if (c.type == CardType::CLIMATE) {
+    // Colour by the live HVAC action (cooling = blue, heating = amber); fall back to the device
+    // kind so an idle AC still reads blue and a radiator amber.
+    if (c.climate != nullptr) {
+      if (c.climate->action == climate::CLIMATE_ACTION_COOLING)
+        return 0x4FC3F7;  // blue
+      if (c.climate->action == climate::CLIMATE_ACTION_HEATING)
+        return 0xFFB020;  // amber
+    }
+    return c.climate_kind == "ac" ? 0x4FC3F7 : 0xFFB020;
+  }
+  return 0xFFB020;
 }
 
 // Set a card's type icon on `label`: MDI (font_icons_lg_) when available, else the built-in

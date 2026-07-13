@@ -31,11 +31,19 @@ homeassistant_addon:
     - id: light_salon
       entity_id: light.salon_plafond
 
+# Climate proxy (reports hvac_mode/action, commands modes + setpoint) for climate cards.
+climate:
+  - platform: homeassistant_addon
+    id: clim_salon
+    entity_id: climate.salon
+    internal: true
+
 ha_dashboard:
   profile: reterminal_d1001
   font_small: ha_font_small
   font_medium: ha_font_medium
   font_large: ha_font_large
+  font_icons_lg: ha_font_icons_lg
   font_nestor: ha_font_nestor
   font_nestor_lg: ha_font_nestor_lg
   groups:
@@ -44,6 +52,7 @@ ha_dashboard:
       cards:
         - { type: light, light_id: light_salon, name: "Plafond salon" }
         - { type: switch, switch_id: sw_salon_prise, name: "Prise salon" }
+        - { type: climate, climate_id: clim_salon, name: "Clim", climate_kind: ac }
     - name: Cuisine
       cards:
         - { type: switch, switch_id: sw_salon_prise, name: "Prise (test)" }
