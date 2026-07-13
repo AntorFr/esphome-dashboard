@@ -50,6 +50,27 @@
 - Interactions : slider `input` → met à jour valeur + arc (et `on = value>0` hors cover) ;
   toggle → bascule `on` ; retour → ferme le détail, rafraîchit la grille.
 
+## Light control sheet (colour + effects)
+
+The `light` more-info sheet is **capability-driven**: it renders only the controls the entity
+actually exposes (read from HA via the `homeassistant_addon` light proxy — `supported_color_modes`,
+`min/max_color_temp_kelvin`, `effect_list`). No per-lamp YAML is needed.
+
+- **Brightness slider** — shown when the light is dimmable (`brightness` attribute present).
+- **Colour swatches** — shown when `supported_color_modes` includes an RGB-family mode
+  (`rgb`/`rgbw`/`rgbww`/`hs`/`xy`). A fixed 12-hue palette (`LIGHT_PALETTE` in `model.h`);
+  tapping one sends `light.turn_on` with `rgb_color`. LVGL 9 dropped the colourwheel widget, so a
+  discrete swatch grid is used instead (also the most robust surface on the touch screen).
+- **Warm→cool swatches** — shown when `color_temp` is supported. Fixed Kelvin presets
+  (`LIGHT_CT_KELVIN`) filtered to the light's reported range; the nearest preset to the live value
+  is outlined. Tapping sends `color_temp_kelvin`.
+- **Effect chips** — one per entry in `effect_list`; the active effect is outlined. Tapping sends
+  `light.turn_on` with `effect`.
+
+`rgb_color` is a list, which HA's service schema rejects as a stringified `data` value — it is sent
+through the action's `data_template` (HA renders `[r, g, b]` back into a real list). Swatch taps are
+momentary (fire-and-forget); brightness/temp/effect state is reflected on the next HA state push.
+
 ## Note d'implémentation (robustesse)
 
 Tuiles, onglets, slider, toggle, bouton retour = **vrais `lv_obj` avec événements LVGL

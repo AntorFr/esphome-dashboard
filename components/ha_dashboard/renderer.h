@@ -65,6 +65,9 @@ enum class InputEvent : uint8_t {
   SHEET_COVER_STOP,        // cover: stop
   SHEET_COVER_CLOSE,       // cover: close
   SHEET_SET_VALUE,         // slider (index = 0..100): volume (media) / position (cover) / brightness (light)
+  SHEET_SET_COLOR,         // light: pick a palette swatch (index = LIGHT_PALETTE index)
+  SHEET_SET_TEMP,          // light: pick a colour-temperature preset (index = LIGHT_CT_KELVIN index)
+  SHEET_SET_EFFECT,        // light: pick an effect (index = position in the light's effect_list)
 
   // Voice assistant overlay actions (buttons on the top-layer overlay / header mic chip).
   VOICE_START,             // start listening (tap mic chip / "retry")

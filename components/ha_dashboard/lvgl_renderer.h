@@ -251,6 +251,9 @@ class LvglRenderer : public Renderer {
   lv_obj_t *sheet_pp_icon_{nullptr};    // media play/pause glyph
   lv_obj_t *sheet_slider_{nullptr};     // volume / position / brightness
   lv_obj_t *sheet_modes_[5]{};  // climate mode buttons, indexed by mode code (0 off,1 heat,2 cool,3 heat_cool,4 auto)
+  std::vector<lv_obj_t *> sheet_effect_btns_;  // light: one chip per effect_list entry (highlight active)
+  std::vector<lv_obj_t *> sheet_ct_btns_;      // light: colour-temperature swatches (highlight nearest)
+  std::vector<int> sheet_ct_kelvin_;           // kelvin per CT swatch (parallel to sheet_ct_btns_)
 
   // --- Voice assistant overlay (top layer, built once; restyled per state) ---
   void build_voice_();               // create the overlay tree on lv_layer_top()

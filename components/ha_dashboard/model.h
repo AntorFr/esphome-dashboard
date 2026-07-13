@@ -29,6 +29,24 @@ enum class CardType : uint8_t {
 // cover's HA device_class (garage/gate/shutter/blind/…), overridable via YAML `cover_kind`.
 enum class CoverKind : uint8_t { SHUTTER = 0, GARAGE = 1, GATE = 2 };
 
+// Fixed colour palette for the light control sheet (swatch picker — LVGL 9 dropped the
+// colourwheel widget). Shared by the renderer (draws the swatches) and the controller (maps a
+// tapped swatch index -> rgb command). 12 kid-friendly hues.
+struct LightSwatch {
+  uint8_t r, g, b;
+};
+static constexpr LightSwatch LIGHT_PALETTE[] = {
+    {255, 60, 60},   {255, 140, 40}, {255, 214, 40}, {150, 220, 50},
+    {40, 200, 90},   {40, 210, 200}, {60, 150, 255}, {80, 90, 255},
+    {160, 80, 255},  {240, 70, 220}, {255, 120, 170}, {255, 255, 255},
+};
+static constexpr int LIGHT_PALETTE_N = 12;
+
+// Colour-temperature presets (Kelvin), warm -> cool. Filtered at render time to the light's
+// reported [min,max] range.
+static constexpr int LIGHT_CT_KELVIN[] = {2200, 2700, 3300, 4000, 5000, 6500};
+static constexpr int LIGHT_CT_N = 6;
+
 // Définition logique d'une card. Le binding HA se fait via des objets ESPHome :
 // switch (plateforme homeassistant) / cover+climate (homeassistant_addon) /
 // media_player (homeassistant_addon, classe custom).

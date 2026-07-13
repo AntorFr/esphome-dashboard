@@ -264,6 +264,9 @@ void Controller::handle(InputEvent event, int index) {
         case InputEvent::SHEET_COVER_OPEN:
         case InputEvent::SHEET_COVER_STOP:
         case InputEvent::SHEET_COVER_CLOSE:
+        case InputEvent::SHEET_SET_COLOR:
+        case InputEvent::SHEET_SET_TEMP:
+        case InputEvent::SHEET_SET_EFFECT:
         case InputEvent::SHEET_SET_VALUE: {
           int gi = this->group_index_;
           if (this->groups_ && gi < (int) this->groups_->size() && this->sheet_ci_ >= 0 &&
@@ -532,6 +535,23 @@ void Controller::sheet_action_(Card &c, InputEvent ev, int index) {
       }
       break;
     }
+    case InputEvent::SHEET_SET_COLOR:
+      if (c.light != nullptr && index >= 0 && index < LIGHT_PALETTE_N) {
+        const LightSwatch &s = LIGHT_PALETTE[index];
+        c.light->set_rgb(s.r, s.g, s.b);
+      }
+      break;
+    case InputEvent::SHEET_SET_TEMP:
+      if (c.light != nullptr && index >= 0 && index < LIGHT_CT_N)
+        c.light->set_color_temp_kelvin(LIGHT_CT_KELVIN[index]);
+      break;
+    case InputEvent::SHEET_SET_EFFECT:
+      if (c.light != nullptr) {
+        const auto &effects = c.light->get_effect_list();
+        if (index >= 0 && index < (int) effects.size())
+          c.light->set_effect(effects[index]);
+      }
+      break;
     default:
       break;
   }

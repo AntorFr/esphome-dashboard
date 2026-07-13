@@ -306,6 +306,19 @@ static lv_obj_t *sheet_row_(lv_obj_t *parent) {
   return r;
 }
 
+// Approximate an RGB tint for a colour temperature (Kelvin), for the warm/cool swatches.
+// Tanner Helland's approximation, clamped to 0..255 (indicative, not colour-accurate).
+static uint32_t kelvin_to_rgb(int kelvin) {
+  float t = kelvin / 100.0f;
+  float r = t <= 66.0f ? 255.0f : 329.698727446f * std::pow(t - 60.0f, -0.1332047592f);
+  float g = t <= 66.0f ? 99.4708025861f * std::log(t) - 161.1195681661f
+                       : 288.1221695283f * std::pow(t - 60.0f, -0.0755148492f);
+  float b = t >= 66.0f ? 255.0f
+                       : (t <= 19.0f ? 0.0f : 138.5177312231f * std::log(t - 10.0f) - 305.0447927307f);
+  auto clamp = [](float v) -> uint32_t { return (uint32_t) (v < 0.0f ? 0.0f : (v > 255.0f ? 255.0f : v)); };
+  return (clamp(r) << 16) | (clamp(g) << 8) | clamp(b);
+}
+
 void LvglRenderer::show_sheet_(int card_index) {
   if (this->model_ == nullptr || this->active_group_ < 0 || this->active_group_ >= (int) this->model_->size())
     return;
@@ -404,8 +417,11 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
   lv_obj_clean(this->sheet_body_);
   this->sheet_value_lbl_ = this->sheet_sub_lbl_ = this->sheet_pp_icon_ = this->sheet_slider_ = nullptr;
   this->sheet_illus_ = nullptr;
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < 5; i++)
     this->sheet_modes_[i] = nullptr;
+  this->sheet_effect_btns_.clear();
+  this->sheet_ct_btns_.clear();
+  this->sheet_ct_kelvin_.clear();
   const uint32_t accent = accent_for(c);
 
   // A big central illustration (icon) at the top of the sheet body — visual anchor like the
@@ -535,8 +551,91 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
     sbtn(tr, LV_SYMBOL_STOP, &lv_font_montserrat_28, false, InputEvent::SHEET_COVER_STOP);
     sbtn(tr, gate ? LV_SYMBOL_RIGHT : LV_SYMBOL_DOWN, &lv_font_montserrat_48, false, InputEvent::SHEET_COVER_CLOSE);
     make_slider(accent, LV_SYMBOL_SETTINGS, &lv_font_montserrat_28);
-  } else {  // LIGHT (brightness)
-    make_slider(accent, LV_SYMBOL_CHARGE, &lv_font_montserrat_28);
+  } else {  // LIGHT: illustration + brightness + (colour swatches / warm-cool / effects)
+    homeassistant_addon::HomeassistantLight *lt = c.light;
+    this->sheet_illus_ = illustration(MDI_LIGHT, c.is_on() ? accent : COL_MUTED);
+
+    // A wrapping container for swatch/chip rows (sheet_row_ does not wrap).
+    auto wrap = [this]() -> lv_obj_t * {
+      lv_obj_t *w = lv_obj_create(this->sheet_body_);
+      lv_obj_set_width(w, lv_pct(92));
+      lv_obj_set_height(w, LV_SIZE_CONTENT);
+      lv_obj_set_style_bg_opa(w, LV_OPA_TRANSP, 0);
+      lv_obj_set_style_border_width(w, 0, 0);
+      lv_obj_set_style_pad_all(w, 0, 0);
+      lv_obj_set_style_pad_row(w, 12, 0);
+      lv_obj_set_style_pad_column(w, 12, 0);
+      lv_obj_set_flex_flow(w, LV_FLEX_FLOW_ROW_WRAP);
+      lv_obj_set_flex_align(w, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+      lv_obj_clear_flag(w, LV_OBJ_FLAG_SCROLLABLE);
+      return w;
+    };
+    // A round colour swatch that emits `ev` with `idx`.
+    auto swatch = [this](lv_obj_t *parent, uint32_t rgb, InputEvent ev, int idx) -> lv_obj_t * {
+      lv_obj_t *b = lv_button_create(parent);
+      lv_obj_set_size(b, 76, 76);
+      lv_obj_set_style_radius(b, 38, 0);
+      lv_obj_set_style_bg_color(b, lv_color_hex(rgb), 0);
+      lv_obj_set_style_shadow_width(b, 0, 0);
+      lv_obj_set_style_border_width(b, 4, 0);
+      lv_obj_set_style_border_color(b, lv_color_hex(COL_TILE), 0);
+      auto *d = new CbData{this, ev, idx};
+      g_cbdata.push_back(d);
+      lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+      return b;
+    };
+
+    // Brightness (dimmable, or implied by colour/colour-temp support — an RGB light reports a
+    // null brightness attribute while off, so trust the colour capability too).
+    if (lt == nullptr || lt->supports_brightness() || lt->supports_color() || lt->supports_color_temp())
+      make_slider(accent, LV_SYMBOL_CHARGE, &lv_font_montserrat_28);
+
+    // Colour palette swatches.
+    if (lt != nullptr && lt->supports_color()) {
+      lv_obj_t *pal = wrap();
+      for (int i = 0; i < LIGHT_PALETTE_N; i++) {
+        const LightSwatch &s = LIGHT_PALETTE[i];
+        swatch(pal, ((uint32_t) s.r << 16) | ((uint32_t) s.g << 8) | s.b, InputEvent::SHEET_SET_COLOR, i);
+      }
+    }
+
+    // Warm -> cool colour-temperature swatches (filtered to the light's supported range).
+    if (lt != nullptr && lt->supports_color_temp()) {
+      lv_obj_t *ctrow = wrap();
+      for (int i = 0; i < LIGHT_CT_N; i++) {
+        int k = LIGHT_CT_KELVIN[i];
+        if (k < lt->get_min_kelvin() || k > lt->get_max_kelvin())
+          continue;
+        lv_obj_t *b = swatch(ctrow, kelvin_to_rgb(k), InputEvent::SHEET_SET_TEMP, i);
+        this->sheet_ct_btns_.push_back(b);
+        this->sheet_ct_kelvin_.push_back(k);
+      }
+    }
+
+    // Effects: a chip per supported effect (text label).
+    if (lt != nullptr && !lt->get_effect_list().empty()) {
+      lv_obj_t *fx = wrap();
+      const auto &effects = lt->get_effect_list();
+      for (size_t i = 0; i < effects.size(); i++) {
+        lv_obj_t *b = lv_button_create(fx);
+        lv_obj_set_size(b, LV_SIZE_CONTENT, 60);
+        lv_obj_set_style_radius(b, 30, 0);
+        lv_obj_set_style_bg_color(b, lv_color_hex(COL_TILE), 0);
+        lv_obj_set_style_shadow_width(b, 0, 0);
+        lv_obj_set_style_border_width(b, 3, 0);
+        lv_obj_set_style_border_color(b, lv_color_hex(COL_TILE), 0);
+        lv_obj_set_style_pad_hor(b, 22, 0);
+        lv_obj_t *l = lv_label_create(b);
+        lv_label_set_text(l, effects[i].c_str());
+        lv_obj_center(l);
+        this->set_text_font_(l, this->font_small_, &lv_font_montserrat_20);
+        lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
+        auto *d = new CbData{this, InputEvent::SHEET_SET_EFFECT, (int) i};
+        g_cbdata.push_back(d);
+        lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+        this->sheet_effect_btns_.push_back(b);
+      }
+    }
   }
 }
 
@@ -576,7 +675,38 @@ void LvglRenderer::refresh_sheet_() {
     }
     if (this->sheet_slider_ != nullptr)
       lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
-  } else if (this->sheet_slider_ != nullptr) {  // cover / light
+  } else if (c.type == CardType::LIGHT) {
+    if (this->sheet_slider_ != nullptr)
+      lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
+    if (this->sheet_illus_ != nullptr)
+      lv_obj_set_style_text_color(this->sheet_illus_, lv_color_hex(c.is_on() ? accent_for(c) : COL_MUTED), 0);
+    // Highlight the active effect chip.
+    if (c.light != nullptr && !this->sheet_effect_btns_.empty()) {
+      const auto &effects = c.light->get_effect_list();
+      const std::string &cur = c.light->get_effect();
+      for (size_t i = 0; i < this->sheet_effect_btns_.size(); i++) {
+        bool active = !cur.empty() && i < effects.size() && effects[i] == cur;
+        lv_obj_set_style_border_color(this->sheet_effect_btns_[i],
+                                      lv_color_hex(active ? accent_for(c) : COL_TILE), 0);
+      }
+    }
+    // Highlight the colour-temperature swatch nearest the current value.
+    if (c.light != nullptr && !this->sheet_ct_btns_.empty()) {
+      int cur_k = c.light->get_color_temp_kelvin();
+      int best = -1, bestd = 1 << 30;
+      if (cur_k > 0)
+        for (size_t i = 0; i < this->sheet_ct_kelvin_.size(); i++) {
+          int d = std::abs(this->sheet_ct_kelvin_[i] - cur_k);
+          if (d < bestd) {
+            bestd = d;
+            best = (int) i;
+          }
+        }
+      for (size_t i = 0; i < this->sheet_ct_btns_.size(); i++)
+        lv_obj_set_style_border_color(this->sheet_ct_btns_[i],
+                                      lv_color_hex((int) i == best ? COL_TEXT : COL_TILE), 0);
+    }
+  } else if (this->sheet_slider_ != nullptr) {  // cover
     lv_slider_set_value(this->sheet_slider_, (int) lroundf(c.value() * 100), LV_ANIM_OFF);
     if (c.type == CardType::COVER && this->sheet_illus_ != nullptr) {
       lv_label_set_text(this->sheet_illus_, card_mdi_glyph(c));  // open/closed illustration

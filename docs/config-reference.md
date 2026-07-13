@@ -67,7 +67,7 @@ ha_dashboard:
 | `type` | Champ requis | Binding |
 |--------|--------------|---------|
 | `switch` | `switch_id` (esphome switch) | **réel** : `->state` / `->toggle()` |
-| `light`  | `light_id` (homeassistant_addon light) | **réel** : on/off + luminosité (tap = toggle, sheet = variateur) |
+| `light`  | `light_id` (homeassistant_addon light) | **réel** : on/off + luminosité (tap = toggle, sheet = variateur + pastilles couleur / chaud-froid / effets selon les capacités HA) |
 | `cover`  | `cover_id` (homeassistant_addon cover) | **réel** : position / open-close-stop (+ `cover_kind`) |
 | `climate`| `climate_id` (homeassistant_addon climate) | **réel** : mode + consigne (+ `climate_kind`) |
 | `media_player` | `media_player_id` (homeassistant_addon media_player) | **réel** : play/pause/next/prev + volume |
