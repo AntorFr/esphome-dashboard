@@ -1,6 +1,15 @@
 # Référence locale non-gitée (clones de libs d'inspiration : esphome-dial, etc.)
 /reference/
 
+# Nestor mascot generation scratch (regenerable intermediates / abandoned illustration
+# direction). The kept provenance sources are the two *-source.png; the built font lives in
+# assets/fonts/nestor.ttf.
+/assets/karotz-nabaztag-generated-transparent.png
+/assets/karotz-icon-mdi.svg
+/assets/karotz-nabaztag-illustration.png
+/assets/karotz-nabaztag-illustration.svg
+/assets/karotz-nabaztag-illustration-vector.svg
+
 # macOS
 .DS_Store
 
