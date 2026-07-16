@@ -24,6 +24,13 @@ from esphome.components.homeassistant_addon import (
 from esphome.components.lvgl import lv_validation as lvalid
 from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
 
+# ESPHome 2026.7.0 moved the OnlineImage id class from online_image/__init__.py to
+# online_image/image.py. Resolve it either way so the schema works across releases.
+try:
+    from esphome.components.online_image.image import OnlineImage
+except ImportError:  # older ESPHome
+    OnlineImage = online_image.OnlineImage
+
 CODEOWNERS = ["@AntorFR"]
 DEPENDENCIES = ["lvgl"]
 # sensor / binary_sensor / switch sont toujours référencés par le C++ (encodeur/bouton du
@@ -178,10 +185,10 @@ GROUP_SCHEMA = cv.All(
             cv.Optional(CONF_IMAGE_FORMAT, default="jpg"): cv.one_of("jpg", "bmp", lower=True),
             cv.Optional(CONF_HTTP_REQUEST_ID): cv.use_id(http_request.HttpRequestComponent),
             # Grid cover slots (one per favourite, 350px) — optional.
-            cv.Optional(CONF_COVER_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
+            cv.Optional(CONF_COVER_SLOTS): cv.ensure_list(cv.use_id(OnlineImage)),
             # Detail slots: slot 0 = header/now-playing, slots 1.. = episode thumbnails (96px).
             # A pool dedicated to the detail view so drilling in/out never disturbs the grid.
-            cv.Optional(CONF_THUMB_SLOTS): cv.ensure_list(cv.use_id(online_image.OnlineImage)),
+            cv.Optional(CONF_THUMB_SLOTS): cv.ensure_list(cv.use_id(OnlineImage)),
         }
     ),
     _validate_group,
