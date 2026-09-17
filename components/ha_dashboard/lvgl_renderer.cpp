@@ -1232,6 +1232,18 @@ static void settings_click_cb(lv_event_t *e) {
   if (self != nullptr)
     self->emit(InputEvent::TOGGLE_CLICK, -1);
 }
+static void settings_restart_cb(lv_event_t *e) {
+  auto *self = static_cast<LvglRenderer *>(lv_event_get_user_data(e));
+  if (self != nullptr)
+    self->settings_restart_tap_();
+}
+// The confirm expires on its own: an armed button must never stay armed under a stray finger.
+static void settings_restart_timeout_cb(lv_timer_t *t) {
+  auto *self = static_cast<LvglRenderer *>(lv_timer_get_user_data(t));
+  if (self != nullptr)
+    self->settings_restart_disarm_();
+}
+static constexpr uint32_t RESTART_CONFIRM_MS = 5000;
 
 void LvglRenderer::build_settings_() {
   if (this->settings_scr_ != nullptr)
@@ -1391,15 +1403,78 @@ void LvglRenderer::build_settings_() {
   lv_obj_set_style_bg_color(this->set_click_knob_, lv_color_hex(0xFFFFFF), 0);
   lv_obj_set_style_bg_opa(this->set_click_knob_, LV_OPA_COVER, 0);
   lv_obj_align(this->set_click_knob_, LV_ALIGN_LEFT_MID, 0, 0);
+
+  // Restart row: the whole card is the button, and it takes two taps (see settings_restart_tap_).
+  this->set_restart_btn_ = lv_button_create(this->settings_scr_);
+  lv_obj_set_width(this->set_restart_btn_, lv_pct(100));
+  lv_obj_set_height(this->set_restart_btn_, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_color(this->set_restart_btn_, lv_color_hex(COL_TILE), 0);
+  lv_obj_set_style_bg_opa(this->set_restart_btn_, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(this->set_restart_btn_, 22, 0);
+  lv_obj_set_style_pad_all(this->set_restart_btn_, 26, 0);
+  lv_obj_set_style_shadow_width(this->set_restart_btn_, 0, 0);
+  lv_obj_set_flex_flow(this->set_restart_btn_, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(this->set_restart_btn_, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_clear_flag(this->set_restart_btn_, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(this->set_restart_btn_, settings_restart_cb, LV_EVENT_CLICKED, this);
+  this->set_restart_lbl_ = lv_label_create(this->set_restart_btn_);
+  lv_obj_set_style_text_color(this->set_restart_lbl_, lv_color_hex(COL_TEXT), 0);
+  this->set_text_font_(this->set_restart_lbl_, this->font_medium_, &lv_font_montserrat_28);
+  this->set_restart_icon_ = lv_label_create(this->set_restart_btn_);
+  lv_label_set_text(this->set_restart_icon_, LV_SYMBOL_POWER);  // built-in symbol: no MDI glyph needed
+  lv_obj_set_style_text_color(this->set_restart_icon_, lv_color_hex(COL_MUTED), 0);
+  lv_obj_set_style_text_font(this->set_restart_icon_, &lv_font_montserrat_28, 0);
+  this->settings_restart_disarm_();  // sets the resting label/colours
+}
+
+// First tap arms the confirm (red "Confirmer ?"), second one reboots: a stray touch on the
+// shade must never restart the device. The armed state expires after RESTART_CONFIRM_MS.
+void LvglRenderer::settings_restart_tap_() {
+  if (this->set_restart_btn_ == nullptr)
+    return;
+  if (!this->set_restart_armed_) {
+    this->set_restart_armed_ = true;
+    lv_obj_set_style_bg_color(this->set_restart_btn_, lv_color_hex(0x3A1D22), 0);
+    lv_label_set_text(this->set_restart_lbl_, "Confirmer ?");
+    lv_obj_set_style_text_color(this->set_restart_lbl_, lv_color_hex(COL_ERR), 0);
+    lv_obj_set_style_text_color(this->set_restart_icon_, lv_color_hex(COL_ERR), 0);
+    if (this->set_restart_timer_ == nullptr) {
+      this->set_restart_timer_ = lv_timer_create(settings_restart_timeout_cb, RESTART_CONFIRM_MS, this);
+    } else {
+      lv_timer_reset(this->set_restart_timer_);
+      lv_timer_resume(this->set_restart_timer_);
+    }
+    return;
+  }
+  this->set_restart_armed_ = false;
+  if (this->set_restart_timer_ != nullptr)
+    lv_timer_pause(this->set_restart_timer_);
+  lv_label_set_text(this->set_restart_lbl_, "Redémarrage...");
+  this->emit(InputEvent::RESTART, -1);
+}
+
+void LvglRenderer::settings_restart_disarm_() {
+  this->set_restart_armed_ = false;
+  if (this->set_restart_timer_ != nullptr)
+    lv_timer_pause(this->set_restart_timer_);
+  if (this->set_restart_btn_ == nullptr)
+    return;
+  lv_obj_set_style_bg_color(this->set_restart_btn_, lv_color_hex(COL_TILE), 0);
+  lv_label_set_text(this->set_restart_lbl_, "Redémarrer");
+  lv_obj_set_style_text_color(this->set_restart_lbl_, lv_color_hex(COL_TEXT), 0);
+  lv_obj_set_style_text_color(this->set_restart_icon_, lv_color_hex(COL_MUTED), 0);
 }
 
 void LvglRenderer::show_settings_() {
   this->build_settings_();
+  this->settings_restart_disarm_();
   lv_obj_clear_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(this->settings_scr_);
 }
 
 void LvglRenderer::hide_settings_() {
+  this->settings_restart_disarm_();
   if (this->settings_scr_ != nullptr)
     lv_obj_add_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
 }

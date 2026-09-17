@@ -71,6 +71,10 @@ class LvglRenderer : public Renderer {
   // Push current values from the component (entities + battery) into the widgets.
   void update_settings_(int volume, int brightness, int standby_min, bool click_on,
                         int battery_pct, bool charging);
+  // "Redémarrer" row: first tap arms the confirm, second one emits RESTART. Public so the
+  // static LVGL click/timeout callbacks reach them.
+  void settings_restart_tap_();
+  void settings_restart_disarm_();
 
   // Multi-day weather forecast overlay (opened by tapping the header weather widget).
   void show_forecast_();
@@ -303,6 +307,11 @@ class LvglRenderer : public Renderer {
   lv_obj_t *set_standby_val_{nullptr};
   lv_obj_t *set_click_tgl_{nullptr};    // pill button acting as a switch
   lv_obj_t *set_click_knob_{nullptr};   // the knob moved left/right for off/on
+  lv_obj_t *set_restart_btn_{nullptr};  // "Redémarrer" row (two-step confirm)
+  lv_obj_t *set_restart_lbl_{nullptr};
+  lv_obj_t *set_restart_icon_{nullptr};
+  lv_timer_t *set_restart_timer_{nullptr};  // disarms the confirm if the second tap never comes
+  bool set_restart_armed_{false};
 
   // Forecast overlay.
   void build_forecast_();

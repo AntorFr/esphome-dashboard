@@ -84,6 +84,7 @@ enum class InputEvent : uint8_t {
   SET_BRIGHTNESS,          // set screen brightness (index = 0..100)
   SET_STANDBY,             // set standby delay in minutes (index = 0..30, 0 = never)
   TOGGLE_CLICK,            // toggle the touch click sound
+  RESTART,                 // reboot the device (settings shade, two-step confirm)
 
   OPEN_FORECAST,           // tap the header weather widget -> open the multi-day forecast
   FORECAST_CLOSE,          // close the forecast overlay

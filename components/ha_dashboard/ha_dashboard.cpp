@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <lvgl.h>
 #include "esphome/components/api/api_server.h"
+#include "esphome/core/application.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 #ifdef USE_VOICE_ASSISTANT
@@ -528,6 +529,11 @@ void HaDashboard::handle_event_(InputEvent e, int idx) {
       if (this->click_switch_ != nullptr)
         this->click_switch_->toggle();
       this->push_settings_();
+      break;
+    case InputEvent::RESTART:
+      // Deferred: let LVGL finish this event (and paint "Redémarrage...") before the teardown.
+      ESP_LOGI(TAG, "settings: restart requested from the screen");
+      this->set_timeout("ha_dashboard_restart", 400, []() { App.safe_reboot(); });
       break;
     case InputEvent::OPEN_FORECAST:
       this->renderer_.show_forecast_();
