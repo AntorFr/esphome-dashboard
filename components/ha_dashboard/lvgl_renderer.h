@@ -241,6 +241,11 @@ class LvglRenderer : public Renderer {
   // groups), with a render signature to skip rebuilds when nothing changed.
   std::vector<lv_obj_t *> launcher_grids_;
   std::vector<long> launcher_sig_;
+  // Detail list paging state: the group whose rows are built, how many, and the footer
+  // ("Charger plus" / "Chargement...") to swap when the next page lands.
+  int launcher_page_gi_{-1};
+  size_t launcher_page_built_{0};
+  lv_obj_t *launcher_footer_{nullptr};
   int active_group_{0};  // group currently shown on the dashboard (for the control sheet)
 
   // Control sheet (more-info modal on the top layer). Built once; content rebuilt per open.

@@ -3053,19 +3053,29 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return;
   this->launcher_sig_[gi] = sig;
 
+  // "Charger plus" paging (same drill, still READY, rows only added / footer toggled): append
+  // the new rows below the existing ones instead of rebuilding. A full rebuild jumped the list
+  // back to the top and cost seconds once a few pages were loaded.
+  const bool paging = detail && L->status() == LauncherStatus::READY && this->launcher_page_gi_ == gi &&
+                      this->launcher_page_built_ > 0 && L->items().size() >= this->launcher_page_built_;
+
   // Rebuild with the list HIDDEN. LVGL 9.5 walks every object of the screen on each visible
   // invalidation (blur support), so deleting + creating + laying out N rows in view cost ~N^2:
   // after a few "Charger plus" pages (hundreds of objects) one rebuild blocked the loop past
   // the 5 s task watchdog (crash captured on hardware). Hidden objects skip that walk; lay out
   // while hidden, then reveal once (a single invalidation).
-  lv_obj_add_flag(grid, LV_OBJ_FLAG_HIDDEN);
+  // (Paging appends off-screen rows only: no need to hide, and hiding would flash the list.)
+  if (!paging)
+    lv_obj_add_flag(grid, LV_OBJ_FLAG_HIDDEN);
   struct RevealOnExit {
     lv_obj_t *obj;
     ~RevealOnExit() {
+      if (this->obj == nullptr)
+        return;
       lv_obj_update_layout(this->obj);
       lv_obj_clear_flag(this->obj, LV_OBJ_FLAG_HIDDEN);
     }
-  } reveal{grid};
+  } reveal{paging ? nullptr : grid};
 
   // Deleting the rows fires SCROLL / SCROLL_END on the list, whose handler re-assigns episode
   // thumbnails: ignore scroll events for the whole rebuild, and drop every pointer to the old
@@ -3078,6 +3088,13 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     ~EndRebuild() { this->flag = false; }
   } end_rebuild{this->launcher_rebuilding_};
 
+  if (paging) {
+    if (this->launcher_footer_ != nullptr)
+      lv_obj_delete(this->launcher_footer_);  // "Charger plus" / "Chargement..." is re-added below
+    this->launcher_footer_ = nullptr;
+  } else {
+  this->launcher_footer_ = nullptr;
+  this->launcher_page_built_ = 0;
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // The cover widgets we are about to destroy and re-create: drop stale pointers first so
   // neither a scroll event nor a late download callback can touch a freed object. We keep cover_url_list_ intact so a
@@ -3114,6 +3131,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_row(grid, 14, 0);
   }
+  }  // !paging
 
   auto add_button = [this, grid](const char *text, const lv_font_t *fb, uint32_t color, InputEvent ev,
                                  int idx) -> lv_obj_t * {
@@ -3335,7 +3353,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   };
 
   // Detail level: a header row [ back chevron | parent cover | big title ].
-  if (detail) {
+  if (detail && !paging) {
     lv_obj_t *head = lv_obj_create(grid);
     lv_obj_set_width(head, lv_pct(100));
     lv_obj_set_height(head, LV_SIZE_CONTENT);
@@ -3416,13 +3434,14 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   const std::vector<QuickItem> &items = L->items();
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   if (detail) {
-    this->ep_row_.assign(items.size(), nullptr);
-    this->ep_img_.assign(items.size(), nullptr);
-    this->ep_url_.assign(items.size(), std::string());
-    this->ep_slot_.assign(items.size(), -1);
+    // resize keeps the rows already built when paging (a full rebuild cleared these above).
+    this->ep_row_.resize(items.size(), nullptr);
+    this->ep_img_.resize(items.size(), nullptr);
+    this->ep_url_.resize(items.size(), std::string());
+    this->ep_slot_.resize(items.size(), -1);
   }
 #endif
-  for (size_t i = 0; i < items.size(); i++) {
+  for (size_t i = paging ? this->launcher_page_built_ : 0; i < items.size(); i++) {
     if (!detail) {
       make_cover_tile(items[i], (int) i);  // cover grid tile (play + optional drill button)
     } else {
@@ -3437,8 +3456,10 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_label_set_text(lbl, "Chargement...");
       lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
       this->set_text_font_(lbl, this->font_small_, &lv_font_montserrat_20);
+      this->launcher_footer_ = lbl;
     } else {
-      add_button("Charger plus", &lv_font_montserrat_28, COL_ACCENT, InputEvent::LAUNCHER_LOAD_MORE, -1);
+      this->launcher_footer_ =
+          add_button("Charger plus", &lv_font_montserrat_28, COL_ACCENT, InputEvent::LAUNCHER_LOAD_MORE, -1);
     }
   }
 
@@ -3446,16 +3467,21 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   // Detail: episode thumbnails use the recyclable pool (thumb_slots[1..]; slot 0 = header).
   // Assign the on-screen rows their slots now; the rest are (re)assigned as the list scrolls.
   if (detail) {
-    this->ep_list_ = grid;
-    for (size_t s = 1; s < g.thumb_slots.size(); s++)
-      if (g.thumb_slots[s] != nullptr)
-        this->ep_thumb_slots_.push_back(g.thumb_slots[s]);
-    this->thumb_owner_.assign(this->ep_thumb_slots_.size(), -1);
+    if (!paging) {
+      this->ep_list_ = grid;
+      for (size_t s = 1; s < g.thumb_slots.size(); s++)
+        if (g.thumb_slots[s] != nullptr)
+          this->ep_thumb_slots_.push_back(g.thumb_slots[s]);
+      this->thumb_owner_.assign(this->ep_thumb_slots_.size(), -1);
+    }
     this->assign_episode_thumbs_();
   }
   // Start the serial cover downloads (one at a time; the rest follow via advance_cover_).
   this->pump_covers_();
 #endif
+  // Remember what's on screen so the next "Charger plus" can append instead of rebuilding.
+  this->launcher_page_gi_ = gi;
+  this->launcher_page_built_ = detail ? items.size() : 0;
 }
 
 const Group *LvglRenderer::first_launcher_(const ViewModel &vm) const {
