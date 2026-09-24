@@ -158,3 +158,23 @@ button required.
 **Note**: changing `flash_size` rewrites the partition table, so that first flash **must be
 serial** (OTA can't repartition, and the new image won't fit the old 1.84MB OTA slot).
 Subsequent updates can go back to OTA over WiFi.
+
+## 13. `new` / `std::string` never use PSRAM — large buffers must go through `RAMAllocator`
+
+**Symptom**: the D1001 rebooted with `abort() was called` on core 0 while opening a launcher
+item. Decoded backtrace: `std::bad_alloc` thrown from `std::string::_M_append` in the launcher
+HTTP worker (`read_body`), growing a ~20 KB response body from 16 KB to 32 KB.
+
+**Cause**: ESPHome builds with `CONFIG_SPIRAM_USE_CAPS_ALLOC` (not `SPIRAM_USE_MALLOC`), so plain
+`malloc` / `new` / STL containers draw **only on internal RAM** (~350 KB free, fragmented). A
+32 KB contiguous internal block was not available at that moment (audio pipelines + cover
+decodes), and with exceptions disabled `bad_alloc` is an `abort()`.
+
+**Fix**: put large or growing buffers in PSRAM explicitly via `RAMAllocator` (default flags =
+PSRAM first) and handle a null return as a clean failure — see `HttpBody` in
+`http_music_library.h`. ESPHome's own JSON parser already uses a PSRAM allocator.
+
+**Decoding tip**: crash addresses only decode against the ELF of the *deployed* build. Rebuild
+the device config pinned to the deployed commit (`ref: <sha>`) with the same ESPHome version,
+then run `riscv32-esp-elf-addr2line -pfiaC -e firmware.elf <addrs>` on the panic dump from the
+USB serial log.

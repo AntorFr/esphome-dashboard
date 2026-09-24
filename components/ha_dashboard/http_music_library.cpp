@@ -3,7 +3,10 @@
 #include "esphome/components/json/json_util.h"
 #include "esphome/core/application.h"
 #include "esphome/core/hal.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+#include <algorithm>
+#include <cstring>
 
 namespace esphome {
 namespace ha_dashboard {
@@ -60,16 +63,54 @@ static std::string append_query(std::string u, const char *key, const std::strin
   return u;
 }
 
+// Hard cap on a response body: a launcher page is ~20 KB; anything far larger is a server bug,
+// refused instead of eating PSRAM.
+static constexpr size_t MAX_BODY_BYTES = 512 * 1024;
+
+HttpBody::~HttpBody() { RAMAllocator<uint8_t>().deallocate(this->data_, this->cap_); }
+
+bool HttpBody::reserve(size_t cap) {
+  if (cap <= this->cap_)
+    return true;
+  if (cap > MAX_BODY_BYTES)
+    return false;
+  // Default RAMAllocator flags: PSRAM first, internal RAM only as a fallback.
+  uint8_t *p = RAMAllocator<uint8_t>().reallocate(this->data_, cap);
+  if (p == nullptr)
+    return false;
+  this->data_ = p;
+  this->cap_ = cap;
+  return true;
+}
+
+bool HttpBody::append(const uint8_t *src, size_t n) {
+  if (this->len_ + n > this->cap_) {
+    size_t want = std::max(this->len_ + n, std::min(this->cap_ * 2 + 1024, MAX_BODY_BYTES));
+    if (!this->reserve(want))
+      return false;
+  }
+  memcpy(this->data_ + this->len_, src, n);
+  this->len_ += n;
+  return true;
+}
+
 // Read a full response body into `out`. Blocks until COMPLETE / error / timeout (on the
 // worker task, so the main loop is never frozen).
-static bool read_body(http_request::HttpContainer *c, std::string &out, uint32_t timeout_ms) {
+static bool read_body(http_request::HttpContainer *c, HttpBody &out, uint32_t timeout_ms) {
+  if (c->content_length > 0 && !out.reserve(c->content_length)) {
+    ESP_LOGW(TAG, "response too large / no memory (%u bytes)", (unsigned) c->content_length);
+    return false;
+  }
   uint8_t buf[256];
   uint32_t last = millis();
   while (true) {
     int r = c->read(buf, sizeof(buf));
     auto res = http_request::http_read_loop_result(r, last, timeout_ms, c->is_read_complete());
     if (res == http_request::HttpReadLoopResult::DATA) {
-      out.append(reinterpret_cast<char *>(buf), r);
+      if (!out.append(buf, r)) {
+        ESP_LOGW(TAG, "response body: out of memory at %u bytes", (unsigned) out.size());
+        return false;
+      }
       continue;
     }
     if (res == http_request::HttpReadLoopResult::RETRY) {
@@ -80,7 +121,7 @@ static bool read_body(http_request::HttpContainer *c, std::string &out, uint32_t
   }
 }
 
-bool HttpMusicLibrary::http_get_(const std::string &url, std::string &body) {
+bool HttpMusicLibrary::http_get_(const std::string &url, HttpBody &body) {
   if (this->http_ == nullptr)
     return false;
   auto container = this->http_->get(url);
@@ -184,10 +225,10 @@ void HttpMusicLibrary::fetch_favorites(const std::string &owner, QuickItemsCallb
   auto result = std::make_shared<FavResult>();
   this->enqueue_(
       [this, url, base, img_fmt, result]() {
-        std::string body;
+        HttpBody body;
         bool ok = this->http_get_(url, body);
         if (ok) {
-          ok = json::parse_json(body, [result, &base, &img_fmt](JsonObject root) -> bool {
+          ok = json::parse_json(body.data(), body.size(), [result, &base, &img_fmt](JsonObject root) -> bool {
             JsonArray arr = root["items"].as<JsonArray>();
             if (arr.isNull())
               return false;
@@ -220,10 +261,10 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
   auto result = std::make_shared<ChildResult>();
   this->enqueue_(
       [this, url, base, img_fmt, result]() {
-        std::string body;
+        HttpBody body;
         bool ok = this->http_get_(url, body);
         if (ok) {
-          ok = json::parse_json(body, [result, &base, &img_fmt](JsonObject root) -> bool {
+          ok = json::parse_json(body.data(), body.size(), [result, &base, &img_fmt](JsonObject root) -> bool {
             result->has_more = root["has_more"] | false;
             JsonArray arr = root["items"].as<JsonArray>();
             if (arr.isNull())
@@ -253,10 +294,10 @@ void HttpMusicLibrary::fetch_now_playing(NowPlayingCallback cb) {
   auto result = std::make_shared<NpResult>();
   this->enqueue_(
       [this, url, base, img_fmt, result]() {
-        std::string body;
+        HttpBody body;
         bool ok = this->http_get_(url, body);
         if (ok) {
-          ok = json::parse_json(body, [result, &base, &img_fmt](JsonObject root) -> bool {
+          ok = json::parse_json(body.data(), body.size(), [result, &base, &img_fmt](JsonObject root) -> bool {
             NowPlaying &np = result->np;
             np.available = root["available"] | false;
             np.state = root["state"] | "idle";

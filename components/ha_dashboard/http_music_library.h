@@ -23,6 +23,27 @@
 namespace esphome {
 namespace ha_dashboard {
 
+// A response body held in PSRAM. The build uses CONFIG_SPIRAM_USE_CAPS_ALLOC, so std::string /
+// new only draw on internal RAM: a ~20 KB launcher page grown by doubling needed a 32 KB
+// contiguous internal block, and under audio/cover pressure that threw bad_alloc -> abort()
+// (crash captured on hardware). Growth failure here is a clean request failure, not a crash.
+class HttpBody {
+ public:
+  HttpBody() = default;
+  HttpBody(const HttpBody &) = delete;
+  HttpBody &operator=(const HttpBody &) = delete;
+  ~HttpBody();
+  bool reserve(size_t cap);
+  bool append(const uint8_t *src, size_t n);
+  const uint8_t *data() const { return this->data_; }
+  size_t size() const { return this->len_; }
+
+ protected:
+  uint8_t *data_{nullptr};
+  size_t len_{0};
+  size_t cap_{0};
+};
+
 class HttpMusicLibrary : public MusicLibraryBackend {
  public:
   void set_http(http_request::HttpRequestComponent *http) { this->http_ = http; }
@@ -51,7 +72,7 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   void process_pending();
 
  protected:
-  bool http_get_(const std::string &url, std::string &body);
+  bool http_get_(const std::string &url, HttpBody &body);
   bool http_post_(const std::string &url);
 
   // Queue `work` (blocking HTTP+parse, runs on the worker task) then `deliver` (runs on the
