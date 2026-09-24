@@ -2437,6 +2437,12 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_pad_row(root, 16, 0);
   lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
   lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+  // The root's top padding (above the header) is where a finger coming from the bezel lands
+  // first: listen there too, else a swipe from the very top edge is lost. Children don't bubble
+  // to the root (tabs/grid have their own handlers); dash_swipe_cb's start-y guard keeps it top-only.
+  lv_obj_add_event_cb(root, dash_swipe_cb, LV_EVENT_PRESSED, this);
+  lv_obj_add_event_cb(root, dash_swipe_cb, LV_EVENT_RELEASED, this);
+  lv_obj_add_event_cb(root, dash_swipe_cb, LV_EVENT_PRESS_LOST, this);
 
   // --- Header: [time / date]  ........  [weather] ---
   this->dash_header_ = lv_obj_create(root);
