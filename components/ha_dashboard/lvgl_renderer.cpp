@@ -39,8 +39,10 @@ struct CbData {
   int index;
   std::string toast;  // optional launch-confirmation toast text (empty = no toast)
 };
-// Conserve les CbData vivantes pour toute la durée de vie (pas de free).
-static std::vector<CbData *> g_cbdata;
+// Each CbData is owned by the widget it is bound to (bind_click_) and freed with it. They used
+// to be kept forever: every launcher / control-sheet rebuild leaked one per button, draining
+// internal RAM (~120 KB in a few minutes of launcher browsing).
+static void bind_click_(lv_obj_t *obj, CbData *d);
 
 static uint32_t accent_for(const Card &c);    // defined below
 static const char *icon_for(const Card &c);   // defined below (LVGL symbol fallback)
@@ -159,17 +161,31 @@ static void btn_event_cb(lv_event_t *e) {
   auto *d = static_cast<CbData *>(lv_event_get_user_data(e));
   if (d == nullptr || d->renderer == nullptr)
     return;
-  d->renderer->emit(d->event, d->index);
-  if (!d->toast.empty())
-    d->renderer->show_toast(d->toast);
+  // Copy first: emit() can rebuild the list this button lives in, deleting the button — and
+  // with it `d` (freed on LV_EVENT_DELETE). Never touch `d` after emit().
+  LvglRenderer *r = d->renderer;
+  const InputEvent ev = d->event;
+  const int idx = d->index;
+  const std::string toast = d->toast;
+  r->emit(ev, idx);
+  if (!toast.empty())
+    r->show_toast(toast);
   // The control sheet is a renderer overlay: show/hide it here (the controller only tracks
   // which card the sheet acts on).
-  if (d->event == InputEvent::OPEN_SHEET)
-    d->renderer->show_sheet_(d->index);
-  else if (d->event == InputEvent::SHEET_CLOSE)
-    d->renderer->hide_sheet_();
-  else if (d->event == InputEvent::OPEN_TIMERS)
-    d->renderer->show_timers_();
+  if (ev == InputEvent::OPEN_SHEET)
+    r->show_sheet_(idx);
+  else if (ev == InputEvent::SHEET_CLOSE)
+    r->hide_sheet_();
+  else if (ev == InputEvent::OPEN_TIMERS)
+    r->show_timers_();
+}
+
+static void cbdata_delete_cb(lv_event_t *e) { delete static_cast<CbData *>(lv_event_get_user_data(e)); }
+
+// Route taps on `obj` to btn_event_cb with `d`, and free `d` when `obj` is deleted.
+static void bind_click_(lv_obj_t *obj, CbData *d) {
+  lv_obj_add_event_cb(obj, btn_event_cb, LV_EVENT_CLICKED, d);
+  lv_obj_add_event_cb(obj, cbdata_delete_cb, LV_EVENT_DELETE, d);
 }
 
 // Control-sheet slider (volume / position / brightness): emit the value once released.
@@ -335,8 +351,7 @@ void LvglRenderer::show_sheet_(int card_index) {
     lv_obj_set_style_bg_opa(this->sheet_scrim_, LV_OPA_50, 0);
     lv_obj_add_flag(this->sheet_scrim_, LV_OBJ_FLAG_CLICKABLE);
     auto *sc = new CbData{this, InputEvent::SHEET_CLOSE, -1};
-    g_cbdata.push_back(sc);
-    lv_obj_add_event_cb(this->sheet_scrim_, btn_event_cb, LV_EVENT_CLICKED, sc);
+    bind_click_(this->sheet_scrim_, sc);
 
     this->sheet_root_ = lv_obj_create(lv_layer_top());
     lv_obj_set_size(this->sheet_root_, lv_pct(100), lv_pct(84));
@@ -376,8 +391,7 @@ void LvglRenderer::show_sheet_(int card_index) {
     lv_obj_set_style_text_font(cl, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(cl, lv_color_hex(COL_MUTED), 0);
     auto *dc = new CbData{this, InputEvent::SHEET_CLOSE, -1};
-    g_cbdata.push_back(dc);
-    lv_obj_add_event_cb(close, btn_event_cb, LV_EVENT_CLICKED, dc);
+    bind_click_(close, dc);
 
     this->sheet_body_ = lv_obj_create(this->sheet_root_);
     lv_obj_set_width(this->sheet_body_, lv_pct(100));
@@ -452,8 +466,7 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
     lv_obj_set_style_text_font(l, font, 0);
     lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x06281A : COL_TEXT), 0);
     auto *d = new CbData{this, ev, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(b, d);
     return l;
   };
   auto make_slider = [this, accent](uint32_t icon_col, const char *icon, const lv_font_t *ifont) {
@@ -524,8 +537,7 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
       this->set_text_font_(lb, this->font_small_, &lv_font_montserrat_20);
       lv_obj_set_style_text_color(lb, lv_color_hex(COL_MUTED), 0);
       auto *d = new CbData{this, InputEvent::SHEET_MODE, i};
-      g_cbdata.push_back(d);
-      lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+      bind_click_(b, d);
       this->sheet_modes_[i] = b;
     }
   } else if (c.type == CardType::MEDIA_PLAYER) {
@@ -580,8 +592,7 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
       lv_obj_set_style_border_width(b, 4, 0);
       lv_obj_set_style_border_color(b, lv_color_hex(COL_TILE), 0);
       auto *d = new CbData{this, ev, idx};
-      g_cbdata.push_back(d);
-      lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+      bind_click_(b, d);
       return b;
     };
 
@@ -631,8 +642,7 @@ void LvglRenderer::build_sheet_content_(const Card &c) {
         this->set_text_font_(l, this->font_small_, &lv_font_montserrat_20);
         lv_obj_set_style_text_color(l, lv_color_hex(COL_TEXT), 0);
         auto *d = new CbData{this, InputEvent::SHEET_SET_EFFECT, (int) i};
-        g_cbdata.push_back(d);
-        lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+        bind_click_(b, d);
         this->sheet_effect_btns_.push_back(b);
       }
     }
@@ -743,8 +753,7 @@ static lv_obj_t *voice_btn_(LvglRenderer *self, lv_obj_t *parent, const char *sy
     lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x04222E : COL_TEXT), 0);
   }
   auto *d = new CbData{self, ev, -1};
-  g_cbdata.push_back(d);
-  lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+  bind_click_(b, d);
   return b;
 }
 
@@ -777,8 +786,7 @@ void LvglRenderer::build_voice_() {
   lv_obj_set_style_text_color(cx, lv_color_hex(COL_MUTED), 0);
   {
     auto *d = new CbData{this, InputEvent::VOICE_CANCEL, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(this->voice_close_, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(this->voice_close_, d);
   }
 
   // Central orb (circle + large glyph).
@@ -1925,8 +1933,7 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     this->set_text_font_(this->idle_wx_cond_, this->font_small_, &lv_font_montserrat_20);
 
     auto *d = new CbData{this, InputEvent::WAKE, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(this->idle_scr_, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(this->idle_scr_, d);
   }
 
   // Dial radial launcher + card carousel (round profile). D1001 uses the merged dashboard.
@@ -2337,8 +2344,7 @@ void LvglRenderer::build_card_view_() {
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
     lv_obj_center(lbl);
     auto *d = new CbData{this, m.ev, -1};  // NOLINT(cppcoreguidelines-owning-memory)
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(b, d);
     *m.slot = b;
     *m.lbl_slot = lbl;
     *m.cb_slot = d;
@@ -2524,8 +2530,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   this->set_text_font_(this->timer_pill_lbl_, this->font_medium_, &lv_font_montserrat_28);
   {
     auto *d = new CbData{this, InputEvent::OPEN_TIMERS, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(this->timer_pill_, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(this->timer_pill_, d);
   }
 
   // Microphone chip: tap = tap-to-talk (start listening). State reflects armed/listening/muted.
@@ -2548,8 +2553,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   }
   {
     auto *d = new CbData{this, InputEvent::VOICE_START, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(this->mic_chip_, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(this->mic_chip_, d);
   }
 
   // Now-playing button -> opens the "now playing" card.
@@ -2566,8 +2570,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_set_style_text_color(npi, lv_color_hex(0xA06CFF), 0);  // music = media purple
   {
     auto *d = new CbData{this, InputEvent::OPEN_NOW_PLAYING, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(this->np_btn_, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(this->np_btn_, d);
   }
 
   // Right: weather (icon + temperature on one line, condition below), bound to a HA entity.
@@ -2583,8 +2586,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_add_flag(weather, LV_OBJ_FLAG_CLICKABLE);  // tap -> multi-day forecast overlay
   {
     auto *d = new CbData{this, InputEvent::OPEN_FORECAST, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(weather, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(weather, d);
   }
 
   lv_obj_t *wrow = lv_obj_create(weather);  // icon + temperature, same line
@@ -2640,8 +2642,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     lv_label_set_text(lbl, groups[gi].name.c_str());
     this->set_text_font_(lbl, this->font_medium_, &lv_font_montserrat_28);
     auto *d = new CbData{this, InputEvent::SELECT_GROUP, (int) gi};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(tab, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(tab, d);
     this->tab_btns_.push_back(tab);
     this->tab_lbls_.push_back(lbl);
   }
@@ -2710,8 +2711,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
         lv_obj_add_flag(t.icon, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_pad_all(t.icon, 8, 0);
         auto *di = new CbData{this, InputEvent::OPEN_SHEET, (int) ci};
-        g_cbdata.push_back(di);
-        lv_obj_add_event_cb(t.icon, btn_event_cb, LV_EVENT_CLICKED, di);
+        bind_click_(t.icon, di);
       }
 
       if (is_media || is_cover) {
@@ -2730,8 +2730,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
         lv_obj_set_style_text_color(t.state, lv_color_hex(is_media ? 0x06281A : 0xFFFFFF), 0);
         lv_obj_set_style_text_font(t.state, &lv_font_montserrat_28, 0);
         auto *dp = new CbData{this, InputEvent::TOGGLE, (int) ci};  // primary action (play_pause / open-close)
-        g_cbdata.push_back(dp);
-        lv_obj_add_event_cb(pb, btn_event_cb, LV_EVENT_CLICKED, dp);
+        bind_click_(pb, dp);
       } else {
         t.state = lv_label_create(toprow);
         char sbuf[24];
@@ -2763,8 +2762,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
                                ? InputEvent::OPEN_SHEET
                                : InputEvent::TOGGLE;
       auto *d = new CbData{this, tile_ev, (int) ci};
-      g_cbdata.push_back(d);
-      lv_obj_add_event_cb(tile, btn_event_cb, LV_EVENT_CLICKED, d);
+      bind_click_(tile, d);
       tiles.push_back(t);
     }
     this->group_grids_.push_back(grid);
@@ -3041,8 +3039,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
     this->set_text_font_(l, this->font_medium_, fb);
     auto *d = new CbData{this, ev, idx};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(b, d);
     return b;
   };
 
@@ -3155,8 +3152,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     if (!g.player_name.empty())
       toast += "\nlecture sur " + g.player_name;  // second line in the toast
     auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx, toast};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(playbtn, d);
 
     if (item.has_children) {
       lv_obj_t *eps = lv_button_create(actions);
@@ -3181,8 +3177,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_style_text_color(el, lv_color_hex(COL_ACCENT), 0);
       this->set_text_font_(el, this->font_small_, &lv_font_montserrat_20);
       auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
-      g_cbdata.push_back(dc);
-      lv_obj_add_event_cb(eps, btn_event_cb, LV_EVENT_CLICKED, dc);
+      bind_click_(eps, dc);
     }
   };
 
@@ -3246,8 +3241,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     if (!g.player_name.empty())
       toast += "\nlecture sur " + g.player_name;  // second line in the toast
     auto *d = new CbData{this, InputEvent::LAUNCHER_ACTIVATE, idx, toast};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(playbtn, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(playbtn, d);
   };
 
   // Detail level: a header row [ back chevron | parent cover | big title ].
@@ -3277,8 +3271,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     lv_obj_set_style_text_font(bi, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(bi, lv_color_hex(COL_TEXT), 0);
     auto *db = new CbData{this, InputEvent::LAUNCHER_BACK, -1};
-    g_cbdata.push_back(db);
-    lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, db);
+    bind_click_(back, db);
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER
     // Parent cover at native 64px on the detail pool's slot 0 (a dedicated slot, not a grid
@@ -3413,8 +3406,7 @@ void LvglRenderer::build_now_playing_() {
   lv_obj_set_style_text_color(bi, lv_color_hex(COL_TEXT), 0);
   {
     auto *d = new CbData{this, InputEvent::BACK, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(back, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(back, d);
   }
 
   this->np_cover_img_ = lv_image_create(root);
@@ -3490,8 +3482,7 @@ void LvglRenderer::build_now_playing_() {
     lv_obj_set_style_text_font(l, primary ? &lv_font_montserrat_48 : &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(l, lv_color_hex(primary ? 0x06281A : COL_TEXT), 0);
     auto *d = new CbData{this, ev, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(b, d);
     return l;
   };
   tbtn(LV_SYMBOL_PREV, 72, InputEvent::NP_PREV, false);
@@ -3525,8 +3516,7 @@ void LvglRenderer::build_now_playing_() {
   this->set_text_font_(this->np_vol_lbl_, this->font_icons_, &lv_font_montserrat_28);
   lv_obj_set_style_text_color(this->np_vol_lbl_, lv_color_hex(COL_MUTED), 0);
   auto *vmd = new CbData{this, InputEvent::NP_MUTE, -1};
-  g_cbdata.push_back(vmd);
-  lv_obj_add_event_cb(vbtn, btn_event_cb, LV_EVENT_CLICKED, vmd);
+  bind_click_(vbtn, vmd);
 
   this->np_vol_slider_ = lv_slider_create(vr);
   lv_obj_set_flex_grow(this->np_vol_slider_, 1);
@@ -3562,8 +3552,7 @@ void LvglRenderer::build_now_playing_() {
     lv_obj_set_style_text_font(l, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(l, lv_color_hex(COL_MUTED), 0);
     auto *d = new CbData{this, ev, -1};
-    g_cbdata.push_back(d);
-    lv_obj_add_event_cb(b, btn_event_cb, LV_EVENT_CLICKED, d);
+    bind_click_(b, d);
     return l;
   };
   this->np_shuffle_lbl_ = cbtn(LV_SYMBOL_SHUFFLE, InputEvent::NP_SHUFFLE);
