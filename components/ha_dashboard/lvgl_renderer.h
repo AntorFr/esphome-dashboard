@@ -295,6 +295,7 @@ class LvglRenderer : public Renderer {
   // Settings shade (top-layer overlay pulled down from the top).
   void build_settings_();
   lv_obj_t *settings_scr_{nullptr};
+  bool launcher_rebuilding_{false};  // render_launcher_ in progress: ignore list scroll events
   lv_obj_t *set_bat_bar_{nullptr};
   lv_obj_t *set_bat_pct_{nullptr};
   lv_obj_t *set_bat_chg_{nullptr};

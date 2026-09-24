@@ -1621,6 +1621,8 @@ void LvglRenderer::hide_forecast_() {
 }
 
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
+  if (this->launcher_rebuilding_)
+    return;  // scroll events fired by render_launcher_ deleting/re-creating the rows
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // Detail list: recycle episode thumbnails to whatever rows are now on screen. Only (re)assign
   // once the scroll SETTLES — assigning mid-drag queues JPEG downloads whose (blocking) decode
@@ -3002,11 +3004,19 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     }
   } reveal{grid};
 
-  lv_obj_clean(grid);  // destroys old children (and their event cbs)
+  // Deleting the rows fires SCROLL / SCROLL_END on the list, whose handler re-assigns episode
+  // thumbnails: ignore scroll events for the whole rebuild, and drop every pointer to the old
+  // rows BEFORE deleting them. Doing it after let the handler call lv_image_set_src on a row
+  // being deleted -> LVGL assert -> hung loop -> task watchdog (crash captured on hardware).
+  this->launcher_rebuilding_ = true;
+  struct EndRebuild {
+    bool &flag;
+    ~EndRebuild() { this->flag = false; }
+  } end_rebuild{this->launcher_rebuilding_};
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER
-  // The cover widgets we are about to (re)create were just destroyed: drop stale pointers so
-  // a late download callback can't touch a freed object. We keep cover_url_list_ intact so a
+  // The cover widgets we are about to destroy and re-create: drop stale pointers first so
+  // neither a scroll event nor a late download callback can touch a freed object. We keep cover_url_list_ intact so a
   // slot already holding the right image is not re-downloaded. Reset the serial queue too.
   auto clear_widgets = [this](const std::vector<online_image::OnlineImage *> &pool) {
     for (auto *slot : pool)
@@ -3027,6 +3037,8 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   this->thumb_owner_.clear();
   this->ep_list_ = nullptr;
 #endif
+
+  lv_obj_clean(grid);  // destroys old children (and their event cbs / CbData)
 
   // Grid level = wrapping cover grid (2 columns); detail level = vertical list.
   if (detail) {
