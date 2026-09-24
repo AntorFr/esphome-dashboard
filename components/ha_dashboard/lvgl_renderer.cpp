@@ -2988,6 +2988,20 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     return;
   this->launcher_sig_[gi] = sig;
 
+  // Rebuild with the list HIDDEN. LVGL 9.5 walks every object of the screen on each visible
+  // invalidation (blur support), so deleting + creating + laying out N rows in view cost ~N^2:
+  // after a few "Charger plus" pages (hundreds of objects) one rebuild blocked the loop past
+  // the 5 s task watchdog (crash captured on hardware). Hidden objects skip that walk; lay out
+  // while hidden, then reveal once (a single invalidation).
+  lv_obj_add_flag(grid, LV_OBJ_FLAG_HIDDEN);
+  struct RevealOnExit {
+    lv_obj_t *obj;
+    ~RevealOnExit() {
+      lv_obj_update_layout(this->obj);
+      lv_obj_clear_flag(this->obj, LV_OBJ_FLAG_HIDDEN);
+    }
+  } reveal{grid};
+
   lv_obj_clean(grid);  // destroys old children (and their event cbs)
 
 #ifdef USE_HA_DASHBOARD_LAUNCHER

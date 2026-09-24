@@ -8,5 +8,5 @@
 - [x] Plantage abort() capturé (bad_alloc, corps HTTP du lanceur en RAM interne) — corps déplacé en PSRAM
 - [ ] Test en cours sur la tablette d'Émilie (flashée en local le 2026-09-24 21:44) : malloc > 4 Ko en PSRAM — valider l'absence de plantage au lanceur, puis pousser + flasher Timothée
 - [ ] Fuite mémoire interne trouvée (CbData jamais libérées, ~120 Ko par session de lanceur) — corrigée, en test sur la tablette d'Émilie (flashée 22:1x)
-- [ ] Plantage watchdog (tablette d'Émilie, veille) non encore capturé — cause inconnue
+- [ ] Plantage watchdog capturé (reconstruction de longue liste d'épisodes, coût N² LVGL) — corrigé (liste cachée pendant la reconstruction), en test sur la tablette d'Émilie
 - [ ] Mémoire interne basse sur la tablette de Timothée (123 Ko, 22 % frag) — suivre l'historique HA
