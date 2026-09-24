@@ -44,6 +44,17 @@ esp32:
       # (flash write/erase). Needed on the P4 once the audio stack does flash ops, otherwise
       # boot asserts esp_task_stack_is_sane_cache_disabled. Maps to CONFIG_SPIRAM_XIP_FROM_PSRAM.
       execute_from_psram: true
+    # Let plain malloc/new spill into PSRAM. ESPHome's psram component selects
+    # SPIRAM_USE_CAPS_ALLOC, where malloc/new/std::string only ever use the ~350 KB of internal
+    # RAM: under launcher use (cover decodes, HTTP bodies, audio) it fragments until a ~20 KB
+    # block is missing and a `new` aborts the device (online_image's JpegDecoder, decoded from
+    # on-device crashes). Allocations > 4 KB now go to the 32 MB PSRAM; smaller ones stay
+    # internal, and 64 KB of internal RAM stay reserved for DMA/driver buffers.
+    sdkconfig_options:
+      CONFIG_SPIRAM_USE_CAPS_ALLOC: n
+      CONFIG_SPIRAM_USE_MALLOC: y
+      CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL: "4096"
+      CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL: "65536"
 
 # PSRAM à pleine vitesse (200 MHz) : indispensable pour alimenter le scanout MIPI-DSI
 # 800x1280 sans underrun (sinon écran noir / corrompu). Vitesses P4 : 20/100/200 MHz.
