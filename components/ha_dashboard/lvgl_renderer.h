@@ -25,6 +25,7 @@ class LvglRenderer : public Renderer {
   }
   // Pull-to-refresh hook (called by the launcher list's scroll callback): arm on top
   // over-scroll, fire LAUNCHER_REFRESH when the scroll settles.
+  void on_launcher_scroll_begin();
   void on_launcher_scroll(lv_obj_t *grid, bool ended);
   // Show a transient launch-confirmation toast (auto-hides after a couple of seconds).
   void show_toast(const std::string &text);
@@ -129,6 +130,7 @@ class LvglRenderer : public Renderer {
   void on_cover_error_(online_image::OnlineImage *slot);
   // Covers download one at a time (serialized) to avoid exhausting TLS/socket memory.
   void advance_cover_(online_image::OnlineImage *finished_slot);
+  void pump_covers_();
   // Bind an LVGL image to a slot for `url`, (re)downloading (serially) only if the slot isn't
   // already holding that exact URL. While a download is pending the image is hidden so a
   // stale, wrong-size frame is never shown. Returns the slot's index in cover_slot_list_.
@@ -296,6 +298,7 @@ class LvglRenderer : public Renderer {
   void build_settings_();
   lv_obj_t *settings_scr_{nullptr};
   bool launcher_rebuilding_{false};  // render_launcher_ in progress: ignore list scroll events
+  bool launcher_scrolling_{false};   // list moving (SCROLL_BEGIN..END): cover downloads paused
   lv_obj_t *set_bat_bar_{nullptr};
   lv_obj_t *set_bat_pct_{nullptr};
   lv_obj_t *set_bat_chg_{nullptr};
@@ -351,6 +354,7 @@ class LvglRenderer : public Renderer {
   // Serialized cover download queue (current grid), advanced as each finishes/errors.
   std::vector<online_image::OnlineImage *> cover_queue_;
   size_t cover_load_idx_{0};
+  online_image::OnlineImage *cover_in_flight_{nullptr};  // the one download running (or null)
 };
 
 }  // namespace ha_dashboard

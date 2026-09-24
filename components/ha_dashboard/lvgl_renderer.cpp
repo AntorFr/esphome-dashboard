@@ -226,7 +226,12 @@ static void launcher_scroll_cb(lv_event_t *e) {
   auto *grid = static_cast<lv_obj_t *>(lv_event_get_target(e));
   if (self == nullptr || grid == nullptr)
     return;
-  self->on_launcher_scroll(grid, lv_event_get_code(e) == LV_EVENT_SCROLL_END);
+  const lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_SCROLL_BEGIN) {
+    self->on_launcher_scroll_begin();
+    return;
+  }
+  self->on_launcher_scroll(grid, code == LV_EVENT_SCROLL_END);
 }
 // Auto-hide the toast when its timer fires (one-shot per show: pause after hiding).
 static void toast_hide_cb(lv_timer_t *t) {
@@ -1620,9 +1625,19 @@ void LvglRenderer::hide_forecast_() {
     lv_obj_add_flag(this->forecast_scr_, LV_OBJ_FLAG_HIDDEN);
 }
 
+void LvglRenderer::on_launcher_scroll_begin() {
+  if (this->launcher_rebuilding_)
+    return;  // fired by render_launcher_ deleting/re-creating the rows, not by the user
+  // Pause cover downloads while the list moves: each JPEG decode blocks the loop for
+  // 150-400 ms (stuttering the scroll), and rows scrolling past won't be on screen anyway.
+  this->launcher_scrolling_ = true;
+}
+
 void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
   if (this->launcher_rebuilding_)
     return;  // scroll events fired by render_launcher_ deleting/re-creating the rows
+  if (ended)
+    this->launcher_scrolling_ = false;  // settled: assign_episode_thumbs_ / pump_covers_ resume
 #ifdef USE_HA_DASHBOARD_LAUNCHER
   // Detail list: recycle episode thumbnails to whatever rows are now on screen. Only (re)assign
   // once the scroll SETTLES — assigning mid-drag queues JPEG downloads whose (blocking) decode
@@ -1635,7 +1650,9 @@ void LvglRenderer::on_launcher_scroll(lv_obj_t *grid, bool ended) {
     return;
   }
 #endif
-  // Grid: pull-to-refresh.
+  // Grid: resume the (paused) cover downloads, then pull-to-refresh.
+  if (ended)
+    this->pump_covers_();
   if (ended) {
     if (this->pull_armed_) {
       this->pull_armed_ = false;
@@ -1700,25 +1717,43 @@ void LvglRenderer::assign_episode_thumbs_() {
     }
   }
 
-  // 3. Compact the download queue if idle (bounds its growth over a long scroll).
-  const bool was_idle = this->cover_load_idx_ >= this->cover_queue_.size();
-  if (was_idle) {
-    this->cover_queue_.clear();
-    this->cover_load_idx_ = 0;
+  // 3. Rebuild the download queue from what is on screen NOW: episodes that scrolled away
+  // since the last pass are dropped instead of being downloaded for nothing. Owned slots whose
+  // image isn't loaded yet are re-queued; the in-flight download (if any) finishes on its own.
+  // Other pending downloads (the detail header cover) are kept, ahead of the episodes.
+  std::vector<online_image::OnlineImage *> keep;
+  for (size_t i = this->cover_load_idx_; i < this->cover_queue_.size(); i++) {
+    online_image::OnlineImage *q = this->cover_queue_[i];
+    bool is_ep = std::find(this->ep_thumb_slots_.begin(), this->ep_thumb_slots_.end(), q) !=
+                 this->ep_thumb_slots_.end();
+    if (!is_ep && q != this->cover_in_flight_)
+      keep.push_back(q);
+  }
+  this->cover_queue_ = std::move(keep);
+  this->cover_load_idx_ = 0;
+  for (size_t s = 0; s < this->thumb_owner_.size(); s++) {
+    int owner = this->thumb_owner_[s];
+    if (owner < 0)
+      continue;
+    online_image::OnlineImage *slot = this->ep_thumb_slots_[s];
+    int k = slot_index(slot);
+    if (slot != this->cover_in_flight_ && k >= 0 && this->cover_url_list_[k] != this->ep_url_[owner])
+      this->cover_queue_.push_back(slot);
   }
 
-  // 4. Assign a free slot to each wanted episode without one, and (re)load its thumbnail.
+  // 4. Assign a free slot to each wanted episode without one, and queue its thumbnail. The
+  // in-flight slot is not reused: its late completion would be committed to the wrong row.
   for (size_t i = 0; i < want.size(); i++) {
     if (!want[i] || this->ep_slot_[i] != -1)
       continue;
     int free_s = -1;
     for (size_t s = 0; s < this->thumb_owner_.size(); s++)
-      if (this->thumb_owner_[s] < 0) {
+      if (this->thumb_owner_[s] < 0 && this->ep_thumb_slots_[s] != this->cover_in_flight_) {
         free_s = (int) s;
         break;
       }
     if (free_s < 0)
-      break;  // pool exhausted (|wanted| is capped to the pool, so this shouldn't happen)
+      break;  // pool exhausted: the next pass (download finished / scroll end) picks it up
     online_image::OnlineImage *slot = this->ep_thumb_slots_[free_s];
     lv_obj_t *img = this->ep_img_[i];
     this->thumb_owner_[free_s] = (int) i;
@@ -1737,9 +1772,8 @@ void LvglRenderer::assign_episode_thumbs_() {
     }
   }
 
-  // 5. Kick the serial download queue if it was idle and we queued new work.
-  if (was_idle && this->cover_load_idx_ < this->cover_queue_.size())
-    this->cover_queue_[this->cover_load_idx_]->update();
+  // 5. Start the next download (unless one is in flight or the list is moving).
+  this->pump_covers_();
 #endif
 }
 
@@ -2784,6 +2818,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
       lv_obj_set_flex_flow(lgrid, LV_FLEX_FLOW_COLUMN);
       lv_obj_add_flag(lgrid, LV_OBJ_FLAG_HIDDEN);
       // Pull-to-refresh: watch over-scroll at the top.
+      lv_obj_add_event_cb(lgrid, launcher_scroll_cb, LV_EVENT_SCROLL_BEGIN, this);
       lv_obj_add_event_cb(lgrid, launcher_scroll_cb, LV_EVENT_SCROLL, this);
       lv_obj_add_event_cb(lgrid, launcher_scroll_cb, LV_EVENT_SCROLL_END, this);
     }
@@ -2889,15 +2924,43 @@ void LvglRenderer::on_cover_error_(online_image::OnlineImage *slot) {
 // Kick the next cover once the current one finished/errored (one TLS download at a time).
 void LvglRenderer::advance_cover_(online_image::OnlineImage *finished_slot) {
 #ifdef USE_HA_DASHBOARD_LAUNCHER
-  if (this->cover_load_idx_ >= this->cover_queue_.size())
-    return;
-  if (this->cover_queue_[this->cover_load_idx_] != finished_slot)
-    return;  // not the slot we're waiting on (stale/duplicate callback)
-  this->cover_load_idx_++;
-  if (this->cover_load_idx_ < this->cover_queue_.size())
-    this->cover_queue_[this->cover_load_idx_]->update();
+  if (finished_slot != this->cover_in_flight_)
+    return;  // not the download we started (stale/duplicate callback, now-playing slot)
+  this->cover_in_flight_ = nullptr;
+  if (this->cover_load_idx_ < this->cover_queue_.size() &&
+      this->cover_queue_[this->cover_load_idx_] == finished_slot)
+    this->cover_load_idx_++;
+  // Detail list: re-plan from the rows on screen now (the pool may have been exhausted by the
+  // in-flight slot); it ends by pumping the queue. Grid level: just start the next one.
+  if (this->ep_list_ != nullptr && !this->launcher_scrolling_)
+    this->assign_episode_thumbs_();
+  else
+    this->pump_covers_();
 #else
   (void) finished_slot;
+#endif
+}
+
+// Start the next queued cover download: one at a time, and never while the list is scrolling.
+void LvglRenderer::pump_covers_() {
+#ifdef USE_HA_DASHBOARD_LAUNCHER
+  if (this->launcher_scrolling_)
+    return;
+  if (this->cover_in_flight_ != nullptr) {
+    // A rebuild re-queued the in-flight slot with a new URL: restart it now (update() drops the
+    // old transfer) rather than let the old image complete and be committed under the new URL.
+    for (size_t i = this->cover_load_idx_; i < this->cover_queue_.size(); i++)
+      if (this->cover_queue_[i] == this->cover_in_flight_) {
+        std::swap(this->cover_queue_[this->cover_load_idx_], this->cover_queue_[i]);
+        this->cover_in_flight_->update();
+        return;
+      }
+    return;  // wait for it to finish
+  }
+  if (this->cover_load_idx_ < this->cover_queue_.size()) {
+    this->cover_in_flight_ = this->cover_queue_[this->cover_load_idx_];
+    this->cover_in_flight_->update();
+  }
 #endif
 }
 
@@ -3009,6 +3072,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
   // rows BEFORE deleting them. Doing it after let the handler call lv_image_set_src on a row
   // being deleted -> LVGL assert -> hung loop -> task watchdog (crash captured on hardware).
   this->launcher_rebuilding_ = true;
+  this->launcher_scrolling_ = false;  // the old list is gone; a stale BEGIN must not pause loads
   struct EndRebuild {
     bool &flag;
     ~EndRebuild() { this->flag = false; }
@@ -3390,8 +3454,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
     this->assign_episode_thumbs_();
   }
   // Start the serial cover downloads (one at a time; the rest follow via advance_cover_).
-  if (!this->cover_queue_.empty())
-    this->cover_queue_[0]->update();
+  this->pump_covers_();
 #endif
 }
 
