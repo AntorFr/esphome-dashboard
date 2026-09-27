@@ -95,8 +95,11 @@ bool HttpBody::append(const uint8_t *src, size_t n) {
 }
 
 // Read a full response body into `out`. Blocks until COMPLETE / error / timeout (on the
-// worker task, so the main loop is never frozen).
-static bool read_body(http_request::HttpContainer *c, HttpBody &out, uint32_t timeout_ms) {
+// worker task, so the main loop is never frozen). The timeout counts from the last byte
+// received, so a server that sends keepalive bytes (children?keepalive=1) holds the request
+// open for as long as it works. `abort` is polled between reads to give up early.
+static bool read_body(http_request::HttpContainer *c, HttpBody &out, uint32_t timeout_ms,
+                      const std::function<bool()> &abort) {
   if (c->content_length > 0 && !out.reserve(c->content_length)) {
     ESP_LOGW(TAG, "response too large / no memory (%u bytes)", (unsigned) c->content_length);
     return false;
@@ -104,6 +107,8 @@ static bool read_body(http_request::HttpContainer *c, HttpBody &out, uint32_t ti
   uint8_t buf[256];
   uint32_t last = millis();
   while (true) {
+    if (abort && abort())
+      return false;
     int r = c->read(buf, sizeof(buf));
     auto res = http_request::http_read_loop_result(r, last, timeout_ms, c->is_read_complete());
     if (res == http_request::HttpReadLoopResult::DATA) {
@@ -121,7 +126,8 @@ static bool read_body(http_request::HttpContainer *c, HttpBody &out, uint32_t ti
   }
 }
 
-bool HttpMusicLibrary::http_get_(const std::string &url, HttpBody &body) {
+bool HttpMusicLibrary::http_get_(const std::string &url, HttpBody &body,
+                                 const std::function<bool()> &abort) {
   if (this->http_ == nullptr)
     return false;
   auto container = this->http_->get(url);
@@ -131,7 +137,7 @@ bool HttpMusicLibrary::http_get_(const std::string &url, HttpBody &body) {
   }
   bool ok = false;
   if (http_request::is_success(container->status_code)) {
-    ok = read_body(container.get(), body, this->http_->get_timeout());
+    ok = read_body(container.get(), body, this->http_->get_timeout(), abort);
   } else {
     ESP_LOGW(TAG, "GET %s -> HTTP %d", url.c_str(), container->status_code);
   }
@@ -255,14 +261,18 @@ void HttpMusicLibrary::fetch_children(const std::string &item_id, int offset, in
                                       QuickPageCallback cb) {
   const std::string url = this->base_url_ + "/api/v1/quick/item/" + url_encode(item_id) +
                           "/children?offset=" + std::to_string(offset) +
-                          "&limit=" + std::to_string(limit);
+                          "&limit=" + std::to_string(limit) + "&keepalive=1";
   const std::string base = this->base_url_;
   const std::string img_fmt = this->image_format_;
   auto result = std::make_shared<ChildResult>();
+  const uint32_t epoch = this->children_epoch_.load();
   this->enqueue_(
-      [this, url, base, img_fmt, result]() {
+      [this, url, base, img_fmt, result, epoch]() {
+        auto abandoned = [this, epoch]() { return this->children_epoch_.load() != epoch; };
+        if (abandoned())
+          return;  // left the list while this request was still queued -> don't even send it
         HttpBody body;
-        bool ok = this->http_get_(url, body);
+        bool ok = this->http_get_(url, body, abandoned);
         if (ok) {
           ok = json::parse_json(body.data(), body.size(), [result, &base, &img_fmt](JsonObject root) -> bool {
             result->has_more = root["has_more"] | false;

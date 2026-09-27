@@ -375,7 +375,9 @@ void Controller::tick(uint32_t now_ms) {
   }
 
   // Auto-retry a launcher whose load failed (e.g. network not ready right after boot): while
-  // its tab is active and status is ERROR, retry every few seconds until it succeeds.
+  // its tab is active and status is ERROR, retry every few seconds until it succeeds. The
+  // retry stays on the current level: a failed episode list is re-requested, not swapped
+  // for the favourites grid.
   if (this->state_ == NavState::DASHBOARD && this->groups_ != nullptr) {
     int gi = this->group_index_;
     if (gi >= 0 && gi < (int) this->groups_->size()) {
@@ -383,7 +385,7 @@ void Controller::tick(uint32_t now_ms) {
       if (g.is_launcher && g.launcher != nullptr && g.launcher->status() == LauncherStatus::ERROR &&
           now_ms - this->launcher_retry_ms_ >= 2000) {
         this->launcher_retry_ms_ = now_ms;
-        g.launcher->load();
+        g.launcher->retry();
       }
     }
   }

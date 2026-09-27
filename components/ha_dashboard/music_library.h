@@ -63,6 +63,11 @@ class MusicLibraryBackend {
   // items, so the list is loaded incrementally on scroll: [offset, offset+limit).
   virtual void fetch_children(const std::string &item_id, int offset, int limit,
                               QuickPageCallback cb) = 0;
+  // Abandon every children fetch requested so far (the user left that list). A fetch still
+  // queued or in progress stops early; its callback is still delivered, with ok=false.
+  // Episodes of a provider-backed podcast can take tens of seconds on a cold server cache:
+  // without this, the abandoned request would hold up every request queued behind it.
+  virtual void cancel_children() {}
 
   // POST /api/v1/ma/play?queue_id=<device speaker>&uri=<uri>&seek=<seek_s>.
   // queue_id (target speaker) is held by the adapter, fixed per device.

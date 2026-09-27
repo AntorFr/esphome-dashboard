@@ -62,6 +62,17 @@ void LauncherModule::open_children(int index) {
   this->children_.clear();
   this->children_has_more_ = false;
   this->children_loading_more_ = false;
+  this->fetch_first_children_page_();
+}
+
+void LauncherModule::retry() {
+  if (this->level_ == LauncherLevel::DETAIL)
+    this->fetch_first_children_page_();  // stay on the list the user opened
+  else
+    this->load();
+}
+
+void LauncherModule::fetch_first_children_page_() {
   this->status_ = LauncherStatus::LOADING;
   this->notify_();
 
@@ -71,6 +82,9 @@ void LauncherModule::open_children(int index) {
     return;
   }
 
+  // Drop any children request still running (a slow podcast from a previous list, or the
+  // failed attempt this one retries) so it doesn't delay this one.
+  this->backend_->cancel_children();
   const uint32_t gen = ++this->gen_;
   this->backend_->fetch_children(
       this->children_id_,0, PAGE_SIZE,
@@ -182,8 +196,12 @@ bool LauncherModule::back() {
   if (this->level_ != LauncherLevel::DETAIL)
     return false;  // already on the grid -> caller closes the module
 
-  // Invalidate any in-flight children/page fetch and return to the favourites grid.
+  // Invalidate any in-flight children/page fetch and return to the favourites grid. The
+  // backend also abandons the request itself: a slow podcast must not hold up the requests
+  // queued behind it (play, favourites, covers' metadata).
   ++this->gen_;
+  if (this->backend_ != nullptr)
+    this->backend_->cancel_children();
   this->level_ = LauncherLevel::GRID;
   this->children_.clear();
   this->detail_title_.clear();

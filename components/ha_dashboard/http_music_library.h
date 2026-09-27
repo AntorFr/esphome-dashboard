@@ -11,6 +11,7 @@
 // online_image (covers), which runs on the main thread (concurrent use = corruption).
 #include "esphome/core/defines.h"
 #ifdef USE_HA_DASHBOARD_LAUNCHER
+#include <atomic>
 #include <functional>
 #include <string>
 #include <vector>
@@ -59,6 +60,7 @@ class HttpMusicLibrary : public MusicLibraryBackend {
 
   void fetch_favorites(const std::string &owner, QuickItemsCallback cb) override;
   void fetch_children(const std::string &item_id, int offset, int limit, QuickPageCallback cb) override;
+  void cancel_children() override { ++this->children_epoch_; }
   void play(const std::string &uri, int seek_s) override;
   void fetch_now_playing(NowPlayingCallback cb) override;
   void transport(const std::string &cmd) override;
@@ -72,7 +74,8 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   void process_pending();
 
  protected:
-  bool http_get_(const std::string &url, HttpBody &body);
+  // `abort` (optional, polled on the worker between reads) ends the request early.
+  bool http_get_(const std::string &url, HttpBody &body, const std::function<bool()> &abort = nullptr);
   bool http_post_(const std::string &url);
 
   // Queue `work` (blocking HTTP+parse, runs on the worker task) then `deliver` (runs on the
@@ -89,6 +92,9 @@ class HttpMusicLibrary : public MusicLibraryBackend {
   TaskHandle_t worker_{nullptr};
   QueueHandle_t work_q_{nullptr};  // HttpJob* -> worker
   QueueHandle_t done_q_{nullptr};  // HttpJob* -> main loop
+  // Bumped by cancel_children() on the main loop, read by the worker: a children fetch whose
+  // captured epoch no longer matches has been abandoned.
+  std::atomic<uint32_t> children_epoch_{0};
 };
 
 }  // namespace ha_dashboard

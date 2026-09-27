@@ -46,6 +46,11 @@ class LauncherModule {
   // a no-op for tiles without children.
   void open_children(int index);
 
+  // Recover from a failed load (status ERROR) without leaving the current level: on the
+  // grid, reload the favourites; in a detail list, re-request its first page. Driven by the
+  // controller's auto-retry.
+  void retry();
+
   // Load the next page of the detail list. Call when the user scrolls near the end.
   // No-op if there is no more / a page is already loading / not in DETAIL.
   void load_more_children();
@@ -92,6 +97,9 @@ class LauncherModule {
   static constexpr int PAGE_SIZE = 50;
 
  protected:
+  // Request the first page of the open detail list (children_id_), replacing its content.
+  void fetch_first_children_page_();
+
   void notify_() {
     if (this->on_changed_)
       this->on_changed_();

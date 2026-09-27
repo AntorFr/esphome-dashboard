@@ -43,7 +43,7 @@ Contract (music-library side) — **all endpoints now shipped** (`v0.12.0-beta` 
 | favourites | `GET /api/v1/quick/{owner}` | compact JSON: `id,title,media_type,uri,cover_url,has_children` |
 | cover | `GET /covers/{id}.jpg` | 300×300, decoded on device |
 | play | `POST /api/v1/ma/play?queue_id=&uri=&seek=` | `queue_id` = the device's fixed speaker |
-| episodes/chapters | `GET /api/v1/quick/item/{id}/children?offset=&limit=` | paged: `{items[…], has_more}`; per-item `cover_url` optional (podcast=thumb, audiobook=none), chapters carry `seek` |
+| episodes/chapters | `GET /api/v1/quick/item/{id}/children?offset=&limit=&keepalive=1` | paged: `{items[…], has_more}`; per-item `cover_url` optional (podcast=thumb, audiobook=none), chapters carry `seek`. `keepalive=1`: a slow answer (Spotify podcast on a cold MA cache, ~45 s) is streamed as a space every 2 s then the JSON, so the device's 5 s inactivity timeout never fires while the server works; a failure after the 200 comes back as `{"detail"}` without `items` |
 | now-playing state | `GET /api/v1/ma/now_playing?queue_id=` | item, play/pause, position, volume, mute, shuffle, repeat, power |
 | transport | `POST /api/v1/ma/{pause,resume,play_pause,stop,next,previous,seek}` | from screen D |
 | modes | `POST /api/v1/ma/shuffle?enabled=` · `/repeat?mode=off\|one\|all` | shuffle / repeat |
@@ -104,6 +104,11 @@ profile/speaker pickers in v1 (the mockup keeps the chips as a later option).
   spinner; `EMPTY` (e.g. unknown owner) → discreet message, no alarm; `ERROR` (incl. ML
   offline) → a cloud-off icon + "retry" (re-fetch); `READY` → the cover grid. Each tile
   shows a neutral placeholder until `online_image` decodes its cover (then fades in).
+- **Failure inside a detail list** stays in that list: the controller's auto-retry calls
+  `retry()`, which re-requests the list's first page instead of reloading the favourites
+  (which used to bounce the child back to the grid). Leaving a list (`back()`, or opening
+  another one) calls the backend's `cancel_children()`: the HTTP worker is a single serial
+  queue, so an abandoned slow request would otherwise delay every request behind it.
 
 Config sketch (final schema deferred to the implementation milestone). The launcher is a
 **menu entry declared inside the ordered `groups:` list** via a `type:` discriminator, so
