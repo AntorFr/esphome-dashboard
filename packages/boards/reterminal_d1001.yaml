@@ -165,14 +165,14 @@ sensor:
     unit_of_measurement: "%"
     accuracy_decimals: 0
     update_interval: 60s
-    # Charge limiter (hysteresis): cut the charger at >= 80 %, re-enable at <= 70 %, hold in
+    # Charge limiter (hysteresis): cut the charger at >= 80 %, re-enable at <= 60 %, hold in
     # between. Only active while the "Limiter la charge" switch is on.
     on_value:
       then:
         - lambda: |-
             if (!id(d1001_charge_limit).state) return;
             if (x >= 80.0f) id(d1001_charge_cut) = true;
-            else if (x <= 70.0f) id(d1001_charge_cut) = false;
+            else if (x <= 60.0f) id(d1001_charge_cut) = false;
             else return;
             if (id(d1001_charge_cut)) id(d1001_bat_charge_en).turn_on();    // active-low: high = charge off
             else id(d1001_bat_charge_en).turn_off();                        // low = charge enabled
@@ -207,7 +207,7 @@ sensor:
       return 100.0f;
 
 # Battery longevity: the tablet mostly sits on USB, so hold the charge around 80 %. The switch is
-# the only knob exposed to HA; thresholds (80 cut / 70 resume) are fixed in the battery sensor.
+# the only knob exposed to HA; thresholds (80 cut / 60 resume) are fixed in the battery sensor.
 # NB: the % is derived from voltage, which the charger pulls up while charging -> it reads a
 # bit high, so the real charge level at cut-off is somewhat lower.
 globals:
