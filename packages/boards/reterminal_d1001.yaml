@@ -165,6 +165,17 @@ sensor:
     unit_of_measurement: "%"
     accuracy_decimals: 0
     update_interval: 60s
+    # Charge limiter (hysteresis): cut the charger at >= 80 %, re-enable at <= 70 %, hold in
+    # between. Only active while the "Limiter la charge" switch is on.
+    on_value:
+      then:
+        - lambda: |-
+            if (!id(d1001_charge_limit).state) return;
+            if (x >= 80.0f) id(d1001_charge_cut) = true;
+            else if (x <= 70.0f) id(d1001_charge_cut) = false;
+            else return;
+            if (id(d1001_charge_cut)) id(d1001_bat_charge_en).turn_on();    // active-low: high = charge off
+            else id(d1001_bat_charge_en).turn_off();                        // low = charge enabled
     lambda: |-
       static const float t[21] = {3.262f, 3.390f, 3.467f, 3.554f, 3.619f, 3.659f, 3.686f, 3.710f,
                                   3.731f, 3.752f, 3.774f, 3.797f, 3.827f, 3.855f, 3.880f, 3.901f,
@@ -180,6 +191,28 @@ sensor:
         if (v < t[i])
           return (i - 1) * 5.0f + 5.0f * (v - t[i - 1]) / (t[i] - t[i - 1]);
       return 100.0f;
+
+# Battery longevity: the tablet mostly sits on USB, so hold the charge around 80 %. The switch is
+# the only knob exposed to HA; thresholds (80 cut / 70 resume) are fixed in the battery sensor.
+# NB: the % is derived from voltage, which the charger pulls up while charging -> it reads a
+# bit high, so the real charge level at cut-off is somewhat lower.
+globals:
+  - id: d1001_charge_cut
+    type: bool
+    restore_value: no
+    initial_value: "false"
+
+switch:
+  - platform: template
+    name: "Limiter la charge à 80 %"
+    id: d1001_charge_limit
+    icon: mdi:battery-heart-variant
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    turn_off_action:
+      - lambda: id(d1001_charge_cut) = false;
+      - output.turn_off: d1001_bat_charge_en   # limiter off -> charger always enabled
 
 binary_sensor:
   - platform: gpio
