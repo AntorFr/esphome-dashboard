@@ -176,6 +176,20 @@ sensor:
             else return;
             if (id(d1001_charge_cut)) id(d1001_bat_charge_en).turn_on();    // active-low: high = charge off
             else id(d1001_bat_charge_en).turn_off();                        // low = charge enabled
+        # Low-battery cutoff: <= 20 % and not charging for 3 consecutive readings (~3 min, to
+        # ignore load sag) -> screen off, then drop the power latch. On USB the board stays
+        # powered anyway; replugging USB reboots it.
+        - lambda: |-
+            if (id(d1001_low_cutoff).state && x <= 20.0f && !id(d1001_charging).state) id(d1001_low_count)++;
+            else id(d1001_low_count) = 0;
+        - if:
+            condition:
+              lambda: "return id(d1001_low_count) >= 3;"
+            then:
+              - logger.log: "Battery at or below 20 pct and not charging: powering off"
+              - light.turn_off: d1001_backlight
+              - delay: 1s
+              - output.turn_off: d1001_pwr_hold
     lambda: |-
       static const float t[21] = {3.262f, 3.390f, 3.467f, 3.554f, 3.619f, 3.659f, 3.686f, 3.710f,
                                   3.731f, 3.752f, 3.774f, 3.797f, 3.827f, 3.855f, 3.880f, 3.901f,
@@ -202,7 +216,19 @@ globals:
     restore_value: no
     initial_value: "false"
 
+  - id: d1001_low_count
+    type: int
+    restore_value: no
+    initial_value: "0"
+
 switch:
+  - platform: template
+    name: "Coupure à 20 %"
+    id: d1001_low_cutoff
+    icon: mdi:battery-alert
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
   - platform: template
     name: "Limiter la charge à 80 %"
     id: d1001_charge_limit
