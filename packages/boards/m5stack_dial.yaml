@@ -2,16 +2,26 @@
 # touch FT3267 (FT5x06-compatible, I2C), encodeur + bouton.
 # Brochage usuel du M5Dial — À VALIDER SUR MATÉRIEL (cf. docs/lessons-learned.md §6).
 #
-# Enable the Montserrat font sizes used by the LVGL renderer (built in C++, so the lvgl
-# component can't auto-detect them). Build flags are read by lvgl's lv_conf.h generator.
+# Enable the Montserrat font sizes AND the widgets/layouts used by the LVGL renderer: the UI
+# is built in C++, so the lvgl component can't detect them from YAML and would compile them
+# out of lv_conf.h (`lvgl: widgets: []` below). Build flags are read by its lv_conf.h generator.
+# Keep the LV_USE_* list in sync with the lv_*_create / lv_obj_set_flex_* calls in
+# components/ha_dashboard.
 esphome:
-  platformio_options:
-    build_flags:
-      - "-DLV_FONT_MONTSERRAT_16=1"
-      - "-DLV_FONT_MONTSERRAT_20=1"
-      - "-DLV_FONT_MONTSERRAT_28=1"
-      - "-DLV_FONT_MONTSERRAT_40=1"
-      - "-DLV_FONT_MONTSERRAT_48=1"
+  build_flags:
+    - "-DLV_FONT_MONTSERRAT_16=1"
+    - "-DLV_FONT_MONTSERRAT_20=1"
+    - "-DLV_FONT_MONTSERRAT_28=1"
+    - "-DLV_FONT_MONTSERRAT_40=1"
+    - "-DLV_FONT_MONTSERRAT_48=1"
+    - "-DLV_USE_OBJ=1"
+    - "-DLV_USE_LABEL=1"
+    - "-DLV_USE_BUTTON=1"
+    - "-DLV_USE_IMAGE=1"
+    - "-DLV_USE_ARC=1"
+    - "-DLV_USE_BAR=1"
+    - "-DLV_USE_SLIDER=1"
+    - "-DLV_USE_FLEX=1"
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -77,6 +87,10 @@ binary_sensor:
         pullup: true
 
 lvgl:
+  # The whole UI is built in C++ by ha_dashboard; an explicit empty list stops lvgl from
+  # compiling its default "hello world" page. That page used to enable, by accident, the
+  # widgets the renderer needs -- they are now enabled explicitly in esphome.build_flags.
+  widgets: []
   displays:
     - dial_display
   touchscreens:

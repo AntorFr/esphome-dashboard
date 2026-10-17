@@ -6,16 +6,26 @@
 #    (aucune plateforme touchscreen gsl/silead). L'écran + le WiFi fonctionnent, mais
 #    la navigation tactile nécessitera un composant externe GSL3670 (TODO).
 #    Voir docs/lessons-learned.md.
-# Enable the Montserrat font sizes used by the LVGL renderer (built in C++, so the lvgl
-# component can't auto-detect them). Build flags are read by lvgl's lv_conf.h generator.
+# Enable the Montserrat font sizes AND the widgets/layouts used by the LVGL renderer: the UI
+# is built in C++, so the lvgl component can't detect them from YAML and would compile them
+# out of lv_conf.h (`lvgl: widgets: []` below). Build flags are read by its lv_conf.h generator.
+# Keep the LV_USE_* list in sync with the lv_*_create / lv_obj_set_flex_* calls in
+# components/ha_dashboard.
 esphome:
-  platformio_options:
-    build_flags:
-      - "-DLV_FONT_MONTSERRAT_16=1"
-      - "-DLV_FONT_MONTSERRAT_20=1"
-      - "-DLV_FONT_MONTSERRAT_28=1"
-      - "-DLV_FONT_MONTSERRAT_40=1"
-      - "-DLV_FONT_MONTSERRAT_48=1"
+  build_flags:
+    - "-DLV_FONT_MONTSERRAT_16=1"
+    - "-DLV_FONT_MONTSERRAT_20=1"
+    - "-DLV_FONT_MONTSERRAT_28=1"
+    - "-DLV_FONT_MONTSERRAT_40=1"
+    - "-DLV_FONT_MONTSERRAT_48=1"
+    - "-DLV_USE_OBJ=1"
+    - "-DLV_USE_LABEL=1"
+    - "-DLV_USE_BUTTON=1"
+    - "-DLV_USE_IMAGE=1"
+    - "-DLV_USE_ARC=1"
+    - "-DLV_USE_BAR=1"
+    - "-DLV_USE_SLIDER=1"
+    - "-DLV_USE_FLEX=1"
   on_boot:
     # Latch the main power rail (EXP P8 = BSP_PWR_HOLD, "turn on vdd_3v3" in the Seeed BSP).
     # On USB the board is powered regardless; on battery alone the rail only stays up while
@@ -99,8 +109,9 @@ i2c:
     scan: false
   # I2C "écran/caméra" (I2C0 du schéma) : touch GSL3670 (0x40) + caméra.
   - id: i2c_panel
-    sda: GPIO37
-    scl: GPIO38
+    # GPIO37/38 are strapping pins, but hard-wired to the panel I2C on this board.
+    sda: { number: GPIO37, ignore_strapping_warning: true }
+    scl: { number: GPIO38, ignore_strapping_warning: true }
     frequency: 400kHz
     scan: false
 
@@ -289,6 +300,10 @@ external_components:
     components: [gsl3670, touchscreen]
 
 lvgl:
+  # The whole UI is built in C++ by ha_dashboard; an explicit empty list stops lvgl from
+  # compiling its default "hello world" page. That page used to enable, by accident, the
+  # widgets the renderer needs -- they are now enabled explicitly in esphome.build_flags.
+  widgets: []
   displays:
     - d1001_display
   touchscreens:

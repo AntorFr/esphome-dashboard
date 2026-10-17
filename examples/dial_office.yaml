@@ -28,7 +28,11 @@ api:
 
 ota:
   platform: esphome
-  password: !secret ota_password
+  # Encrypted uploads with the api key (a password would only add ~3.5 KB of flash).
+  encryption: {}
+
+# Makes the fallback WiFi AP usable (config portal when the device can't join the network).
+captive_portal:
 
 logger:
   level: DEBUG
