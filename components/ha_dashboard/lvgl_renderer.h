@@ -60,6 +60,7 @@ class LvglRenderer : public Renderer {
   // them the idle screen keeps its colours but shows no glyph.
   void set_font_decor(font::Font *f) { this->font_decor_ = f; }
   void set_font_decor_sm(font::Font *f) { this->font_decor_sm_ = f; }
+  void set_font_decor_bg(font::Font *f) { this->font_decor_bg_ = f; }  // dashboard backdrop
   // Button-hold return gauge (driven from the component while the encoder button is held).
   void set_return_progress(float p) { this->render_return_(p); }
 
@@ -240,6 +241,8 @@ class LvglRenderer : public Renderer {
   font::Font *font_nestor_lg_{nullptr}; // Nestor mascot glyph, full-screen size
   font::Font *font_decor_{nullptr};     // idle decoration glyphs, large (pumpkin, ghost)
   font::Font *font_decor_sm_{nullptr};  // idle decoration glyphs, small (bats)
+  font::Font *font_decor_bg_{nullptr};  // dashboard backdrop glyph (huge pumpkin)
+  lv_obj_t *dash_backdrop_{nullptr};
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};

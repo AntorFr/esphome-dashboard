@@ -48,6 +48,7 @@ ha_dashboard:
   font_nestor_lg: ha_font_nestor_lg
   font_decor: ha_font_decor
   font_decor_sm: ha_font_decor_sm
+  font_decor_bg: ha_font_decor_bg
   ambiance:
     name: Ambiance
   groups:

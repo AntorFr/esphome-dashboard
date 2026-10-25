@@ -2518,6 +2518,19 @@ static const char *icon_for(const Card &c) {
 
 void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   this->dashboard_scr_ = this->make_screen_();
+  // Seasonal backdrop: a large pumpkin peeking from the bottom-right corner, behind the tiles
+  // (created before the content column, fixed when it scrolls). Shown with Halloween only.
+  if (this->font_decor_bg_ != nullptr) {
+    this->dash_backdrop_ = lv_label_create(this->dashboard_scr_);
+    lv_label_set_text(this->dash_backdrop_, GLYPH_HALLOWEEN);
+    lv_obj_set_style_text_font(this->dash_backdrop_, this->font_decor_bg_->get_lv_font(), 0);
+    lv_obj_set_style_text_color(this->dash_backdrop_, lv_color_hex(COL_HW_TIME), 0);
+    lv_obj_set_style_text_opa(this->dash_backdrop_, LV_OPA_40, 0);
+    int32_t size = lv_font_get_line_height(this->font_decor_bg_->get_lv_font());
+    lv_obj_align(this->dash_backdrop_, LV_ALIGN_BOTTOM_RIGHT, size * 28 / 100, size * 18 / 100);
+    lv_obj_clear_flag(this->dash_backdrop_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
+  }
   lv_obj_t *root = lv_obj_create(this->dashboard_scr_);
   lv_obj_set_size(root, lv_pct(100), lv_pct(100));
   lv_obj_set_style_bg_opa(root, LV_OPA_TRANSP, 0);
@@ -3915,6 +3928,12 @@ void LvglRenderer::apply_ambiance_accents_() {
     lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
   for (lv_obj_t *tab : this->tab_btns_)
     lv_obj_set_style_border_color(tab, lv_color_hex(ui_accent()), 0);
+  if (this->dash_backdrop_ != nullptr) {
+    if (hw)
+      lv_obj_clear_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
+    else
+      lv_obj_add_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
+  }
 }
 
 // Seasonal tint of the UI's neutral greys. The colours are applied all over the renderer,

@@ -121,6 +121,7 @@ ha_dashboard:
     # options: [Normal, Noël, Reveillon, Halloween]   # default
   font_decor: ha_font_decor        # MDI pumpkin + ghost (packages/fonts/montserrat_fr.yaml)
   font_decor_sm: ha_font_decor_sm  # MDI bat
+  font_decor_bg: ha_font_decor_bg  # MDI pumpkin behind the dashboard tiles
 ```
 
 - The decoration is built once and hidden otherwise (ADR-0005). Its animations only run

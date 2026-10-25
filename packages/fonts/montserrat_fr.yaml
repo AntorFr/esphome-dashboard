@@ -83,6 +83,15 @@ font:
     bpp: 4
     glyphs:
       - "\U000F0B5F"  # bat
+  # Huge: the pumpkin peeking behind the dashboard tiles (one ~80 KB glyph).
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_decor_bg
+    size: 420
+    bpp: 4
+    glyphs:
+      - "\U000F0BA3"  # halloween (carved pumpkin)
   # Larger MDI set for classic-card tile/sheet icons (tiles ~44px vs the 28px menu icons).
   - file:
       type: web
