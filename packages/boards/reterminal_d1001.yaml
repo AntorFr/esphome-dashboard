@@ -189,6 +189,10 @@ sensor:
         - lambda: |-
             if (x >= 80.0f) id(d1001_charge_cut) = true;
             else if (x <= 60.0f) id(d1001_charge_cut) = false;
+            // Low-battery override, with hysteresis: charge whatever the screen from 25 % up
+            // to 40 % (else it would flip at every reading around 25 %).
+            if (x <= 25.0f) id(d1001_low_charge) = true;
+            else if (x >= 40.0f) id(d1001_low_charge) = false;
         - script.execute: d1001_charge_apply
         # Low-battery cutoff: <= 20 % and not charging for 3 consecutive readings (~3 min, to
         # ignore load sag) -> screen off, then drop the power latch. On USB the board stays
@@ -226,6 +230,12 @@ sensor:
 # bit high, so the real charge level at cut-off is somewhat lower.
 globals:
   - id: d1001_charge_cut
+    type: bool
+    restore_value: no
+    initial_value: "false"
+
+  # Low battery: charge even with the screen lit, from <= 25 % until 40 %.
+  - id: d1001_low_charge
     type: bool
     restore_value: no
     initial_value: "false"
@@ -276,17 +286,16 @@ switch:
     turn_off_action:
       - script.execute: d1001_charge_apply
 
-# Charger enable, from the limiter, the screen state and a low-battery override (<= 25 %:
-# charge whatever the screen does, so a plugged tablet never runs flat, and so the 20 %
-# cutoff never sees "not charging" on USB).
+# Charger enable, from the limiter, the screen state and a low-battery override (from 25 %
+# up to 40 %: charge whatever the screen does, so a tablet on a weak USB source never runs
+# flat, and so the 20 % cutoff never sees "not charging" on USB).
 script:
   - id: d1001_charge_apply
     mode: restart
     then:
       - delay: 10ms   # let an optimistic switch publish its new state first
       - lambda: |-
-          float pct = id(d1001_battery).state;
-          bool low = !std::isnan(pct) && pct <= 25.0f;
+          bool low = id(d1001_low_charge);
           bool limited = id(d1001_charge_limit).state && id(d1001_charge_cut);
           bool screen_blocks = id(d1001_charge_screen_off).state && id(d1001_screen_on);
           if (low || (!limited && !screen_blocks))
