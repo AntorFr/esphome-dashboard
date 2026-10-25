@@ -286,6 +286,14 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
+    # Before the automations: their lambdas may read the ambiance select (e.g. on_tap
+    # picking a seasonal click sound).
+    if CONF_AMBIANCE in config:
+        ambiance = await select.new_select(
+            config[CONF_AMBIANCE], options=config[CONF_AMBIANCE][CONF_OPTIONS]
+        )
+        cg.add(var.set_ambiance_select(ambiance))
+
     if CONF_ON_TAP in config:
         await automation.build_automation(
             var.get_tap_trigger(), [], config[CONF_ON_TAP]
@@ -326,11 +334,6 @@ async def to_code(config):
         cg.add(var.set_time(rtc))
     if CONF_WEATHER in config:
         cg.add(var.set_weather_entity(config[CONF_WEATHER][CONF_ENTITY]))
-    if CONF_AMBIANCE in config:
-        ambiance = await select.new_select(
-            config[CONF_AMBIANCE], options=config[CONF_AMBIANCE][CONF_OPTIONS]
-        )
-        cg.add(var.set_ambiance_select(ambiance))
     for conf, setter in (
         (CONF_FONT_SMALL, var.set_font_small),
         (CONF_FONT_MEDIUM, var.set_font_medium),
