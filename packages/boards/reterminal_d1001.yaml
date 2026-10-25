@@ -44,6 +44,12 @@ esphome:
         # charging (EXP P12 is active-low: low = charge enabled), per the Seeed BSP.
         - output.turn_on: d1001_bat_read_en
         - output.turn_off: d1001_bat_charge_en
+        # First battery reading right away instead of after the 60 s interval: until then the
+        # level is unknown and the charge limiter hasn't run (the charger stays enabled, so the
+        # device reads "charging" above 80 %).
+        - delay: 2s
+        - component.update: d1001_bat_adc
+        - component.update: d1001_battery
 
 esp32:
   board: esp32-p4-evboard

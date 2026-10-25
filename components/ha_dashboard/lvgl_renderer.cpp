@@ -1556,9 +1556,13 @@ void LvglRenderer::update_settings_(int volume, int brightness, int standby_min,
       lv_obj_align(this->set_click_knob_, click_on ? LV_ALIGN_RIGHT_MID : LV_ALIGN_LEFT_MID, 0, 0);
   }
   if (this->set_bat_bar_ != nullptr)
-    lv_bar_set_value(this->set_bat_bar_, battery_pct, LV_ANIM_OFF);
-  if (this->set_bat_pct_ != nullptr)
-    lv_label_set_text_fmt(this->set_bat_pct_, "%d %%", battery_pct);
+    lv_bar_set_value(this->set_bat_bar_, battery_pct < 0 ? 0 : battery_pct, LV_ANIM_OFF);
+  if (this->set_bat_pct_ != nullptr) {
+    if (battery_pct < 0)
+      lv_label_set_text(this->set_bat_pct_, "--");
+    else
+      lv_label_set_text_fmt(this->set_bat_pct_, "%d %%", battery_pct);
+  }
   if (this->set_bat_chg_ != nullptr)
     lv_label_set_text(this->set_bat_chg_, charging ? "En charge" : "Batterie");
   this->season_tint_(this->settings_scr_);

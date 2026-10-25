@@ -198,6 +198,18 @@ void HaDashboard::build_if_ready_() {
     }
   }
 
+  // Battery shown in the settings shade: follow it live while the shade is open.
+  if (this->battery_sensor_ != nullptr)
+    this->battery_sensor_->add_on_state_callback([this](float) {
+      if (this->renderer_.settings_visible_())
+        this->push_settings_();
+    });
+  if (this->charging_sensor_ != nullptr)
+    this->charging_sensor_->add_on_state_callback([this](bool) {
+      if (this->renderer_.settings_visible_())
+        this->push_settings_();
+    });
+
   this->controller_.start();
 
   if (this->encoder_ != nullptr)
@@ -617,9 +629,10 @@ void HaDashboard::push_settings_() {
     return (n != nullptr && !std::isnan(n->state)) ? (int) lroundf(n->state) : 0;
   };
   bool click = this->click_switch_ != nullptr && this->click_switch_->state;
+  // -1 = not measured yet (shown as "--", not as an empty battery).
   int batt = (this->battery_sensor_ != nullptr && !std::isnan(this->battery_sensor_->state))
                  ? (int) lroundf(this->battery_sensor_->state)
-                 : 0;
+                 : -1;
   bool charging = this->charging_sensor_ != nullptr && this->charging_sensor_->state;
   this->renderer_.update_settings_(num(this->volume_number_), num(this->brightness_number_),
                                    num(this->standby_number_), click, batt, charging);
