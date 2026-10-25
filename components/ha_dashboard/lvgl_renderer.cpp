@@ -3836,6 +3836,18 @@ void LvglRenderer::set_ambiance(Ambiance ambiance) {
   this->apply_idle_style_();
   this->update_idle_anims_();
   this->tint_all_(ambiance != Ambiance::NORMAL);
+  this->apply_ambiance_accents_();
+}
+
+// A few accents follow the idle clock's colours: the header time and the underline of the
+// active tab (both set once at build). Not the accent colour as a whole: it is also the
+// colour of a lit light.
+void LvglRenderer::apply_ambiance_accents_() {
+  bool hw = this->ambiance_ == Ambiance::HALLOWEEN;
+  if (this->time_lbl_ != nullptr)
+    lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
+  for (lv_obj_t *tab : this->tab_btns_)
+    lv_obj_set_style_border_color(tab, lv_color_hex(hw ? COL_HW_TIME : COL_ACCENT), 0);
 }
 
 // Seasonal tint of the UI's neutral greys. The colours are applied all over the renderer,

@@ -107,15 +107,18 @@ Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (option
 
 ## Idle screen decoration (`ambiance`)
 
-The idle clock screen can follow a house "ambiance" entity (typically an `input_select`).
-When its state is `Halloween` (case-insensitive) the screen turns night purple, the time
-orange and the date pale violet; a pumpkin sits under the weather, bats cross the screen
-now and then and a ghost floats in a corner. Any other state shows the plain clock.
+`ambiance` creates a select on the device, like the theme select of the TX Ultimate
+switches: Home Assistant sets it (a script pushes the house ambiance to every tablet) and
+the device remembers it across reboots. With `Halloween` (case-insensitive) the idle clock
+turns night purple, the time orange and the date pale violet; a pumpkin sits under the
+weather, bats cross the screen now and then and a ghost floats in a corner. Any other
+option shows the stock look.
 
 ```yaml
 ha_dashboard:
   ambiance:
-    entity: input_select.maison_ambiance
+    name: Ambiance
+    # options: [Normal, Noël, Reveillon, Halloween]   # default
   font_decor: ha_font_decor        # MDI pumpkin + ghost (packages/fonts/montserrat_fr.yaml)
   font_decor_sm: ha_font_decor_sm  # MDI bat
 ```

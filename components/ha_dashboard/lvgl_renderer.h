@@ -173,6 +173,7 @@ class LvglRenderer : public Renderer {
   // Seasonal tint of the neutral greys (backgrounds, tiles, borders) of the other screens.
   uint32_t tint_tree_(lv_obj_t *obj, bool to_season);  // returns the number of objects visited
   void tint_all_(bool to_season);
+  void apply_ambiance_accents_();  // header clock + active-tab underline in the season colour
   lv_obj_t *idle_pumpkin_{nullptr};
   lv_obj_t *idle_ghost_{nullptr};
   lv_obj_t *idle_bats_[2]{nullptr, nullptr};

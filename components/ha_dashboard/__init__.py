@@ -13,6 +13,7 @@ from esphome.components import (
     http_request,
     number,
     online_image,
+    select,
     sensor,
     switch,
     time as time_comp,
@@ -22,7 +23,14 @@ from esphome.components.homeassistant_addon import (
     HomeassistantMediaPlayer,
 )
 from esphome.components.lvgl import lv_validation as lvalid
-from esphome.const import CONF_ID, CONF_NAME, CONF_TIME_ID, CONF_TYPE
+from esphome.const import (
+    CONF_ID,
+    CONF_NAME,
+    CONF_OPTIONS,
+    CONF_TIME_ID,
+    CONF_TYPE,
+    ENTITY_CATEGORY_CONFIG,
+)
 
 # ESPHome 2026.7.0 moved the OnlineImage id class from online_image/__init__.py to
 # online_image/image.py. Resolve it either way so the schema works across releases.
@@ -44,10 +52,12 @@ AUTO_LOAD = [
     "cover",
     "climate",
     "homeassistant_addon",
+    "select",
 ]
 
 ha_dashboard_ns = cg.esphome_ns.namespace("ha_dashboard")
 HaDashboard = ha_dashboard_ns.class_("HaDashboard", cg.Component)
+AmbianceSelect = ha_dashboard_ns.class_("AmbianceSelect", select.Select)
 
 CONF_PROFILE = "profile"
 CONF_ON_TAP = "on_tap"
@@ -212,10 +222,19 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_WEATHER): cv.Schema(
             {cv.Required(CONF_ENTITY): cv.entity_id}
         ),
-        # House ambiance: the entity's state decorates the idle clock screen
-        # ("Halloween" -> Halloween decor; anything else -> plain clock).
-        cv.Optional(CONF_AMBIANCE): cv.Schema(
-            {cv.Required(CONF_ENTITY): cv.entity_id}
+        # House ambiance: a select on the device (set by a HA script, remembered across
+        # reboots). "Halloween" decorates the idle clock and tints the other screens;
+        # any other option shows the stock look.
+        cv.Optional(CONF_AMBIANCE): select.select_schema(
+            AmbianceSelect,
+            icon="mdi:party-popper",
+            entity_category=ENTITY_CATEGORY_CONFIG,
+        ).extend(
+            {
+                cv.Optional(
+                    CONF_OPTIONS, default=["Normal", "Noël", "Reveillon", "Halloween"]
+                ): cv.All(cv.ensure_list(cv.string_strict), cv.Length(min=1)),
+            }
         ),
         # Text fonts (with accented glyphs). Validated via lvgl's lv_font so they get
         # converted to lv_font_t (get_lv_font available). Optional: falls back to the
@@ -308,7 +327,10 @@ async def to_code(config):
     if CONF_WEATHER in config:
         cg.add(var.set_weather_entity(config[CONF_WEATHER][CONF_ENTITY]))
     if CONF_AMBIANCE in config:
-        cg.add(var.set_ambiance_entity(config[CONF_AMBIANCE][CONF_ENTITY]))
+        ambiance = await select.new_select(
+            config[CONF_AMBIANCE], options=config[CONF_AMBIANCE][CONF_OPTIONS]
+        )
+        cg.add(var.set_ambiance_select(ambiance))
     for conf, setter in (
         (CONF_FONT_SMALL, var.set_font_small),
         (CONF_FONT_MEDIUM, var.set_font_medium),

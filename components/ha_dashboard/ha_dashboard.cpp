@@ -160,7 +160,13 @@ void HaDashboard::setup() {
   ESP_LOGCONFIG(TAG, "ha_dashboard setup (profile=%s, %d groupes)", this->profile_.c_str(),
                 (int) this->groups_.size());
   this->subscribe_weather_();
-  this->subscribe_ambiance_();
+  if (this->ambiance_select_ != nullptr) {
+    if (!this->ambiance_select_->restore())
+      this->ambiance_select_->publish_state(static_cast<size_t>(0));
+    this->apply_ambiance_(this->ambiance_select_->current_option());
+    this->ambiance_select_->add_on_state_callback(
+        [this](size_t) { this->apply_ambiance_(this->ambiance_select_->current_option()); });
+  }
   // La construction LVGL est différée jusqu'à ce que LVGL soit initialisé (cf. loop).
 }
 
@@ -344,17 +350,13 @@ void HaDashboard::subscribe_weather_() {
   });
 }
 
-void HaDashboard::subscribe_ambiance_() {
-  if (this->ambiance_entity_ == nullptr || api::global_api_server == nullptr)
-    return;
-  api::global_api_server->subscribe_home_assistant_state(this->ambiance_entity_, nullptr, [this](StringRef s) {
-    std::string v(s.c_str());
-    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
-    this->ambiance_ = v == "halloween" ? Ambiance::HALLOWEEN : Ambiance::NORMAL;
-    ESP_LOGD(TAG, "ambiance '%s' -> %d", s.c_str(), (int) this->ambiance_);
-    if (this->built_)
-      this->renderer_.set_ambiance(this->ambiance_);
-  });
+void HaDashboard::apply_ambiance_(const std::string &option) {
+  std::string v(option);
+  std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
+  this->ambiance_ = v == "halloween" ? Ambiance::HALLOWEEN : Ambiance::NORMAL;
+  ESP_LOGD(TAG, "ambiance '%s' -> %d", option.c_str(), (int) this->ambiance_);
+  if (this->built_)
+    this->renderer_.set_ambiance(this->ambiance_);
 }
 
 void HaDashboard::push_weather_() {

@@ -8,12 +8,15 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/font/font.h"
 #include "esphome/components/number/number.h"
+#include "esphome/components/select/select.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/switch/switch.h"
 #include "esphome/components/time/real_time_clock.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/preferences.h"
 #include "controller.h"
 #include "launcher_module.h"
 #include "lvgl_renderer.h"
@@ -25,6 +28,35 @@
 
 namespace esphome {
 namespace ha_dashboard {
+
+// House ambiance of the device, like the theme select of the TX Ultimate switches: set from
+// Home Assistant (a script pushes the house ambiance to every tablet) and remembered across
+// reboots. Stored by option-name hash, so adding or reordering options cannot shift it.
+class AmbianceSelect : public select::Select {
+ public:
+  bool restore() {
+    this->pref_ = this->make_entity_preference<uint32_t>();
+    uint32_t hash;
+    if (!this->pref_.load(&hash))
+      return false;
+    for (size_t i = 0; i < this->size(); i++) {
+      if (fnv1a_hash(this->option_at(i)) == hash) {
+        this->publish_state(i);
+        return true;
+      }
+    }
+    return false;
+  }
+
+ protected:
+  void control(size_t index) override {
+    this->publish_state(index);
+    const uint32_t hash = fnv1a_hash(this->option_at(index));
+    this->pref_.save(&hash);
+  }
+
+  ESPPreferenceObject pref_;
+};
 
 class HaDashboard : public Component {
  public:
@@ -66,9 +98,8 @@ class HaDashboard : public Component {
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
   void set_weather_entity(const char *entity) { this->weather_entity_ = entity; }
-  // House "ambiance" (e.g. an input_select): its state picks the idle-screen decoration
-  // ("Halloween" -> Halloween decor, anything else -> plain clock).
-  void set_ambiance_entity(const char *entity) { this->ambiance_entity_ = entity; }
+  // House ambiance select on the device (decor of the idle clock, tint of the other screens).
+  void set_ambiance_select(AmbianceSelect *s) { this->ambiance_select_ = s; }
   void set_font_small(font::Font *f) { this->renderer_.set_font_small(f); }
   void set_font_medium(font::Font *f) { this->renderer_.set_font_medium(f); }
   void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
@@ -154,7 +185,7 @@ class HaDashboard : public Component {
   void update_clock_();
   void subscribe_weather_();
   void push_weather_();
-  void subscribe_ambiance_();
+  void apply_ambiance_(const std::string &option);
 
   std::vector<Group> groups_;
   Controller controller_;
@@ -177,7 +208,7 @@ class HaDashboard : public Component {
   std::string weather_cond_;
   std::string weather_icon_;
   bool weather_subscribed_{false};
-  const char *ambiance_entity_{nullptr};
+  AmbianceSelect *ambiance_select_{nullptr};
   Ambiance ambiance_{Ambiance::NORMAL};
 
   std::string profile_{"dial"};

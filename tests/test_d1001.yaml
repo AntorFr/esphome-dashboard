@@ -49,7 +49,7 @@ ha_dashboard:
   font_decor: ha_font_decor
   font_decor_sm: ha_font_decor_sm
   ambiance:
-    entity: input_select.maison_ambiance
+    name: Ambiance
   groups:
     - name: Salon
       icon: sofa
