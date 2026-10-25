@@ -2529,6 +2529,8 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     int32_t size = lv_font_get_line_height(this->font_decor_bg_->get_lv_font());
     lv_obj_align(this->dash_backdrop_, LV_ALIGN_BOTTOM_RIGHT, size * 28 / 100, size * 18 / 100);
     lv_obj_clear_flag(this->dash_backdrop_, LV_OBJ_FLAG_CLICKABLE);
+    // Floating: left out of the screen's scroll area, so sticking out adds no scrollbar.
+    lv_obj_add_flag(this->dash_backdrop_, LV_OBJ_FLAG_FLOATING);
     lv_obj_add_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
   }
   lv_obj_t *root = lv_obj_create(this->dashboard_scr_);
@@ -3825,6 +3827,8 @@ void LvglRenderer::build_idle_decor_() {
     lv_obj_set_style_text_font(l, f->get_lv_font(), 0);
     lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
     lv_obj_clear_flag(l, LV_OBJ_FLAG_CLICKABLE);  // let the tap reach the screen (wake)
+    // Floating: bats fly in from off screen; keep them out of the scroll area (no scrollbar).
+    lv_obj_add_flag(l, LV_OBJ_FLAG_FLOATING);
     lv_obj_add_flag(l, LV_OBJ_FLAG_HIDDEN);
     return l;
   };
