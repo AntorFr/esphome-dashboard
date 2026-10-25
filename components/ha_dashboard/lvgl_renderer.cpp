@@ -325,6 +325,7 @@ void LvglRenderer::show_toast(const std::string &text) {
     lv_timer_reset(this->toast_timer_);
     lv_timer_resume(this->toast_timer_);
   }
+  this->season_tint_(this->toast_);
 }
 
 // A transparent, gap-14 horizontal row inside the sheet body.
@@ -436,6 +437,7 @@ void LvglRenderer::show_sheet_(int card_index) {
   lv_obj_clear_flag(this->sheet_root_, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(this->sheet_scrim_);
   lv_obj_move_foreground(this->sheet_root_);
+  this->season_tint_(this->sheet_root_);
 }
 
 void LvglRenderer::hide_sheet_() {
@@ -742,6 +744,7 @@ void LvglRenderer::refresh_sheet_() {
       lv_obj_set_style_text_color(this->sheet_illus_, lv_color_hex(c.is_on() ? accent_for(c) : COL_MUTED), 0);
     }
   }
+  this->season_tint_(this->sheet_root_);
 }
 
 // ===================== Voice assistant overlay (top layer) =====================
@@ -1224,6 +1227,7 @@ void LvglRenderer::refresh_timers_() {
     lv_obj_set_style_text_color(time, lv_color_hex(COL_TIMER), 0);
     this->set_text_font_(time, this->font_large_, &lv_font_montserrat_48);
   }
+  this->season_tint_(this->timers_scr_);
 }
 
 void LvglRenderer::show_timers_() {
@@ -1231,6 +1235,7 @@ void LvglRenderer::show_timers_() {
   this->refresh_timers_();
   lv_obj_clear_flag(this->timers_scr_, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(this->timers_scr_);
+  this->season_tint_(this->timers_scr_);
 }
 
 void LvglRenderer::hide_timers_() {
@@ -1498,6 +1503,7 @@ void LvglRenderer::show_settings_() {
   this->settings_restart_disarm_();
   lv_obj_clear_flag(this->settings_scr_, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(this->settings_scr_);
+  this->season_tint_(this->settings_scr_);
 }
 
 void LvglRenderer::hide_settings_() {
@@ -1541,6 +1547,7 @@ void LvglRenderer::update_settings_(int volume, int brightness, int standby_min,
     lv_label_set_text_fmt(this->set_bat_pct_, "%d %%", battery_pct);
   if (this->set_bat_chg_ != nullptr)
     lv_label_set_text(this->set_bat_chg_, charging ? "En charge" : "Batterie");
+  this->season_tint_(this->settings_scr_);
 }
 
 // ---- Weather forecast overlay (tap the header weather widget) ----
@@ -1626,12 +1633,14 @@ void LvglRenderer::set_forecast_(const std::vector<ForecastEntry> &days) {
     lv_obj_set_style_text_color(t, lv_color_hex(COL_TEXT), 0);
     this->set_text_font_(t, this->font_medium_, &lv_font_montserrat_28);
   }
+  this->season_tint_(this->forecast_scr_);
 }
 
 void LvglRenderer::show_forecast_() {
   this->build_forecast_();
   lv_obj_clear_flag(this->forecast_scr_, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(this->forecast_scr_);
+  this->season_tint_(this->forecast_scr_);
 }
 
 void LvglRenderer::hide_forecast_() {
@@ -3897,6 +3906,13 @@ uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, bool to_season) {
   for (uint32_t i = 0; i < n; i++)
     visited += this->tint_tree_(lv_obj_get_child(obj, i), to_season);
   return visited;
+}
+
+// Overlays on the top layer (sheet, settings, timers, forecast, toast) are built on first
+// use and restyled when they open: tint them there, after their own colours are applied.
+void LvglRenderer::season_tint_(lv_obj_t *root) {
+  if (root != nullptr && this->ambiance_ != Ambiance::NORMAL)
+    this->tint_tree_(root, true);
 }
 
 // Every screen but the idle one (which has its own decor), plus the overlay layer.

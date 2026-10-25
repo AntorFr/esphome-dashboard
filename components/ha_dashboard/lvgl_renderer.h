@@ -174,6 +174,7 @@ class LvglRenderer : public Renderer {
   uint32_t tint_tree_(lv_obj_t *obj, bool to_season);  // returns the number of objects visited
   void tint_all_(bool to_season);
   void apply_ambiance_accents_();  // header clock + active-tab underline in the season colour
+  void season_tint_(lv_obj_t *root);  // tint one overlay when it opens (no-op in NORMAL)
   lv_obj_t *idle_pumpkin_{nullptr};
   lv_obj_t *idle_ghost_{nullptr};
   lv_obj_t *idle_bats_[2]{nullptr, nullptr};
