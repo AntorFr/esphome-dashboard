@@ -265,6 +265,11 @@ binary_sensor:
     pin:
       number: GPIO15
       inverted: true   # charge-state line is active-low (low = charging)
+    # The charger's status line bursts at ~10 Hz around charge start/stop (seen on a laptop USB
+    # port). Only report a state that held for 2 s: no flickering label, no burst of HA
+    # updates, no false reading in the low-battery cutoff.
+    filters:
+      - delayed_on_off: 2s
 
 light:
   - platform: monochromatic
