@@ -1,4 +1,6 @@
 #include "ha_dashboard.h"
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <lvgl.h>
@@ -158,6 +160,7 @@ void HaDashboard::setup() {
   ESP_LOGCONFIG(TAG, "ha_dashboard setup (profile=%s, %d groupes)", this->profile_.c_str(),
                 (int) this->groups_.size());
   this->subscribe_weather_();
+  this->subscribe_ambiance_();
   // La construction LVGL est différée jusqu'à ce que LVGL soit initialisé (cf. loop).
 }
 
@@ -195,6 +198,7 @@ void HaDashboard::build_if_ready_() {
     this->last_encoder_ = this->encoder_->get_state();
   this->built_ = true;
   this->push_weather_();  // reflect any weather state received before the UI was built
+  this->renderer_.set_idle_decor(this->idle_decor_);  // same for the ambiance
   ESP_LOGI(TAG, "vues LVGL construites");
 }
 
@@ -340,6 +344,19 @@ void HaDashboard::subscribe_weather_() {
   });
 }
 
+void HaDashboard::subscribe_ambiance_() {
+  if (this->ambiance_entity_ == nullptr || api::global_api_server == nullptr)
+    return;
+  api::global_api_server->subscribe_home_assistant_state(this->ambiance_entity_, nullptr, [this](StringRef s) {
+    std::string v(s.c_str());
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
+    this->idle_decor_ = v == "halloween" ? IdleDecor::HALLOWEEN : IdleDecor::NONE;
+    ESP_LOGD(TAG, "ambiance '%s' -> idle decor %d", s.c_str(), (int) this->idle_decor_);
+    if (this->built_)
+      this->renderer_.set_idle_decor(this->idle_decor_);
+  });
+}
+
 void HaDashboard::push_weather_() {
   if (this->built_)
     this->renderer_.set_weather(this->weather_icon_.c_str(), this->weather_temp_.c_str(),
@@ -413,6 +430,7 @@ void HaDashboard::loop() {
       millis() - this->controller_.last_event_ms() >= this->deep_standby_ms_) {
     this->deep_standby_active_ = true;
     ESP_LOGD(TAG, "deep standby");
+    this->renderer_.set_idle_paused(true);
     this->deep_standby_trigger_.trigger();
   }
 }
@@ -422,6 +440,7 @@ bool HaDashboard::wake_from_deep_standby_() {
     return false;
   this->deep_standby_active_ = false;
   ESP_LOGD(TAG, "wake from deep standby");
+  this->renderer_.set_idle_paused(false);
   this->wake_trigger_.trigger();
   return true;
 }
@@ -433,6 +452,7 @@ void HaDashboard::toggle_deep_standby() {
   } else {
     this->deep_standby_active_ = true;
     ESP_LOGD(TAG, "deep standby (button)");
+    this->renderer_.set_idle_paused(true);
     this->deep_standby_trigger_.trigger();
   }
 }

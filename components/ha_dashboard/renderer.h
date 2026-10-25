@@ -115,6 +115,13 @@ struct TimerInfo {
   bool is_active{false};
 };
 
+// Seasonal decoration of the idle (standby) clock screen, picked from the house "ambiance"
+// entity (see HaDashboard::set_ambiance_entity). NONE = the plain clock.
+enum class IdleDecor : uint8_t {
+  NONE = 0,
+  HALLOWEEN,
+};
+
 // One day of the weather forecast (built by the component, laid out by the renderer).
 struct ForecastEntry {
   std::string day;    // "Auj.", "Dem.", then the weekday

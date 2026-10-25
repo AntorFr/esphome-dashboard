@@ -66,6 +66,9 @@ class HaDashboard : public Component {
   void set_button(binary_sensor::BinarySensor *b) { this->button_ = b; }
   void set_time(time::RealTimeClock *t) { this->time_ = t; }
   void set_weather_entity(const char *entity) { this->weather_entity_ = entity; }
+  // House "ambiance" (e.g. an input_select): its state picks the idle-screen decoration
+  // ("Halloween" -> Halloween decor, anything else -> plain clock).
+  void set_ambiance_entity(const char *entity) { this->ambiance_entity_ = entity; }
   void set_font_small(font::Font *f) { this->renderer_.set_font_small(f); }
   void set_font_medium(font::Font *f) { this->renderer_.set_font_medium(f); }
   void set_font_large(font::Font *f) { this->renderer_.set_font_large(f); }
@@ -75,6 +78,8 @@ class HaDashboard : public Component {
   void set_font_voice(font::Font *f) { this->renderer_.set_font_voice(f); }
   void set_font_nestor(font::Font *f) { this->renderer_.set_font_nestor(f); }
   void set_font_nestor_lg(font::Font *f) { this->renderer_.set_font_nestor_lg(f); }
+  void set_font_decor(font::Font *f) { this->renderer_.set_font_decor(f); }
+  void set_font_decor_sm(font::Font *f) { this->renderer_.set_font_decor_sm(f); }
 
   // --- Voice assistant (called from voice_assistant / micro_wake_word YAML automations) ---
   void voice_listening();
@@ -149,6 +154,7 @@ class HaDashboard : public Component {
   void update_clock_();
   void subscribe_weather_();
   void push_weather_();
+  void subscribe_ambiance_();
 
   std::vector<Group> groups_;
   Controller controller_;
@@ -171,6 +177,8 @@ class HaDashboard : public Component {
   std::string weather_cond_;
   std::string weather_icon_;
   bool weather_subscribed_{false};
+  const char *ambiance_entity_{nullptr};
+  IdleDecor idle_decor_{IdleDecor::NONE};
 
   std::string profile_{"dial"};
   std::string language_{"en"};

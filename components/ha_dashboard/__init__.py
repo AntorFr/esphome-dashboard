@@ -63,6 +63,7 @@ CONF_BATTERY_SENSOR = "battery_sensor"
 CONF_CHARGING_SENSOR = "charging_sensor"
 CONF_LANGUAGE = "language"
 CONF_WEATHER = "weather"
+CONF_AMBIANCE = "ambiance"
 CONF_INACTIVITY_TIMEOUT = "inactivity_timeout"
 CONF_ENCODER = "encoder"
 CONF_ENCODER_BUTTON = "encoder_button"
@@ -95,6 +96,8 @@ CONF_FONT_ICONS_LG = "font_icons_lg"
 CONF_FONT_VOICE = "font_voice"
 CONF_FONT_NESTOR = "font_nestor"        # Nestor mascot glyph, header-chip size
 CONF_FONT_NESTOR_LG = "font_nestor_lg"  # Nestor mascot glyph, full-screen size
+CONF_FONT_DECOR = "font_decor"        # idle-screen decoration glyphs, large (pumpkin, ghost)
+CONF_FONT_DECOR_SM = "font_decor_sm"  # idle-screen decoration glyphs, small (bats)
 
 PROFILES = ["dial", "reterminal_d1001"]
 
@@ -209,6 +212,11 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_WEATHER): cv.Schema(
             {cv.Required(CONF_ENTITY): cv.entity_id}
         ),
+        # House ambiance: the entity's state decorates the idle clock screen
+        # ("Halloween" -> Halloween decor; anything else -> plain clock).
+        cv.Optional(CONF_AMBIANCE): cv.Schema(
+            {cv.Required(CONF_ENTITY): cv.entity_id}
+        ),
         # Text fonts (with accented glyphs). Validated via lvgl's lv_font so they get
         # converted to lv_font_t (get_lv_font available). Optional: falls back to the
         # built-in lv_font_montserrat_* (ASCII only) if not provided.
@@ -221,6 +229,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_FONT_VOICE): lvalid.lv_font,
         cv.Optional(CONF_FONT_NESTOR): lvalid.lv_font,
         cv.Optional(CONF_FONT_NESTOR_LG): lvalid.lv_font,
+        cv.Optional(CONF_FONT_DECOR): lvalid.lv_font,
+        cv.Optional(CONF_FONT_DECOR_SM): lvalid.lv_font,
         cv.Required(CONF_GROUPS): cv.All(cv.ensure_list(GROUP_SCHEMA), cv.Length(min=1)),
         # Fired on a discrete tap of a button/tile (e.g. to play an audible click).
         cv.Optional(CONF_ON_TAP): automation.validate_automation(single=True),
@@ -297,6 +307,8 @@ async def to_code(config):
         cg.add(var.set_time(rtc))
     if CONF_WEATHER in config:
         cg.add(var.set_weather_entity(config[CONF_WEATHER][CONF_ENTITY]))
+    if CONF_AMBIANCE in config:
+        cg.add(var.set_ambiance_entity(config[CONF_AMBIANCE][CONF_ENTITY]))
     for conf, setter in (
         (CONF_FONT_SMALL, var.set_font_small),
         (CONF_FONT_MEDIUM, var.set_font_medium),
@@ -307,6 +319,8 @@ async def to_code(config):
         (CONF_FONT_VOICE, var.set_font_voice),
         (CONF_FONT_NESTOR, var.set_font_nestor),
         (CONF_FONT_NESTOR_LG, var.set_font_nestor_lg),
+        (CONF_FONT_DECOR, var.set_font_decor),
+        (CONF_FONT_DECOR_SM, var.set_font_decor_sm),
     ):
         if conf in config:
             cg.add(setter(await cg.get_variable(config[conf])))

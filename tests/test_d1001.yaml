@@ -46,6 +46,10 @@ ha_dashboard:
   font_icons_lg: ha_font_icons_lg
   font_nestor: ha_font_nestor
   font_nestor_lg: ha_font_nestor_lg
+  font_decor: ha_font_decor
+  font_decor_sm: ha_font_decor_sm
+  ambiance:
+    entity: input_select.maison_ambiance
   groups:
     - name: Salon
       icon: sofa

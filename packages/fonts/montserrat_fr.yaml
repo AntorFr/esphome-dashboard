@@ -63,6 +63,26 @@ font:
       - "\U000F02D7"  # help-circle (fallback)
       - "\U000F057E"  # volume-high (now-playing, unmuted)
       - "\U000F0E08"  # volume-variant-off (now-playing, muted = slashed speaker)
+  # MDI glyphs decorating the idle clock screen when the house ambiance is "Halloween"
+  # (ha_dashboard ambiance option). Large: pumpkin under the weather, floating ghost.
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_decor
+    size: 160
+    bpp: 4
+    glyphs:
+      - "\U000F0BA3"  # halloween (carved pumpkin)
+      - "\U000F02A0"  # ghost
+  # Small: bats crossing the screen.
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/master/fonts/materialdesignicons-webfont.ttf"
+    id: ha_font_decor_sm
+    size: 96
+    bpp: 4
+    glyphs:
+      - "\U000F0B5F"  # bat
   # Larger MDI set for classic-card tile/sheet icons (tiles ~44px vs the 28px menu icons).
   - file:
       type: web

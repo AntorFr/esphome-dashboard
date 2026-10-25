@@ -37,6 +37,11 @@ class LvglRenderer : public Renderer {
   void set_weather(const char *icon_glyph, const char *temp_str, const char *cond_str);
   // Tint the idle (standby) background according to the time of day.
   void set_idle_hour(int hour);
+  // Seasonal decoration of the idle clock screen (colours + animated glyphs). Built once in
+  // build(), shown/hidden here; animations only run while the idle screen is on display.
+  void set_idle_decor(IdleDecor decor);
+  // Pause the idle animations while the backlight is off (deep standby).
+  void set_idle_paused(bool paused);
 
   void set_font_small(font::Font *f) { this->font_small_ = f; }
   void set_font_medium(font::Font *f) { this->font_medium_ = f; }
@@ -49,6 +54,10 @@ class LvglRenderer : public Renderer {
   // the chip/overlay fall back to the MDI mic glyph when unset.
   void set_font_nestor(font::Font *f) { this->font_nestor_ = f; }
   void set_font_nestor_lg(font::Font *f) { this->font_nestor_lg_ = f; }
+  // Decoration glyph fonts (MDI): large (pumpkin, ghost) and small (bats). Optional — without
+  // them the idle screen keeps its colours but shows no glyph.
+  void set_font_decor(font::Font *f) { this->font_decor_ = f; }
+  void set_font_decor_sm(font::Font *f) { this->font_decor_sm_ = f; }
   // Button-hold return gauge (driven from the component while the encoder button is held).
   void set_return_progress(float p) { this->render_return_(p); }
 
@@ -157,6 +166,17 @@ class LvglRenderer : public Renderer {
   lv_obj_t *idle_wx_icon_{nullptr};
   lv_obj_t *idle_wx_temp_{nullptr};
   lv_obj_t *idle_wx_cond_{nullptr};
+  // Idle decoration (built once, hidden unless a decor is active).
+  void build_idle_decor_();
+  void apply_idle_style_();
+  void update_idle_anims_();
+  lv_obj_t *idle_pumpkin_{nullptr};
+  lv_obj_t *idle_ghost_{nullptr};
+  lv_obj_t *idle_bats_[2]{nullptr, nullptr};
+  IdleDecor idle_decor_{IdleDecor::NONE};
+  bool idle_shown_{false};    // idle screen currently loaded
+  bool idle_paused_{false};   // backlight off: no animation
+  bool idle_anims_on_{false};
   lv_obj_t *menu_scr_{nullptr};
   lv_obj_t *card_scr_{nullptr};
 
@@ -209,6 +229,8 @@ class LvglRenderer : public Renderer {
   font::Font *font_voice_{nullptr};     // large MDI glyphs for the voice overlay orb
   font::Font *font_nestor_{nullptr};    // Nestor mascot glyph, header-chip size
   font::Font *font_nestor_lg_{nullptr}; // Nestor mascot glyph, full-screen size
+  font::Font *font_decor_{nullptr};     // idle decoration glyphs, large (pumpkin, ghost)
+  font::Font *font_decor_sm_{nullptr};  // idle decoration glyphs, small (bats)
 
   lv_obj_t *dashboard_scr_{nullptr};
   lv_obj_t *dash_header_{nullptr};

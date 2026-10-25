@@ -86,6 +86,18 @@ static constexpr uint32_t COL_VOICE2 = 0x7A5CFF;
 static constexpr uint32_t COL_ERR = 0xFF5A5A;
 static constexpr uint32_t COL_TIMER = 0xFFB020;
 
+// Idle (standby) clock screen, and its seasonal decorations.
+static constexpr uint32_t COL_IDLE_BG = 0x0A0A0C;
+static constexpr uint32_t COL_HW_BG_TOP = 0x2A1048;     // Halloween: deep night purple...
+static constexpr uint32_t COL_HW_BG_BOTTOM = 0x14061F;  // ...fading darker to the bottom
+static constexpr uint32_t COL_HW_TIME = 0xFF8A1F;       // pumpkin orange
+static constexpr uint32_t COL_HW_DATE = 0xC9A7FF;       // pale violet
+static constexpr uint32_t COL_HW_GHOST = 0xEDE6FF;
+static constexpr uint32_t COL_HW_BAT = 0x05010A;        // near-black silhouettes
+static const char *const GLYPH_HALLOWEEN = "\U000F0BA3";  // MDI halloween (carved pumpkin)
+static const char *const GLYPH_GHOST = "\U000F02A0";      // MDI ghost
+static const char *const GLYPH_BAT = "\U000F0B5F";        // MDI bat
+
 // Effective cover presentation: YAML `cover_kind` override, else the HA device_class.
 static int cover_kind_of(const Card &c) {
   const std::string &k = c.cover_kind;
@@ -1968,9 +1980,21 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     lv_obj_set_style_text_color(this->idle_wx_cond_, lv_color_hex(COL_MUTED), 0);
     this->set_text_font_(this->idle_wx_cond_, this->font_small_, &lv_font_montserrat_20);
 
+    // Seasonal glyph under the weather. Hidden objects take no room in the flex column.
+    if (this->font_decor_ != nullptr) {
+      this->idle_pumpkin_ = lv_label_create(col);
+      lv_label_set_text(this->idle_pumpkin_, GLYPH_HALLOWEEN);
+      lv_obj_set_style_text_font(this->idle_pumpkin_, this->font_decor_->get_lv_font(), 0);
+      lv_obj_set_style_text_color(this->idle_pumpkin_, lv_color_hex(COL_HW_TIME), 0);
+      lv_obj_set_style_margin_top(this->idle_pumpkin_, 48, 0);
+      lv_obj_add_flag(this->idle_pumpkin_, LV_OBJ_FLAG_HIDDEN);
+    }
+
     auto *d = new CbData{this, InputEvent::WAKE, -1};
     bind_click_(this->idle_scr_, d);
   }
+  this->build_idle_decor_();
+  this->apply_idle_style_();
 
   // Dial radial launcher + card carousel (round profile). D1001 uses the merged dashboard.
   if (this->round_) {
@@ -3746,10 +3770,145 @@ const Card *LvglRenderer::current_card_(const ViewModel &vm) const {
 
 void LvglRenderer::set_idle_hour(int hour) {
   (void) hour;  // time-of-day tint dropped: the mockup wants a plain black idle screen
+  this->apply_idle_style_();
+}
+
+// ---- Idle decoration (seasonal) ----
+
+// Floating objects of the idle screen (outside the clock column), hidden until a decor is on.
+void LvglRenderer::build_idle_decor_() {
   if (this->idle_scr_ == nullptr)
     return;
-  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(0x0A0A0C), 0);
+  auto make = [this](font::Font *f, const char *glyph, uint32_t color) -> lv_obj_t * {
+    if (f == nullptr)
+      return nullptr;
+    lv_obj_t *l = lv_label_create(this->idle_scr_);
+    lv_label_set_text(l, glyph);
+    lv_obj_set_style_text_font(l, f->get_lv_font(), 0);
+    lv_obj_set_style_text_color(l, lv_color_hex(color), 0);
+    lv_obj_clear_flag(l, LV_OBJ_FLAG_CLICKABLE);  // let the tap reach the screen (wake)
+    lv_obj_add_flag(l, LV_OBJ_FLAG_HIDDEN);
+    return l;
+  };
+  this->idle_ghost_ = make(this->font_decor_, GLYPH_GHOST, COL_HW_GHOST);
+  if (this->idle_ghost_ != nullptr) {
+    lv_obj_set_style_opa(this->idle_ghost_, LV_OPA_80, 0);
+    lv_obj_align(this->idle_ghost_, LV_ALIGN_BOTTOM_LEFT, this->w_ / 20, -this->h_ / 10);
+  }
+  for (auto &bat : this->idle_bats_) {
+    bat = make(this->font_decor_sm_, GLYPH_BAT, COL_HW_BAT);
+    if (bat != nullptr)
+      lv_obj_set_pos(bat, -this->w_, 0);  // parked off-screen between flights
+  }
+}
+
+// Colours of the idle screen for the current decor, and which decoration glyphs show.
+void LvglRenderer::apply_idle_style_() {
+  if (this->idle_scr_ == nullptr)
+    return;
+  bool hw = this->idle_decor_ == IdleDecor::HALLOWEEN;
+  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG_TOP : COL_IDLE_BG), 0);
+  lv_obj_set_style_bg_grad_color(this->idle_scr_, lv_color_hex(COL_HW_BG_BOTTOM), 0);
+  lv_obj_set_style_bg_grad_dir(this->idle_scr_, hw ? LV_GRAD_DIR_VER : LV_GRAD_DIR_NONE, 0);
   lv_obj_set_style_bg_opa(this->idle_scr_, LV_OPA_COVER, 0);
+  if (this->idle_time_lbl_ != nullptr)
+    lv_obj_set_style_text_color(this->idle_time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
+  for (lv_obj_t *l : {this->idle_date_lbl_, this->idle_wx_cond_}) {
+    if (l != nullptr)
+      lv_obj_set_style_text_color(l, lv_color_hex(hw ? COL_HW_DATE : COL_MUTED), 0);
+  }
+  for (lv_obj_t *o : {this->idle_pumpkin_, this->idle_ghost_, this->idle_bats_[0], this->idle_bats_[1]}) {
+    if (o == nullptr)
+      continue;
+    if (hw)
+      lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+    else
+      lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+void LvglRenderer::set_idle_decor(IdleDecor decor) {
+  if (decor == this->idle_decor_)
+    return;
+  this->idle_decor_ = decor;
+  this->apply_idle_style_();
+  this->update_idle_anims_();
+}
+
+void LvglRenderer::set_idle_paused(bool paused) {
+  this->idle_paused_ = paused;
+  this->update_idle_anims_();
+}
+
+static void idle_anim_y_cb(void *obj, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(obj), v); }
+
+// Bat flight: the animation drives x; y bobs on two sine waves around the cruise height
+// (stored in user_data).
+static void idle_bat_cb(lv_anim_t *a, int32_t x) {
+  auto *bat = static_cast<lv_obj_t *>(a->var);
+  int32_t span = a->end_value - a->start_value;
+  int32_t done = span != 0 ? (x - a->start_value) * 720 / span : 0;
+  int32_t base = (int32_t) (intptr_t) lv_anim_get_user_data(a);
+  lv_obj_set_pos(bat, x, base + lv_trigo_sin((int16_t) (done % 360)) * 24 / LV_TRIGO_SIN_MAX);
+}
+
+// Animations run only while the decorated idle screen is on display with the backlight on.
+void LvglRenderer::update_idle_anims_() {
+  bool want = this->idle_shown_ && !this->idle_paused_ && this->idle_decor_ == IdleDecor::HALLOWEEN;
+  if (want == this->idle_anims_on_)
+    return;
+  this->idle_anims_on_ = want;
+  if (!want) {
+    if (this->idle_ghost_ != nullptr)
+      lv_anim_delete(this->idle_ghost_, nullptr);
+    for (lv_obj_t *bat : this->idle_bats_) {
+      if (bat != nullptr) {
+        lv_anim_delete(bat, nullptr);
+        lv_obj_set_pos(bat, -this->w_, 0);
+      }
+    }
+    return;
+  }
+  if (this->idle_ghost_ != nullptr) {
+    // The ghost floats up and down in its corner.
+    int32_t y0 = -this->h_ / 10;
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, this->idle_ghost_);
+    lv_anim_set_exec_cb(&a, idle_anim_y_cb);
+    lv_anim_set_values(&a, y0, y0 - this->h_ / 25);
+    lv_anim_set_duration(&a, 2600);
+    lv_anim_set_reverse_duration(&a, 2600);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
+  }
+  // Two bats cross the screen now and then, one each way, at different heights and paces.
+  struct Flight {
+    int32_t from, to, cruise_y;
+    uint32_t duration, delay, pause;
+  };
+  const int32_t off = this->w_ / 6;
+  const Flight flights[2] = {
+      {-off, this->w_ + off, this->h_ * 12 / 100, 9000, 2000, 14000},
+      {this->w_ + off, -off, this->h_ * 22 / 100, 13000, 9000, 21000},
+  };
+  for (int i = 0; i < 2; i++) {
+    if (this->idle_bats_[i] == nullptr)
+      continue;
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, this->idle_bats_[i]);
+    lv_anim_set_custom_exec_cb(&a, idle_bat_cb);
+    lv_anim_set_user_data(&a, (void *) (intptr_t) flights[i].cruise_y);
+    lv_anim_set_values(&a, flights[i].from, flights[i].to);
+    lv_anim_set_duration(&a, flights[i].duration);
+    lv_anim_set_delay(&a, flights[i].delay);
+    lv_anim_set_repeat_delay(&a, flights[i].pause);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&a, lv_anim_path_linear);
+    lv_anim_start(&a);
+  }
 }
 
 void LvglRenderer::render_card_view_(const ViewModel &vm) {
@@ -3843,6 +4002,8 @@ static void load_screen_(lv_obj_t *scr) {
 }
 
 void LvglRenderer::render(const ViewModel &vm) {
+  this->idle_shown_ = vm.state == NavState::IDLE;
+  this->update_idle_anims_();
   switch (vm.state) {
     case NavState::IDLE:
       load_screen_(this->idle_scr_);

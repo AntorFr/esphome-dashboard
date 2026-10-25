@@ -105,6 +105,25 @@ Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (option
 | `cover_kind` | enum | optionnel (cover) | `shutter` \| `garage` \| `gate` — illustration + sens du mouvement |
 | `climate_kind` | enum | optionnel (climate) | `radiator` (chauffe seul) \| `ac` (froid seul) \| `thermostat` (réversible, défaut). Pilote l'icône (radiateur/climatiseur/thermostat) et les modes du sheet. Couleur auto : chauffe = ambre, refroidit = bleu. |
 
+## Idle screen decoration (`ambiance`)
+
+The idle clock screen can follow a house "ambiance" entity (typically an `input_select`).
+When its state is `Halloween` (case-insensitive) the screen turns night purple, the time
+orange and the date pale violet; a pumpkin sits under the weather, bats cross the screen
+now and then and a ghost floats in a corner. Any other state shows the plain clock.
+
+```yaml
+ha_dashboard:
+  ambiance:
+    entity: input_select.maison_ambiance
+  font_decor: ha_font_decor        # MDI pumpkin + ghost (packages/fonts/montserrat_fr.yaml)
+  font_decor_sm: ha_font_decor_sm  # MDI bat
+```
+
+- The decoration is built once and hidden otherwise (ADR-0005). Its animations only run
+  while the idle screen is shown and stop during deep standby (backlight off).
+- Without `font_decor` / `font_decor_sm` the colours still change, but no glyph is drawn.
+
 ## Ce qui est auto-injecté (l'utilisateur ne l'écrit pas)
 
 Via `packages/entrypoint.yaml` (piloté par `${display}`) :
