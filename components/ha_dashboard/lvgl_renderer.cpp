@@ -103,8 +103,7 @@ static constexpr uint32_t COL_ERR = 0xFF5A5A;
 
 // Idle (standby) clock screen, and its seasonal decorations.
 static constexpr uint32_t COL_IDLE_BG = 0x0A0A0C;
-static constexpr uint32_t COL_HW_BG_TOP = 0x2A1048;     // Halloween: deep night purple...
-static constexpr uint32_t COL_HW_BG_BOTTOM = 0x14061F;  // ...fading darker to the bottom
+static constexpr uint32_t COL_HW_BG = 0x1F0B35;        // Halloween: deep night purple
 static constexpr uint32_t COL_HW_TIME = 0xFF8A1F;       // pumpkin orange (also the UI accent)
 static constexpr uint32_t COL_HW_ACCENT_DARK = 0xC96D18;
 static constexpr uint32_t COL_HW_DATE = 0xC9A7FF;       // pale violet
@@ -3853,9 +3852,10 @@ void LvglRenderer::apply_idle_style_() {
   if (this->idle_scr_ == nullptr)
     return;
   bool hw = this->ambiance_ == Ambiance::HALLOWEEN;
-  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG_TOP : COL_IDLE_BG), 0);
-  lv_obj_set_style_bg_grad_color(this->idle_scr_, lv_color_hex(COL_HW_BG_BOTTOM), 0);
-  lv_obj_set_style_bg_grad_dir(this->idle_scr_, hw ? LV_GRAD_DIR_VER : LV_GRAD_DIR_NONE, 0);
+  // Plain fill: the panel is RGB565, so a gradient between two close purples falls into a
+  // few visible bands, each channel stepping at a different height.
+  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG : COL_IDLE_BG), 0);
+  lv_obj_set_style_bg_grad_dir(this->idle_scr_, LV_GRAD_DIR_NONE, 0);
   lv_obj_set_style_bg_opa(this->idle_scr_, LV_OPA_COVER, 0);
   if (this->idle_time_lbl_ != nullptr)
     lv_obj_set_style_text_color(this->idle_time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);

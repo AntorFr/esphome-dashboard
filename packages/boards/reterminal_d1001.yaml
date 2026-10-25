@@ -183,16 +183,13 @@ sensor:
     accuracy_decimals: 0
     update_interval: 60s
     # Charge limiter (hysteresis): cut the charger at >= 80 %, re-enable at <= 60 %, hold in
-    # between. Only active while the "Limiter la charge" switch is on.
+    # between. Applied by d1001_charge_apply, only while the "Limiter la charge" switch is on.
     on_value:
       then:
         - lambda: |-
-            if (!id(d1001_charge_limit).state) return;
             if (x >= 80.0f) id(d1001_charge_cut) = true;
             else if (x <= 60.0f) id(d1001_charge_cut) = false;
-            else return;
-            if (id(d1001_charge_cut)) id(d1001_bat_charge_en).turn_on();    // active-low: high = charge off
-            else id(d1001_bat_charge_en).turn_off();                        // low = charge enabled
+        - script.execute: d1001_charge_apply
         # Low-battery cutoff: <= 20 % and not charging for 3 consecutive readings (~3 min, to
         # ignore load sag) -> screen off, then drop the power latch. On USB the board stays
         # powered anyway; replugging USB reboots it.
@@ -233,6 +230,12 @@ globals:
     restore_value: no
     initial_value: "false"
 
+  # Backlight on (screen in use). Set by the backlight light below.
+  - id: d1001_screen_on
+    type: bool
+    restore_value: no
+    initial_value: "true"
+
   - id: d1001_low_count
     type: int
     restore_value: no
@@ -253,9 +256,43 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
     entity_category: config
+    turn_on_action:
+      - script.execute: d1001_charge_apply
     turn_off_action:
-      - lambda: id(d1001_charge_cut) = false;
-      - output.turn_off: d1001_bat_charge_en   # limiter off -> charger always enabled
+      - script.execute: d1001_charge_apply
+  # Charging while the screen is lit makes the display show blue frames: at ~1 A of charge
+  # plus the system load, the BQ25616 runs at its input current limit and the system rail
+  # sags on every redraw. Charge only while the backlight is off (deep standby); on USB the
+  # power path runs the device from the input meanwhile, so the battery just idles.
+  - platform: template
+    name: "Charger écran éteint seulement"
+    id: d1001_charge_screen_off
+    icon: mdi:battery-clock
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    turn_on_action:
+      - script.execute: d1001_charge_apply
+    turn_off_action:
+      - script.execute: d1001_charge_apply
+
+# Charger enable, from the limiter, the screen state and a low-battery override (<= 25 %:
+# charge whatever the screen does, so a plugged tablet never runs flat, and so the 20 %
+# cutoff never sees "not charging" on USB).
+script:
+  - id: d1001_charge_apply
+    mode: restart
+    then:
+      - delay: 10ms   # let an optimistic switch publish its new state first
+      - lambda: |-
+          float pct = id(d1001_battery).state;
+          bool low = !std::isnan(pct) && pct <= 25.0f;
+          bool limited = id(d1001_charge_limit).state && id(d1001_charge_cut);
+          bool screen_blocks = id(d1001_charge_screen_off).state && id(d1001_screen_on);
+          if (low || (!limited && !screen_blocks))
+            id(d1001_bat_charge_en).turn_off();  // active-low: low = charge enabled
+          else
+            id(d1001_bat_charge_en).turn_on();
 
 binary_sensor:
   - platform: gpio
@@ -277,6 +314,16 @@ light:
     output: d1001_bl_pwm
     restore_mode: ALWAYS_ON
     internal: true
+    on_turn_on:
+      - globals.set:
+          id: d1001_screen_on
+          value: "true"
+      - script.execute: d1001_charge_apply
+    on_turn_off:
+      - globals.set:
+          id: d1001_screen_on
+          value: "false"
+      - script.execute: d1001_charge_apply
 
 display:
   - platform: mipi_dsi
