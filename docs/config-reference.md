@@ -126,8 +126,9 @@ ha_dashboard:
 - The decoration is built once and hidden otherwise (ADR-0005). Its animations only run
   while the idle screen is shown and stop during deep standby (backlight off).
 - The other screens follow too: their dark neutral greys (backgrounds, tiles, borders)
-  turn night purple at the same lightness. Entity colours (light amber, cover blue, …)
-  keep their meaning. A pass rewrites the matching local style colours in place, on the
+  turn night purple at the same lightness, and the UI accent (active tab, loading,
+  launcher buttons, timers, now-playing toggles, header time) turns pumpkin orange.
+  Entity colours (light amber, cover blue, …) keep their meaning. A pass rewrites the matching local style colours in place, on the
   ambiance change and after each render (a few hundred objects, about 1 ms).
 - Without `font_decor` / `font_decor_sm` the colours still change, but no glyph is drawn.
 

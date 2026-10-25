@@ -355,8 +355,10 @@ void HaDashboard::apply_ambiance_(const std::string &option) {
   std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
   this->ambiance_ = v == "halloween" ? Ambiance::HALLOWEEN : Ambiance::NORMAL;
   ESP_LOGD(TAG, "ambiance '%s' -> %d", option.c_str(), (int) this->ambiance_);
-  if (this->built_)
+  if (this->built_) {
     this->renderer_.set_ambiance(this->ambiance_);
+    this->controller_.refresh();  // repaint entity colours after the accent swap
+  }
 }
 
 void HaDashboard::push_weather_() {

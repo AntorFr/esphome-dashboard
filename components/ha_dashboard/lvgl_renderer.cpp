@@ -27,7 +27,21 @@ static constexpr uint32_t COL_BG = 0x0E0E12;
 static constexpr uint32_t COL_TILE = 0x2C2C38;  // lighter than the mockup so tiles stand out from the bg
 static constexpr uint32_t COL_TEXT = 0xFFFFFF;
 static constexpr uint32_t COL_MUTED = 0x8A8A92;
-static constexpr uint32_t COL_ACCENT = 0xFFB020;
+static constexpr uint32_t COL_ACCENT = 0xFFB020;       // stock UI accent (amber)
+static constexpr uint32_t COL_ACCENT_DARK = 0xC97E00;  // its darker shade (orb gradient)
+// UI accent in use: tabs, loading, launcher buttons, timers, now-playing toggles. Follows the
+// ambiance (see set_ambiance). Entity colours (a lit light, a heating climate) are separate
+// literals in accent_for() and never follow it.
+static uint32_t g_ui_accent = COL_ACCENT;
+static uint32_t g_ui_accent_dark = COL_ACCENT_DARK;
+static uint32_t ui_accent() { return g_ui_accent; }
+static uint32_t ui_accent_dark() { return g_ui_accent_dark; }
+
+// A colour and its seasonal replacement (see tint_tree_ / swap_accent_).
+struct NeutralTint {
+  uint32_t neutral;
+  uint32_t halloween;
+};
 
 // MDI glyphs (embedded in ha_font_icons) for the now-playing volume button. The built-in
 // LVGL symbol set has no slashed speaker, so we use Material Design Icons here.
@@ -86,13 +100,13 @@ static const char *const NESTOR_GLYPH = "\U000F0002";  // Nestor Karotz silhouet
 static constexpr uint32_t COL_VOICE = 0x35C6FF;
 static constexpr uint32_t COL_VOICE2 = 0x7A5CFF;
 static constexpr uint32_t COL_ERR = 0xFF5A5A;
-static constexpr uint32_t COL_TIMER = 0xFFB020;
 
 // Idle (standby) clock screen, and its seasonal decorations.
 static constexpr uint32_t COL_IDLE_BG = 0x0A0A0C;
 static constexpr uint32_t COL_HW_BG_TOP = 0x2A1048;     // Halloween: deep night purple...
 static constexpr uint32_t COL_HW_BG_BOTTOM = 0x14061F;  // ...fading darker to the bottom
-static constexpr uint32_t COL_HW_TIME = 0xFF8A1F;       // pumpkin orange
+static constexpr uint32_t COL_HW_TIME = 0xFF8A1F;       // pumpkin orange (also the UI accent)
+static constexpr uint32_t COL_HW_ACCENT_DARK = 0xC96D18;
 static constexpr uint32_t COL_HW_DATE = 0xC9A7FF;       // pale violet
 static constexpr uint32_t COL_HW_GHOST = 0xEDE6FF;
 static constexpr uint32_t COL_HW_BAT = 0x05010A;        // near-black silhouettes
@@ -888,8 +902,8 @@ void LvglRenderer::build_voice_() {
   lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_SCROLLABLE);
   // Prebuilt buttons; shown/hidden per state. Labels use the accent-capable font.
   const lv_font_t *bf = this->font_medium_ != nullptr ? this->font_medium_->get_lv_font() : &lv_font_montserrat_28;
-  voice_btn_(this, this->voice_actions_, LV_SYMBOL_STOP, "Arrêter", bf, true, COL_TIMER, InputEvent::TIMER_STOP);
-  voice_btn_(this, this->voice_actions_, LV_SYMBOL_PLUS, "1 min", bf, false, COL_TIMER, InputEvent::TIMER_ADD_MIN);
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_STOP, "Arrêter", bf, true, ui_accent(), InputEvent::TIMER_STOP);
+  voice_btn_(this, this->voice_actions_, LV_SYMBOL_PLUS, "1 min", bf, false, ui_accent(), InputEvent::TIMER_ADD_MIN);
   voice_btn_(this, this->voice_actions_, MDI_MIC, "Réessayer", bf, true, COL_VOICE, InputEvent::VOICE_START);
   voice_btn_(this, this->voice_actions_, LV_SYMBOL_CLOSE, "Fermer", bf, false, COL_VOICE, InputEvent::VOICE_CANCEL);
   voice_btn_(this, this->voice_actions_, MDI_MIC, "Réactiver", bf, true, COL_VOICE, InputEvent::VOICE_MUTE_TOGGLE);
@@ -958,7 +972,7 @@ void LvglRenderer::voice_apply_(VoiceState st) {
       break;
     case VoiceState::TIMER_RINGING:
       glyph = MDI_TIMER_ALERT; status = "Minuterie terminée";
-      orb = COL_TIMER; orb2 = 0xC97E00;
+      orb = ui_accent(); orb2 = ui_accent_dark();
       lv_obj_clear_flag(this->voice_sub_, LV_OBJ_FLAG_HIDDEN);
       lv_obj_clear_flag(this->voice_actions_, LV_OBJ_FLAG_HIDDEN);
       lv_obj_add_flag(this->voice_close_, LV_OBJ_FLAG_HIDDEN);
@@ -1138,7 +1152,7 @@ void LvglRenderer::build_timers_() {
   lv_obj_set_style_arc_width(this->timers_ring_, 18, LV_PART_MAIN);
   lv_obj_set_style_arc_color(this->timers_ring_, lv_color_hex(0x23232C), LV_PART_MAIN);
   lv_obj_set_style_arc_width(this->timers_ring_, 18, LV_PART_INDICATOR);
-  lv_obj_set_style_arc_color(this->timers_ring_, lv_color_hex(COL_TIMER), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(this->timers_ring_, lv_color_hex(ui_accent()), LV_PART_INDICATOR);
   lv_obj_set_style_bg_opa(this->timers_ring_, LV_OPA_TRANSP, LV_PART_KNOB);
   lv_obj_set_style_pad_all(this->timers_ring_, 0, LV_PART_KNOB);
   lv_obj_t *ringcol = lv_obj_create(this->timers_ring_);
@@ -1213,7 +1227,7 @@ void LvglRenderer::refresh_timers_() {
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_t *ic = lv_label_create(row);
     lv_label_set_text(ic, MDI_TIMER);
-    lv_obj_set_style_text_color(ic, lv_color_hex(COL_TIMER), 0);
+    lv_obj_set_style_text_color(ic, lv_color_hex(ui_accent()), 0);
     if (this->font_icons_lg_ != nullptr)
       lv_obj_set_style_text_font(ic, this->font_icons_lg_->get_lv_font(), 0);
     lv_obj_t *name = lv_label_create(row);
@@ -1224,7 +1238,7 @@ void LvglRenderer::refresh_timers_() {
     lv_obj_t *time = lv_label_create(row);
     fmt_timer(t.remaining_s, buf, sizeof(buf));
     lv_label_set_text(time, buf);
-    lv_obj_set_style_text_color(time, lv_color_hex(COL_TIMER), 0);
+    lv_obj_set_style_text_color(time, lv_color_hex(ui_accent()), 0);
     this->set_text_font_(time, this->font_large_, &lv_font_montserrat_48);
   }
   this->season_tint_(this->timers_scr_);
@@ -2311,7 +2325,7 @@ void LvglRenderer::build_card_view_() {
   lv_obj_set_style_arc_width(this->card_arc_, 14, LV_PART_MAIN);
   lv_obj_set_style_arc_color(this->card_arc_, lv_color_hex(0x232330), LV_PART_MAIN);
   lv_obj_set_style_arc_width(this->card_arc_, 14, LV_PART_INDICATOR);
-  lv_obj_set_style_arc_color(this->card_arc_, lv_color_hex(COL_ACCENT), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(this->card_arc_, lv_color_hex(ui_accent()), LV_PART_INDICATOR);
   lv_obj_remove_style(this->card_arc_, nullptr, LV_PART_KNOB);
   lv_obj_remove_flag(this->card_arc_, LV_OBJ_FLAG_CLICKABLE);
 
@@ -2356,7 +2370,7 @@ void LvglRenderer::build_card_view_() {
 
   this->card_title_ = lv_label_create(this->card_center_);
   lv_label_set_text(this->card_title_, "");
-  lv_obj_set_style_text_color(this->card_title_, lv_color_hex(COL_ACCENT), 0);
+  lv_obj_set_style_text_color(this->card_title_, lv_color_hex(ui_accent()), 0);
   this->set_text_font_(this->card_title_, this->font_small_, &lv_font_montserrat_20);
 
   // Pagination dots (rebuilt per group in render_card_view_).
@@ -2592,12 +2606,12 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   lv_obj_add_flag(this->timer_pill_, LV_OBJ_FLAG_HIDDEN);
   lv_obj_t *tpi = lv_label_create(this->timer_pill_);
   lv_label_set_text(tpi, MDI_TIMER);
-  lv_obj_set_style_text_color(tpi, lv_color_hex(COL_TIMER), 0);
+  lv_obj_set_style_text_color(tpi, lv_color_hex(ui_accent()), 0);
   if (this->font_icons_lg_ != nullptr)
     lv_obj_set_style_text_font(tpi, this->font_icons_lg_->get_lv_font(), 0);
   this->timer_pill_lbl_ = lv_label_create(this->timer_pill_);
   lv_label_set_text(this->timer_pill_lbl_, "0:00");
-  lv_obj_set_style_text_color(this->timer_pill_lbl_, lv_color_hex(COL_TIMER), 0);
+  lv_obj_set_style_text_color(this->timer_pill_lbl_, lv_color_hex(ui_accent()), 0);
   this->set_text_font_(this->timer_pill_lbl_, this->font_medium_, &lv_font_montserrat_28);
   {
     auto *d = new CbData{this, InputEvent::OPEN_TIMERS, -1};
@@ -2705,7 +2719,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
     lv_obj_set_style_radius(tab, 0, 0);
     lv_obj_set_style_pad_hor(tab, 2, 0);
     lv_obj_set_style_pad_ver(tab, 8, 0);
-    lv_obj_set_style_border_color(tab, lv_color_hex(COL_ACCENT), 0);
+    lv_obj_set_style_border_color(tab, lv_color_hex(ui_accent()), 0);
     lv_obj_set_style_border_side(tab, LV_BORDER_SIDE_BOTTOM, 0);
     lv_obj_set_style_border_width(tab, 0, 0);
     lv_obj_add_flag(tab, LV_OBJ_FLAG_CLICKABLE);
@@ -2822,7 +2836,7 @@ void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
         lv_obj_set_height(t.bar, 6);
         lv_obj_set_style_radius(t.bar, 3, 0);
         lv_obj_set_style_bg_color(t.bar, lv_color_hex(0x26262F), LV_PART_MAIN);
-        lv_obj_set_style_bg_color(t.bar, lv_color_hex(COL_ACCENT), LV_PART_INDICATOR);
+        lv_obj_set_style_bg_color(t.bar, lv_color_hex(ui_accent()), LV_PART_INDICATOR);
         lv_bar_set_range(t.bar, 0, 100);
         lv_bar_set_value(t.bar, 0, LV_ANIM_OFF);
       }
@@ -3302,7 +3316,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_set_height(eps, LV_SIZE_CONTENT);
       lv_obj_set_style_bg_opa(eps, LV_OPA_TRANSP, 0);
       lv_obj_set_style_border_width(eps, 2, 0);
-      lv_obj_set_style_border_color(eps, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_set_style_border_color(eps, lv_color_hex(ui_accent()), 0);
       lv_obj_set_style_shadow_width(eps, 0, 0);
       lv_obj_set_style_radius(eps, 30, 0);
       lv_obj_set_style_pad_hor(eps, 18, 0);
@@ -3313,11 +3327,11 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       // Icon (built-in font, has the symbol) + text (accented font for "Épisodes").
       lv_obj_t *ei = lv_label_create(eps);
       lv_label_set_text(ei, LV_SYMBOL_LIST);
-      lv_obj_set_style_text_color(ei, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_set_style_text_color(ei, lv_color_hex(ui_accent()), 0);
       lv_obj_set_style_text_font(ei, &lv_font_montserrat_20, 0);
       lv_obj_t *el = lv_label_create(eps);
       lv_label_set_text(el, item.media_type == "audiobook" ? "Chapitres" : "Épisodes");
-      lv_obj_set_style_text_color(el, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_set_style_text_color(el, lv_color_hex(ui_accent()), 0);
       this->set_text_font_(el, this->font_small_, &lv_font_montserrat_20);
       auto *dc = new CbData{this, InputEvent::LAUNCHER_OPEN_CHILDREN, idx};
       bind_click_(eps, dc);
@@ -3457,7 +3471,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       lv_obj_t *ic = lv_label_create(box);
       lv_label_set_text(ic, LV_SYMBOL_REFRESH);
       lv_obj_set_style_text_font(ic, &lv_font_montserrat_48, 0);
-      lv_obj_set_style_text_color(ic, lv_color_hex(COL_ACCENT), 0);
+      lv_obj_set_style_text_color(ic, lv_color_hex(ui_accent()), 0);
       lv_obj_t *lbl = lv_label_create(box);
       lv_label_set_text(lbl, "Chargement...");
       lv_obj_set_style_text_color(lbl, lv_color_hex(COL_MUTED), 0);
@@ -3494,7 +3508,7 @@ void LvglRenderer::render_launcher_(int gi, const Group &g) {
       this->launcher_footer_ = lbl;
     } else {
       this->launcher_footer_ =
-          add_button("Charger plus", &lv_font_montserrat_28, COL_ACCENT, InputEvent::LAUNCHER_LOAD_MORE, -1);
+          add_button("Charger plus", &lv_font_montserrat_28, ui_accent(), InputEvent::LAUNCHER_LOAD_MORE, -1);
     }
   }
 
@@ -3718,10 +3732,10 @@ void LvglRenderer::render_now_playing_(const ViewModel &vm) {
     if (this->np_pp_icon_ != nullptr)
       lv_label_set_text(this->np_pp_icon_, np.playing() ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
     if (this->np_shuffle_lbl_ != nullptr)
-      lv_obj_set_style_text_color(this->np_shuffle_lbl_, lv_color_hex(np.shuffle ? COL_ACCENT : COL_MUTED), 0);
+      lv_obj_set_style_text_color(this->np_shuffle_lbl_, lv_color_hex(np.shuffle ? ui_accent() : COL_MUTED), 0);
     if (this->np_repeat_lbl_ != nullptr)
       lv_obj_set_style_text_color(this->np_repeat_lbl_,
-                                  lv_color_hex(np.repeat != "off" && !np.repeat.empty() ? COL_ACCENT : COL_MUTED),
+                                  lv_color_hex(np.repeat != "off" && !np.repeat.empty() ? ui_accent() : COL_MUTED),
                                   0);
     // Playback progress bar + elapsed/total times.
     if (this->np_progress_ != nullptr) {
@@ -3736,7 +3750,7 @@ void LvglRenderer::render_now_playing_(const ViewModel &vm) {
     // Mute state on the volume icon (muted -> slashed speaker + accent).
     if (this->np_vol_lbl_ != nullptr) {
       lv_label_set_text(this->np_vol_lbl_, np.muted ? ICON_VOL_OFF : ICON_VOL_ON);
-      lv_obj_set_style_text_color(this->np_vol_lbl_, lv_color_hex(np.muted ? COL_ACCENT : COL_MUTED), 0);
+      lv_obj_set_style_text_color(this->np_vol_lbl_, lv_color_hex(np.muted ? ui_accent() : COL_MUTED), 0);
     }
 #ifdef USE_HA_DASHBOARD_LAUNCHER
     if (this->np_cover_slot_ != nullptr && this->np_cover_img_ != nullptr) {
@@ -3845,7 +3859,51 @@ void LvglRenderer::set_ambiance(Ambiance ambiance) {
   this->apply_idle_style_();
   this->update_idle_anims_();
   this->tint_all_(ambiance != Ambiance::NORMAL);
+  bool hw = ambiance == Ambiance::HALLOWEEN;
+  this->swap_accent_(hw ? COL_HW_TIME : COL_ACCENT, hw ? COL_HW_ACCENT_DARK : COL_ACCENT_DARK);
   this->apply_ambiance_accents_();
+}
+
+// Built objects keep the accent they were given: rewrite it in place. A lit light shares the
+// stock amber, so it may turn orange here for an instant: the re-render that follows the
+// ambiance change (HaDashboard) paints entity colours back.
+void LvglRenderer::swap_accent_(uint32_t accent, uint32_t dark) {
+  const NeutralTint swaps[] = {{g_ui_accent, accent}, {g_ui_accent_dark, dark}};
+  g_ui_accent = accent;
+  g_ui_accent_dark = dark;
+  if (swaps[0].neutral == accent)
+    return;
+  for (lv_obj_t *root : {this->dashboard_scr_, this->now_playing_scr_, this->menu_scr_, this->card_scr_,
+                         lv_layer_top()}) {
+    if (root != nullptr)
+      this->remap_tree_(root, swaps, 2);
+  }
+}
+
+void LvglRenderer::remap_tree_(lv_obj_t *obj, const NeutralTint *pairs, size_t n) {
+  static const lv_style_prop_t PROPS[] = {LV_STYLE_TEXT_COLOR, LV_STYLE_BG_COLOR, LV_STYLE_BG_GRAD_COLOR,
+                                          LV_STYLE_BORDER_COLOR, LV_STYLE_ARC_COLOR, LV_STYLE_SHADOW_COLOR};
+  for (uint32_t i = 0; i < obj->style_cnt; i++) {
+    const lv_obj_style_t &os = obj->styles[i];
+    if (!os.is_local)
+      continue;
+    for (lv_style_prop_t prop : PROPS) {
+      lv_style_value_t v;
+      if (lv_style_get_prop(os.style, prop, &v) != LV_STYLE_RES_FOUND)
+        continue;
+      uint32_t c = ((uint32_t) v.color.red << 16) | ((uint32_t) v.color.green << 8) | v.color.blue;
+      for (size_t k = 0; k < n; k++) {
+        if (c == pairs[k].neutral) {
+          v.color = lv_color_hex(pairs[k].halloween);
+          lv_obj_set_local_style_prop(obj, prop, v, os.selector);
+          break;
+        }
+      }
+    }
+  }
+  uint32_t cnt = lv_obj_get_child_count(obj);
+  for (uint32_t i = 0; i < cnt; i++)
+    this->remap_tree_(lv_obj_get_child(obj, i), pairs, n);
 }
 
 // A few accents follow the idle clock's colours: the header time and the underline of the
@@ -3856,7 +3914,7 @@ void LvglRenderer::apply_ambiance_accents_() {
   if (this->time_lbl_ != nullptr)
     lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
   for (lv_obj_t *tab : this->tab_btns_)
-    lv_obj_set_style_border_color(tab, lv_color_hex(hw ? COL_HW_TIME : COL_ACCENT), 0);
+    lv_obj_set_style_border_color(tab, lv_color_hex(ui_accent()), 0);
 }
 
 // Seasonal tint of the UI's neutral greys. The colours are applied all over the renderer,
@@ -3864,14 +3922,11 @@ void LvglRenderer::apply_ambiance_accents_() {
 // a pass rewrites the local style colours that match a known grey. Entity colours (light
 // amber, cover blue, ...) are not in the table and keep their meaning. Same lightness,
 // night-purple hue.
-struct NeutralTint {
-  uint32_t neutral;
-  uint32_t halloween;
-};
 static const NeutralTint NEUTRAL_TINTS[] = {
     {0x0B0B10, 0x100716}, {0x0E0E12, 0x13091A}, {0x15151C, 0x1D0D28}, {0x1A1A20, 0x22102F},
     {0x1E1E26, 0x281237}, {0x20202A, 0x2B143C}, {0x23232C, 0x2E1540}, {0x232330, 0x311643},
     {0x2C2C38, 0x3A1B51}, {0x33333F, 0x431F5C}, {0x3A3A44, 0x4A2266}, {0x3A3A46, 0x4B2368},
+    {0x26262F, 0x321745},
 };
 static const lv_style_prop_t TINT_PROPS[] = {LV_STYLE_BG_COLOR, LV_STYLE_BG_GRAD_COLOR, LV_STYLE_BORDER_COLOR,
                                              LV_STYLE_ARC_COLOR, LV_STYLE_OUTLINE_COLOR};
