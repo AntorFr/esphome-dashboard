@@ -178,7 +178,7 @@ class HaDashboard : public Component {
   std::string weather_icon_;
   bool weather_subscribed_{false};
   const char *ambiance_entity_{nullptr};
-  IdleDecor idle_decor_{IdleDecor::NONE};
+  Ambiance ambiance_{Ambiance::NORMAL};
 
   std::string profile_{"dial"};
   std::string language_{"en"};

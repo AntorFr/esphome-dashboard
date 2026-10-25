@@ -115,10 +115,10 @@ struct TimerInfo {
   bool is_active{false};
 };
 
-// Seasonal decoration of the idle (standby) clock screen, picked from the house "ambiance"
-// entity (see HaDashboard::set_ambiance_entity). NONE = the plain clock.
-enum class IdleDecor : uint8_t {
-  NONE = 0,
+// House "ambiance", read from a HA entity (see HaDashboard::set_ambiance_entity). It
+// decorates the idle clock screen and tints the neutral greys of the other screens.
+enum class Ambiance : uint8_t {
+  NORMAL = 0,
   HALLOWEEN,
 };
 

@@ -198,7 +198,7 @@ void HaDashboard::build_if_ready_() {
     this->last_encoder_ = this->encoder_->get_state();
   this->built_ = true;
   this->push_weather_();  // reflect any weather state received before the UI was built
-  this->renderer_.set_idle_decor(this->idle_decor_);  // same for the ambiance
+  this->renderer_.set_ambiance(this->ambiance_);  // same for the ambiance
   ESP_LOGI(TAG, "vues LVGL construites");
 }
 
@@ -350,10 +350,10 @@ void HaDashboard::subscribe_ambiance_() {
   api::global_api_server->subscribe_home_assistant_state(this->ambiance_entity_, nullptr, [this](StringRef s) {
     std::string v(s.c_str());
     std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
-    this->idle_decor_ = v == "halloween" ? IdleDecor::HALLOWEEN : IdleDecor::NONE;
-    ESP_LOGD(TAG, "ambiance '%s' -> idle decor %d", s.c_str(), (int) this->idle_decor_);
+    this->ambiance_ = v == "halloween" ? Ambiance::HALLOWEEN : Ambiance::NORMAL;
+    ESP_LOGD(TAG, "ambiance '%s' -> %d", s.c_str(), (int) this->ambiance_);
     if (this->built_)
-      this->renderer_.set_idle_decor(this->idle_decor_);
+      this->renderer_.set_ambiance(this->ambiance_);
   });
 }
 

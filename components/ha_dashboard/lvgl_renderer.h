@@ -37,9 +37,9 @@ class LvglRenderer : public Renderer {
   void set_weather(const char *icon_glyph, const char *temp_str, const char *cond_str);
   // Tint the idle (standby) background according to the time of day.
   void set_idle_hour(int hour);
-  // Seasonal decoration of the idle clock screen (colours + animated glyphs). Built once in
-  // build(), shown/hidden here; animations only run while the idle screen is on display.
-  void set_idle_decor(IdleDecor decor);
+  // House ambiance: decorates the idle clock screen (colours + animated glyphs, built once in
+  // build(), animated only while shown) and tints the neutral greys of the other screens.
+  void set_ambiance(Ambiance ambiance);
   // Pause the idle animations while the backlight is off (deep standby).
   void set_idle_paused(bool paused);
 
@@ -170,10 +170,13 @@ class LvglRenderer : public Renderer {
   void build_idle_decor_();
   void apply_idle_style_();
   void update_idle_anims_();
+  // Seasonal tint of the neutral greys (backgrounds, tiles, borders) of the other screens.
+  uint32_t tint_tree_(lv_obj_t *obj, bool to_season);  // returns the number of objects visited
+  void tint_all_(bool to_season);
   lv_obj_t *idle_pumpkin_{nullptr};
   lv_obj_t *idle_ghost_{nullptr};
   lv_obj_t *idle_bats_[2]{nullptr, nullptr};
-  IdleDecor idle_decor_{IdleDecor::NONE};
+  Ambiance ambiance_{Ambiance::NORMAL};
   bool idle_shown_{false};    // idle screen currently loaded
   bool idle_paused_{false};   // backlight off: no animation
   bool idle_anims_on_{false};

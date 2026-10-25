@@ -1,10 +1,12 @@
 #include "lvgl_renderer.h"
+#include <lvgl_private.h>  // lv_obj_t::styles, to retint local style colours in place
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 #include "launcher_module.h"
 #ifdef USE_HA_DASHBOARD_LAUNCHER
@@ -3806,7 +3808,7 @@ void LvglRenderer::build_idle_decor_() {
 void LvglRenderer::apply_idle_style_() {
   if (this->idle_scr_ == nullptr)
     return;
-  bool hw = this->idle_decor_ == IdleDecor::HALLOWEEN;
+  bool hw = this->ambiance_ == Ambiance::HALLOWEEN;
   lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG_TOP : COL_IDLE_BG), 0);
   lv_obj_set_style_bg_grad_color(this->idle_scr_, lv_color_hex(COL_HW_BG_BOTTOM), 0);
   lv_obj_set_style_bg_grad_dir(this->idle_scr_, hw ? LV_GRAD_DIR_VER : LV_GRAD_DIR_NONE, 0);
@@ -3827,12 +3829,74 @@ void LvglRenderer::apply_idle_style_() {
   }
 }
 
-void LvglRenderer::set_idle_decor(IdleDecor decor) {
-  if (decor == this->idle_decor_)
+void LvglRenderer::set_ambiance(Ambiance ambiance) {
+  if (ambiance == this->ambiance_)
     return;
-  this->idle_decor_ = decor;
+  this->ambiance_ = ambiance;
   this->apply_idle_style_();
   this->update_idle_anims_();
+  this->tint_all_(ambiance != Ambiance::NORMAL);
+}
+
+// Seasonal tint of the UI's neutral greys. The colours are applied all over the renderer,
+// at build time and at render time; rather than threading a palette through every call,
+// a pass rewrites the local style colours that match a known grey. Entity colours (light
+// amber, cover blue, ...) are not in the table and keep their meaning. Same lightness,
+// night-purple hue.
+struct NeutralTint {
+  uint32_t neutral;
+  uint32_t halloween;
+};
+static const NeutralTint NEUTRAL_TINTS[] = {
+    {0x0B0B10, 0x100716}, {0x0E0E12, 0x13091A}, {0x15151C, 0x1D0D28}, {0x1A1A20, 0x22102F},
+    {0x1E1E26, 0x281237}, {0x20202A, 0x2B143C}, {0x23232C, 0x2E1540}, {0x232330, 0x311643},
+    {0x2C2C38, 0x3A1B51}, {0x33333F, 0x431F5C}, {0x3A3A44, 0x4A2266}, {0x3A3A46, 0x4B2368},
+};
+static const lv_style_prop_t TINT_PROPS[] = {LV_STYLE_BG_COLOR, LV_STYLE_BG_GRAD_COLOR, LV_STYLE_BORDER_COLOR,
+                                             LV_STYLE_ARC_COLOR, LV_STYLE_OUTLINE_COLOR};
+
+static uint32_t tint_color(uint32_t c, bool to_season) {
+  for (const auto &t : NEUTRAL_TINTS) {
+    if (c == (to_season ? t.neutral : t.halloween))
+      return to_season ? t.halloween : t.neutral;
+  }
+  return c;
+}
+
+uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, bool to_season) {
+  uint32_t visited = 1;
+  for (uint32_t i = 0; i < obj->style_cnt; i++) {
+    const lv_obj_style_t &os = obj->styles[i];
+    if (!os.is_local)
+      continue;
+    for (lv_style_prop_t prop : TINT_PROPS) {
+      lv_style_value_t v;
+      if (lv_style_get_prop(os.style, prop, &v) != LV_STYLE_RES_FOUND)
+        continue;
+      uint32_t c = ((uint32_t) v.color.red << 16) | ((uint32_t) v.color.green << 8) | v.color.blue;
+      uint32_t t = tint_color(c, to_season);
+      if (t != c) {
+        v.color = lv_color_hex(t);
+        lv_obj_set_local_style_prop(obj, prop, v, os.selector);
+      }
+    }
+  }
+  uint32_t n = lv_obj_get_child_count(obj);
+  for (uint32_t i = 0; i < n; i++)
+    visited += this->tint_tree_(lv_obj_get_child(obj, i), to_season);
+  return visited;
+}
+
+// Every screen but the idle one (which has its own decor), plus the overlay layer.
+void LvglRenderer::tint_all_(bool to_season) {
+  uint32_t t0 = millis(), visited = 0;
+  for (lv_obj_t *root : {this->dashboard_scr_, this->now_playing_scr_, this->menu_scr_, this->card_scr_,
+                         lv_layer_top()}) {
+    if (root != nullptr)
+      visited += this->tint_tree_(root, to_season);
+  }
+  ESP_LOGD(TAG, "ambiance tint %s: %u objects in %u ms", to_season ? "on" : "off", (unsigned) visited,
+           (unsigned) (millis() - t0));
 }
 
 void LvglRenderer::set_idle_paused(bool paused) {
@@ -3854,7 +3918,7 @@ static void idle_bat_cb(lv_anim_t *a, int32_t x) {
 
 // Animations run only while the decorated idle screen is on display with the backlight on.
 void LvglRenderer::update_idle_anims_() {
-  bool want = this->idle_shown_ && !this->idle_paused_ && this->idle_decor_ == IdleDecor::HALLOWEEN;
+  bool want = this->idle_shown_ && !this->idle_paused_ && this->ambiance_ == Ambiance::HALLOWEEN;
   if (want == this->idle_anims_on_)
     return;
   this->idle_anims_on_ = want;
@@ -4026,6 +4090,11 @@ void LvglRenderer::render(const ViewModel &vm) {
     case NavState::CARD:
       this->render_card_view_(vm);
       break;
+  }
+  // Render paths re-apply the stock greys: tint what is on display before it is drawn.
+  if (this->ambiance_ != Ambiance::NORMAL && vm.state != NavState::IDLE) {
+    this->tint_tree_(lv_screen_active(), true);
+    this->tint_tree_(lv_layer_top(), true);
   }
 }
 
