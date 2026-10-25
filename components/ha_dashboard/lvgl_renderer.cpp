@@ -103,8 +103,7 @@ static constexpr uint32_t COL_ERR = 0xFF5A5A;
 
 // Idle (standby) clock screen, and its seasonal decorations.
 static constexpr uint32_t COL_IDLE_BG = 0x0A0A0C;
-static constexpr uint32_t COL_HW_BG_TOP = 0x2A1048;     // Halloween: deep night purple...
-static constexpr uint32_t COL_HW_BG_BOTTOM = 0x14061F;  // ...fading darker to the bottom
+static constexpr uint32_t COL_HW_BG = 0x1F0B35;        // Halloween: deep night purple
 static constexpr uint32_t COL_HW_TIME = 0xFF8A1F;       // pumpkin orange (also the UI accent)
 static constexpr uint32_t COL_HW_ACCENT_DARK = 0xC96D18;
 static constexpr uint32_t COL_HW_DATE = 0xC9A7FF;       // pale violet
@@ -3853,9 +3852,10 @@ void LvglRenderer::apply_idle_style_() {
   if (this->idle_scr_ == nullptr)
     return;
   bool hw = this->ambiance_ == Ambiance::HALLOWEEN;
-  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG_TOP : COL_IDLE_BG), 0);
-  lv_obj_set_style_bg_grad_color(this->idle_scr_, lv_color_hex(COL_HW_BG_BOTTOM), 0);
-  lv_obj_set_style_bg_grad_dir(this->idle_scr_, hw ? LV_GRAD_DIR_VER : LV_GRAD_DIR_NONE, 0);
+  // Plain fill: a gradient is recomputed under every moving area, a load the D1001's display
+  // scanout doesn't absorb while the battery charges (blue flashes).
+  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG : COL_IDLE_BG), 0);
+  lv_obj_set_style_bg_grad_dir(this->idle_scr_, LV_GRAD_DIR_NONE, 0);
   lv_obj_set_style_bg_opa(this->idle_scr_, LV_OPA_COVER, 0);
   if (this->idle_time_lbl_ != nullptr)
     lv_obj_set_style_text_color(this->idle_time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
@@ -4014,8 +4014,6 @@ void LvglRenderer::set_idle_paused(bool paused) {
   this->update_idle_anims_();
 }
 
-static void idle_anim_y_cb(void *obj, int32_t v) { lv_obj_set_y(static_cast<lv_obj_t *>(obj), v); }
-
 // Bat flight: the animation drives x; y bobs on two sine waves around the cruise height
 // (stored in user_data).
 static void idle_bat_cb(lv_anim_t *a, int32_t x) {
@@ -4033,8 +4031,6 @@ void LvglRenderer::update_idle_anims_() {
     return;
   this->idle_anims_on_ = want;
   if (!want) {
-    if (this->idle_ghost_ != nullptr)
-      lv_anim_delete(this->idle_ghost_, nullptr);
     for (lv_obj_t *bat : this->idle_bats_) {
       if (bat != nullptr) {
         lv_anim_delete(bat, nullptr);
@@ -4043,20 +4039,7 @@ void LvglRenderer::update_idle_anims_() {
     }
     return;
   }
-  if (this->idle_ghost_ != nullptr) {
-    // The ghost floats up and down in its corner.
-    int32_t y0 = -this->h_ / 10;
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, this->idle_ghost_);
-    lv_anim_set_exec_cb(&a, idle_anim_y_cb);
-    lv_anim_set_values(&a, y0, y0 - this->h_ / 25);
-    lv_anim_set_duration(&a, 2600);
-    lv_anim_set_reverse_duration(&a, 2600);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-  }
+  // The ghost stays still: an endless float redraws every frame (blue flashes while charging).
   // Two bats cross the screen now and then, one each way, at different heights and paces.
   struct Flight {
     int32_t from, to, cruise_y;
