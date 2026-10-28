@@ -130,11 +130,15 @@ xl9535:
 
 # LCD backlight boost driver (EN/PWM = net LCD_PWM = GPIO14). Without driving it the
 # panel power/scanout can be on yet the screen stays black. ALWAYS_ON at full brightness.
+# Capped at 95 % like Seeed's firmware (BSP_LCD_BACKLIGHT_BRIGHTNESS_MAX = 95, and its 10-bit
+# PWM never reaches a steady 100 %): on USB, a steady full-power backlight goes with blue
+# flashes on the panel, which stop around 95 % (field observation, cause not established).
 output:
   - platform: ledc
     id: d1001_bl_pwm
     pin: GPIO14
     frequency: 2000Hz
+    max_power: 95%
   # Speaker power-amplifier enable. The Seeed BSP toggles it on the XL9535 expander
   # (output port 1, bit 3). In ESPHome's octal xl9535 numbering that is pin 13. Held high.
   - platform: gpio
@@ -270,10 +274,10 @@ switch:
       - script.execute: d1001_charge_apply
     turn_off_action:
       - script.execute: d1001_charge_apply
-  # Charging while the screen is lit makes the display show blue frames: at ~1 A of charge
-  # plus the system load, the BQ25616 runs at its input current limit and the system rail
-  # sags on every redraw. Charge only while the backlight is off (deep standby); on USB the
-  # power path runs the device from the input meanwhile, so the battery just idles.
+  # Charging while the screen is lit goes with more blue frames (they also show on USB without
+  # charging, never on battery; see the backlight cap above). Charge only while the backlight
+  # is off (deep standby); on USB the power path runs the device from the input meanwhile, so
+  # the battery just idles.
   - platform: template
     name: "Charger écran éteint seulement"
     id: d1001_charge_screen_off
