@@ -178,3 +178,31 @@ PSRAM first) and handle a null return as a clean failure — see `HttpBody` in
 the device config pinned to the deployed commit (`ref: <sha>`) with the same ESPHome version,
 then run `riscv32-esp-elf-addr2line -pfiaC -e firmware.elf <addrs>` on the panic dump from the
 USB serial log.
+
+## 14. D1001 blue flashes on USB power — not the display pipeline
+
+**Symptom**: the whole panel flashes blue for a frame, at times several per second, mostly on
+the idle screen (more with the Halloween purple fill than the near-black one), barely on the
+active dashboard. Never on battery: unplugging USB stops them at once, replugging brings them
+back. On USB the rate drifts from "many" to "none" for an hour with no visible change.
+
+**Ruled out (measured 2026-10-28 with [`tools/diag/`](../tools/diag/README.md))**, during
+episodes the user was watching:
+- DPI bridge underruns: none (the IDF's "underrun happens" counter stayed at 0; self-test OK).
+- DSI host error flags and PHY PLL lock: none.
+- Panel side: still in normal mode (`0x0A` = `0x1C`), 0 corrupted packets (`0x05`).
+So the stream leaves the ESP32-P4 clean and the panel does not report it. The blue matches what
+the panel shows when the stream stops (it turns blue on every reboot).
+
+**Weak or no effect**: charging on/off, 7x the redraw load (40 moving objects, loop 218 ms),
+uptime, firmware variant. An OTA (heavy Wi-Fi + flash writes) on USB brought some; the same OTA
+on battery none.
+
+**Trial fix (deployed, under observation)**: the backlight is capped at 95 % (`max_power`),
+like Seeed's factory firmware (`BSP_LCD_BACKLIGHT_BRIGHTNESS_MAX = 95`, 10-bit PWM that never
+reaches a steady 100 %). Field observation: at ~95 % actual duty the flashes stopped. Working
+hypothesis, unproven: total draw on USB near the charger's input limit. Next test if they come
+back: a power bank (clean source) instead of the PC / wall charger.
+
+**Trap**: reading the panel over DCS leaves video mode; restoring it mid-frame shifts the
+picture (right half on the left) until a reboot.
