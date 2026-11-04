@@ -109,26 +109,34 @@ Communs : `name` (optionnel, défaut = nom de l'entité/switch), `color` (option
 
 `ambiance` creates a select on the device, like the theme select of the TX Ultimate
 switches: Home Assistant sets it (a script pushes the house ambiance to every tablet) and
-the device remembers it across reboots. With `Halloween` (case-insensitive) the idle clock
-turns night purple, the time orange and the date pale violet; a pumpkin sits under the
-weather, bats cross the screen now and then and a ghost floats in a corner. Any other
-option shows the stock look.
+the device remembers it across reboots. Two options (case-insensitive) decorate the idle
+clock; any other option shows the stock look.
+
+- `Halloween`: the idle clock turns night purple, the time orange and the date pale violet;
+  a pumpkin sits under the weather, bats cross the screen now and then and a ghost floats in
+  a corner.
+- `Noël` (also `Noel`, `Christmas`): winter-night blue, the time gold and the date icy blue;
+  a Christmas tree with twinkling lights sits under the weather, snowflakes fall and a gift
+  floats in a corner. Under the date, a countdown: "Noël dans 20 jours", "C'est ce soir !" on
+  the 24th, "Joyeux Noël !" on the 25th (English with `language: en`), nothing after.
 
 ```yaml
 ha_dashboard:
   ambiance:
     name: Ambiance
     # options: [Normal, Noël, Reveillon, Halloween]   # default
-  font_decor: ha_font_decor        # MDI pumpkin + ghost (packages/fonts/montserrat_fr.yaml)
-  font_decor_sm: ha_font_decor_sm  # MDI bat
-  font_decor_bg: ha_font_decor_bg  # MDI pumpkin behind the dashboard tiles
+  font_decor: ha_font_decor        # MDI pumpkin, ghost, pine-tree, gift (packages/fonts/montserrat_fr.yaml)
+  font_decor_sm: ha_font_decor_sm  # MDI bat, snowflake
+  font_decor_bg: ha_font_decor_bg  # MDI pumpkin and pine-tree behind the dashboard tiles
 ```
 
 - The decoration is built once and hidden otherwise (ADR-0005). Its animations only run
   while the idle screen is shown and stop during deep standby (backlight off).
 - The other screens follow too: their dark neutral greys (backgrounds, tiles, borders)
-  turn night purple at the same lightness, and the UI accent (active tab, loading,
-  launcher buttons, timers, now-playing toggles, header time) turns pumpkin orange.
+  turn night purple (Halloween) or winter-night blue (Noël) at the same lightness, and the UI
+  accent (active tab, loading, launcher buttons, timers, now-playing toggles) turns pumpkin
+  orange or Christmas red; the header time takes the idle time's colour. A large pumpkin or
+  Christmas tree peeks from behind the dashboard tiles.
   Entity colours (light amber, cover blue, …) keep their meaning. A pass rewrites the matching local style colours in place, on the
   ambiance change and after each render (a few hundred objects, about 1 ms).
 - Without `font_decor` / `font_decor_sm` the colours still change, but no glyph is drawn.

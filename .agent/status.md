@@ -1,5 +1,10 @@
 # Status — esphome-dashboard
-> MàJ : 2026-10-25
+> MàJ : 2026-11-04
+
+**Ambiance Noël (branche `noel`, 2026-11-04, non flashé)** : option `Noël` du sélecteur — veille bleu nuit,
+heure dorée, sapin aux boules qui changent de couleur, neige qui tombe, cadeau, compte à rebours sous la date ;
+gris des autres écrans en bleu nuit, accent rouge, grand sapin derrière les tuiles. Les teintes passent
+directement d'une saison à l'autre (table à trois colonnes). Compilé (test D1001), pas encore vu à l'œil.
 
 **État :** lib LVGL multi-écrans en service sur 2 reTerminal D1001 (Émilie, Timothée) ; glissement Réglages depuis le bord haut corrigé ; crash lanceur (bad_alloc) corrigé.
 

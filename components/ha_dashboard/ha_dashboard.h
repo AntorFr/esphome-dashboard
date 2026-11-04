@@ -203,6 +203,7 @@ class HaDashboard : public Component {
   time::RealTimeClock *time_{nullptr};
   uint32_t last_clock_ms_{0};
   std::string last_clock_str_;   // last "HH:MM" pushed (skip redundant clock-label updates)
+  std::string last_note_;        // last line pushed under the idle date (Christmas countdown)
   int last_idle_hour_{-1};       // last hour pushed to the idle tint
   const char *weather_entity_{nullptr};
   std::string weather_temp_;

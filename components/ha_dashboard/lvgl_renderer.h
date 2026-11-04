@@ -11,7 +11,7 @@
 namespace esphome {
 namespace ha_dashboard {
 
-struct NeutralTint;  // colour + seasonal replacement (lvgl_renderer.cpp)
+struct ColorSwap;  // a colour and its replacement (lvgl_renderer.cpp)
 
 class LvglRenderer : public Renderer {
  public:
@@ -42,6 +42,9 @@ class LvglRenderer : public Renderer {
   // House ambiance: decorates the idle clock screen (colours + animated glyphs, built once in
   // build(), animated only while shown) and tints the neutral greys of the other screens.
   void set_ambiance(Ambiance ambiance);
+  // Line under the idle date (the Christmas countdown); shown with the Christmas decor, empty
+  // hides it.
+  void set_season_note(const char *text);
   // Pause the idle animations while the backlight is off (deep standby).
   void set_idle_paused(bool paused);
 
@@ -56,8 +59,8 @@ class LvglRenderer : public Renderer {
   // the chip/overlay fall back to the MDI mic glyph when unset.
   void set_font_nestor(font::Font *f) { this->font_nestor_ = f; }
   void set_font_nestor_lg(font::Font *f) { this->font_nestor_lg_ = f; }
-  // Decoration glyph fonts (MDI): large (pumpkin, ghost) and small (bats). Optional — without
-  // them the idle screen keeps its colours but shows no glyph.
+  // Decoration glyph fonts (MDI): large (pumpkin, ghost, Christmas tree, gift) and small (bats,
+  // snowflakes). Optional — without them the idle screen keeps its colours but shows no glyph.
   void set_font_decor(font::Font *f) { this->font_decor_ = f; }
   void set_font_decor_sm(font::Font *f) { this->font_decor_sm_ = f; }
   void set_font_decor_bg(font::Font *f) { this->font_decor_bg_ = f; }  // dashboard backdrop
@@ -173,20 +176,27 @@ class LvglRenderer : public Renderer {
   void build_idle_decor_();
   void apply_idle_style_();
   void update_idle_anims_();
-  // Seasonal tint of the neutral greys (backgrounds, tiles, borders) of the other screens.
-  uint32_t tint_tree_(lv_obj_t *obj, bool to_season);  // returns the number of objects visited
-  void tint_all_(bool to_season);
+  void stop_idle_anims_();
+  // Seasonal tint of the neutral greys (backgrounds, tiles, borders) of the other screens, from
+  // one ambiance's greys to another's.
+  uint32_t tint_tree_(lv_obj_t *obj, Ambiance from, Ambiance to);  // returns the number of objects visited
+  void tint_all_(Ambiance from, Ambiance to);
   void apply_ambiance_accents_();  // header clock + active-tab underline in the season colour
   void season_tint_(lv_obj_t *root);  // tint one overlay when it opens (no-op in NORMAL)
   void swap_accent_(uint32_t accent, uint32_t dark);  // UI accent follows the ambiance
-  void remap_tree_(lv_obj_t *obj, const NeutralTint *pairs, size_t n);
+  void remap_tree_(lv_obj_t *obj, const ColorSwap *pairs, size_t n);
   lv_obj_t *idle_pumpkin_{nullptr};
   lv_obj_t *idle_ghost_{nullptr};
   lv_obj_t *idle_bats_[2]{nullptr, nullptr};
+  lv_obj_t *idle_note_lbl_{nullptr};  // under the date: the Christmas countdown
+  lv_obj_t *idle_tree_{nullptr};
+  lv_obj_t *idle_baubles_[6]{};       // the tree's lights, children of idle_tree_
+  lv_obj_t *idle_gift_{nullptr};
+  lv_obj_t *idle_flakes_[4]{};
   Ambiance ambiance_{Ambiance::NORMAL};
   bool idle_shown_{false};    // idle screen currently loaded
   bool idle_paused_{false};   // backlight off: no animation
-  bool idle_anims_on_{false};
+  Ambiance idle_anims_for_{Ambiance::NORMAL};  // decor whose animations run (NORMAL: none)
   lv_obj_t *menu_scr_{nullptr};
   lv_obj_t *card_scr_{nullptr};
 
@@ -239,9 +249,9 @@ class LvglRenderer : public Renderer {
   font::Font *font_voice_{nullptr};     // large MDI glyphs for the voice overlay orb
   font::Font *font_nestor_{nullptr};    // Nestor mascot glyph, header-chip size
   font::Font *font_nestor_lg_{nullptr}; // Nestor mascot glyph, full-screen size
-  font::Font *font_decor_{nullptr};     // idle decoration glyphs, large (pumpkin, ghost)
-  font::Font *font_decor_sm_{nullptr};  // idle decoration glyphs, small (bats)
-  font::Font *font_decor_bg_{nullptr};  // dashboard backdrop glyph (huge pumpkin)
+  font::Font *font_decor_{nullptr};     // idle decoration glyphs, large (pumpkin, ghost, tree, gift)
+  font::Font *font_decor_sm_{nullptr};  // idle decoration glyphs, small (bats, snowflakes)
+  font::Font *font_decor_bg_{nullptr};  // dashboard backdrop glyph (huge pumpkin or tree)
   lv_obj_t *dash_backdrop_{nullptr};
 
   lv_obj_t *dashboard_scr_{nullptr};

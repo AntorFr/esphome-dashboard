@@ -365,7 +365,12 @@ void HaDashboard::subscribe_weather_() {
 void HaDashboard::apply_ambiance_(const std::string &option) {
   std::string v(option);
   std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return std::tolower(c); });
-  this->ambiance_ = v == "halloween" ? Ambiance::HALLOWEEN : Ambiance::NORMAL;
+  if (v == "halloween")
+    this->ambiance_ = Ambiance::HALLOWEEN;
+  else if (v == "noël" || v == "noel" || v == "christmas")
+    this->ambiance_ = Ambiance::CHRISTMAS;
+  else
+    this->ambiance_ = Ambiance::NORMAL;
   ESP_LOGD(TAG, "ambiance '%s' -> %d", option.c_str(), (int) this->ambiance_);
   if (this->built_) {
     this->renderer_.set_ambiance(this->ambiance_);
@@ -377,6 +382,22 @@ void HaDashboard::push_weather_() {
   if (this->built_)
     this->renderer_.set_weather(this->weather_icon_.c_str(), this->weather_temp_.c_str(),
                                 this->weather_cond_.c_str());
+}
+
+// Days left to Christmas, as shown under the idle date: "Noël dans 20 jours", then "C'est ce
+// soir !" on the 24th and "Joyeux Noël !" on the 25th. Nothing after the 25th.
+static std::string christmas_note(const ESPTime &t, bool fr) {
+  bool leap = (t.year % 4 == 0 && t.year % 100 != 0) || t.year % 400 == 0;
+  int days = (leap ? 360 : 359) - t.day_of_year;  // December 25th is day 359 (360 in a leap year)
+  if (days < 0)
+    return "";
+  if (days == 0)
+    return fr ? "Joyeux Noël !" : "Merry Christmas!";
+  if (days == 1)
+    return fr ? "C'est ce soir !" : "It's tonight!";
+  char buf[32];
+  snprintf(buf, sizeof(buf), fr ? "Noël dans %d jours" : "Christmas in %d days", days);
+  return buf;
 }
 
 void HaDashboard::update_clock_() {
@@ -412,6 +433,13 @@ void HaDashboard::update_clock_() {
     snprintf(date_buf, sizeof(date_buf), "%s %d %s", days[dow], t.day_of_month, months[mon]);
   else
     snprintf(date_buf, sizeof(date_buf), "%s %s %d", days[dow], months[mon], t.day_of_month);
+  // With the Christmas decor, a countdown under the idle date. Checked every second, so it
+  // follows an ambiance change at once.
+  std::string note = this->ambiance_ == Ambiance::CHRISTMAS ? christmas_note(t, fr) : std::string();
+  if (note != this->last_note_) {
+    this->last_note_ = note;
+    this->renderer_.set_season_note(note.c_str());
+  }
   // Only push when the displayed minute changed — avoids re-invalidating the clock label every
   // second for the same "HH:MM".
   if (this->last_clock_str_ != time_buf) {

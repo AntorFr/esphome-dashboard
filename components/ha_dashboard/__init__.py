@@ -224,8 +224,8 @@ CONFIG_SCHEMA = cv.Schema(
             {cv.Required(CONF_ENTITY): cv.entity_id}
         ),
         # House ambiance: a select on the device (set by a HA script, remembered across
-        # reboots). "Halloween" decorates the idle clock and tints the other screens;
-        # any other option shows the stock look.
+        # reboots). "Halloween" and "Noël" decorate the idle clock and tint the other
+        # screens; any other option shows the stock look.
         cv.Optional(CONF_AMBIANCE): select.select_schema(
             AmbianceSelect,
             icon="mdi:party-popper",

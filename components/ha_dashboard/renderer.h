@@ -120,6 +120,7 @@ struct TimerInfo {
 enum class Ambiance : uint8_t {
   NORMAL = 0,
   HALLOWEEN,
+  CHRISTMAS,
 };
 
 // One day of the weather forecast (built by the component, laid out by the renderer).

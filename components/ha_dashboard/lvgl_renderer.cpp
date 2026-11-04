@@ -37,10 +37,10 @@ static uint32_t g_ui_accent_dark = COL_ACCENT_DARK;
 static uint32_t ui_accent() { return g_ui_accent; }
 static uint32_t ui_accent_dark() { return g_ui_accent_dark; }
 
-// A colour and its seasonal replacement (see tint_tree_ / swap_accent_).
-struct NeutralTint {
-  uint32_t neutral;
-  uint32_t halloween;
+// A colour and its replacement (see remap_tree_ / swap_accent_).
+struct ColorSwap {
+  uint32_t from;
+  uint32_t to;
 };
 
 // MDI glyphs (embedded in ha_font_icons) for the now-playing volume button. The built-in
@@ -112,6 +112,39 @@ static constexpr uint32_t COL_HW_BAT = 0x05010A;        // near-black silhouette
 static const char *const GLYPH_HALLOWEEN = "\U000F0BA3";  // MDI halloween (carved pumpkin)
 static const char *const GLYPH_GHOST = "\U000F02A0";      // MDI ghost
 static const char *const GLYPH_BAT = "\U000F0B5F";        // MDI bat
+static constexpr uint32_t COL_XM_BG = 0x0B1A33;           // Christmas: winter night blue
+static constexpr uint32_t COL_XM_TIME = 0xFFC94A;         // star gold
+static constexpr uint32_t COL_XM_DATE = 0xA9C7F2;         // icy blue
+static constexpr uint32_t COL_XM_ACCENT = 0xE5484D;       // Christmas red (the UI accent, the gift)
+static constexpr uint32_t COL_XM_ACCENT_DARK = 0xB2333A;
+static constexpr uint32_t COL_XM_TREE = 0x2FA84F;
+static constexpr uint32_t COL_XM_SNOW = 0xEAF2FF;
+// Colours the tree's lights step through. Their gold is not the stock accent, which
+// swap_accent_ rewrites.
+static constexpr uint32_t XM_LIGHTS[] = {0xFF3B3B, 0xFFB428, 0x3D7BFF, 0xFF3FB0, 0xFFDCA0};
+static constexpr int XM_LIGHT_COUNT = sizeof(XM_LIGHTS) / sizeof(XM_LIGHTS[0]);
+static const char *const GLYPH_TREE = "\U000F0405";       // MDI pine-tree
+static const char *const GLYPH_GIFT = "\U000F0E44";       // MDI gift
+static const char *const GLYPH_SNOWFLAKE = "\U000F0717";  // MDI snowflake
+
+// Colours of an ambiance: the idle screen's background, time and date, and the UI accent.
+struct Season {
+  uint32_t idle_bg, time, date, accent, accent_dark;
+};
+static constexpr Season SEASON_NORMAL = {COL_IDLE_BG, COL_TEXT, COL_MUTED, COL_ACCENT, COL_ACCENT_DARK};
+static constexpr Season SEASON_HALLOWEEN = {COL_HW_BG, COL_HW_TIME, COL_HW_DATE, COL_HW_TIME, COL_HW_ACCENT_DARK};
+static constexpr Season SEASON_CHRISTMAS = {COL_XM_BG, COL_XM_TIME, COL_XM_DATE, COL_XM_ACCENT, COL_XM_ACCENT_DARK};
+
+static const Season &season_of(Ambiance a) {
+  switch (a) {
+    case Ambiance::HALLOWEEN:
+      return SEASON_HALLOWEEN;
+    case Ambiance::CHRISTMAS:
+      return SEASON_CHRISTMAS;
+    default:
+      return SEASON_NORMAL;
+  }
+}
 
 // Effective cover presentation: YAML `cover_kind` override, else the HA device_class.
 static int cover_kind_of(const Card &c) {
@@ -1982,6 +2015,14 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
     lv_obj_set_style_text_color(this->idle_date_lbl_, lv_color_hex(COL_MUTED), 0);
     this->set_text_font_(this->idle_date_lbl_, this->font_medium_, &lv_font_montserrat_28);
 
+    // Christmas countdown under the date (set_season_note), hidden otherwise.
+    this->idle_note_lbl_ = lv_label_create(col);
+    lv_label_set_text(this->idle_note_lbl_, "");
+    lv_obj_set_style_text_color(this->idle_note_lbl_, lv_color_hex(COL_XM_TIME), 0);
+    this->set_text_font_(this->idle_note_lbl_, this->font_medium_, &lv_font_montserrat_28);
+    lv_obj_set_style_margin_top(this->idle_note_lbl_, 8, 0);
+    lv_obj_add_flag(this->idle_note_lbl_, LV_OBJ_FLAG_HIDDEN);
+
     // Weather on the standby screen: [icon  temp] on one line, condition below.
     lv_obj_t *iwrow = lv_obj_create(col);
     lv_obj_set_size(iwrow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -2016,6 +2057,30 @@ void LvglRenderer::build(const std::vector<Group> &groups) {
       lv_obj_set_style_text_color(this->idle_pumpkin_, lv_color_hex(COL_HW_TIME), 0);
       lv_obj_set_style_margin_top(this->idle_pumpkin_, 48, 0);
       lv_obj_add_flag(this->idle_pumpkin_, LV_OBJ_FLAG_HIDDEN);
+
+      // Christmas tree, its lights as small discs on the glyph. Positions on the MDI pine-tree's
+      // 24-unit grid, which spans the label's line box.
+      this->idle_tree_ = lv_label_create(col);
+      lv_label_set_text(this->idle_tree_, GLYPH_TREE);
+      lv_obj_set_style_text_font(this->idle_tree_, this->font_decor_->get_lv_font(), 0);
+      lv_obj_set_style_text_color(this->idle_tree_, lv_color_hex(COL_XM_TREE), 0);
+      lv_obj_set_style_margin_top(this->idle_tree_, 48, 0);
+      lv_obj_add_flag(this->idle_tree_, LV_OBJ_FLAG_HIDDEN);
+      static const float SPOTS[6][2] = {{12.0f, 6.6f},  {9.6f, 11.4f},  {14.6f, 11.6f},
+                                        {7.4f, 16.4f}, {12.2f, 15.6f}, {16.8f, 16.6f}};
+      int32_t size = lv_font_get_line_height(this->font_decor_->get_lv_font());
+      int32_t d = size / 15;
+      for (int i = 0; i < 6; i++) {
+        lv_obj_t *b = lv_obj_create(this->idle_tree_);
+        lv_obj_remove_style_all(b);
+        lv_obj_set_size(b, d, d);
+        lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(b, lv_color_hex(XM_LIGHTS[i % XM_LIGHT_COUNT]), 0);
+        lv_obj_set_pos(b, (int32_t) (SPOTS[i][0] * size / 24) - d / 2, (int32_t) (SPOTS[i][1] * size / 24) - d / 2);
+        lv_obj_clear_flag(b, LV_OBJ_FLAG_CLICKABLE);
+        this->idle_baubles_[i] = b;
+      }
     }
 
     auto *d = new CbData{this, InputEvent::WAKE, -1};
@@ -2521,8 +2586,9 @@ static const char *icon_for(const Card &c) {
 
 void LvglRenderer::build_dashboard_(const std::vector<Group> &groups) {
   this->dashboard_scr_ = this->make_screen_();
-  // Seasonal backdrop: a large pumpkin peeking from the bottom-right corner, behind the tiles
-  // (created before the content column, fixed when it scrolls). Shown with Halloween only.
+  // Seasonal backdrop: a large pumpkin (Halloween) or Christmas tree peeking from the
+  // bottom-right corner, behind the tiles (created before the content column, fixed when it
+  // scrolls). Glyph and colour set by apply_ambiance_accents_; hidden with the stock look.
   if (this->font_decor_bg_ != nullptr) {
     this->dash_backdrop_ = lv_label_create(this->dashboard_scr_);
     lv_label_set_text(this->dash_backdrop_, GLYPH_HALLOWEEN);
@@ -3845,54 +3911,84 @@ void LvglRenderer::build_idle_decor_() {
     if (bat != nullptr)
       lv_obj_set_pos(bat, -this->w_, 0);  // parked off-screen between flights
   }
+  // Christmas: a gift in the ghost's corner, snowflakes falling (parked above the screen).
+  this->idle_gift_ = make(this->font_decor_, GLYPH_GIFT, COL_XM_ACCENT);
+  if (this->idle_gift_ != nullptr)
+    lv_obj_align(this->idle_gift_, LV_ALIGN_BOTTOM_LEFT, this->w_ / 20, -this->h_ / 10);
+  static const lv_opa_t FLAKE_OPA[] = {LV_OPA_70, LV_OPA_50, LV_OPA_60, LV_OPA_40};
+  for (int i = 0; i < 4; i++) {
+    lv_obj_t *flake = make(this->font_decor_sm_, GLYPH_SNOWFLAKE, COL_XM_SNOW);
+    this->idle_flakes_[i] = flake;
+    if (flake != nullptr) {
+      lv_obj_set_style_opa(flake, FLAKE_OPA[i], 0);
+      lv_obj_set_pos(flake, 0, -this->h_);
+    }
+  }
 }
 
 // Colours of the idle screen for the current decor, and which decoration glyphs show.
 void LvglRenderer::apply_idle_style_() {
   if (this->idle_scr_ == nullptr)
     return;
+  const Season &s = season_of(this->ambiance_);
   bool hw = this->ambiance_ == Ambiance::HALLOWEEN;
+  bool xm = this->ambiance_ == Ambiance::CHRISTMAS;
   // Plain fill: the panel is RGB565, so a gradient between two close purples falls into a
   // few visible bands, each channel stepping at a different height.
-  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(hw ? COL_HW_BG : COL_IDLE_BG), 0);
+  lv_obj_set_style_bg_color(this->idle_scr_, lv_color_hex(s.idle_bg), 0);
   lv_obj_set_style_bg_grad_dir(this->idle_scr_, LV_GRAD_DIR_NONE, 0);
   lv_obj_set_style_bg_opa(this->idle_scr_, LV_OPA_COVER, 0);
   if (this->idle_time_lbl_ != nullptr)
-    lv_obj_set_style_text_color(this->idle_time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
+    lv_obj_set_style_text_color(this->idle_time_lbl_, lv_color_hex(s.time), 0);
   for (lv_obj_t *l : {this->idle_date_lbl_, this->idle_wx_cond_}) {
     if (l != nullptr)
-      lv_obj_set_style_text_color(l, lv_color_hex(hw ? COL_HW_DATE : COL_MUTED), 0);
+      lv_obj_set_style_text_color(l, lv_color_hex(s.date), 0);
   }
-  for (lv_obj_t *o : {this->idle_pumpkin_, this->idle_ghost_, this->idle_bats_[0], this->idle_bats_[1]}) {
+  auto show = [](lv_obj_t *o, bool on) {
     if (o == nullptr)
-      continue;
-    if (hw)
+      return;
+    if (on)
       lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
     else
       lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN);
-  }
+  };
+  for (lv_obj_t *o : {this->idle_pumpkin_, this->idle_ghost_, this->idle_bats_[0], this->idle_bats_[1]})
+    show(o, hw);
+  for (lv_obj_t *o : {this->idle_tree_, this->idle_gift_})
+    show(o, xm);
+  for (lv_obj_t *o : this->idle_flakes_)
+    show(o, xm);
+  show(this->idle_note_lbl_, xm && this->idle_note_lbl_ != nullptr && lv_label_get_text(this->idle_note_lbl_)[0] != '\0');
 }
 
 void LvglRenderer::set_ambiance(Ambiance ambiance) {
   if (ambiance == this->ambiance_)
     return;
+  Ambiance was = this->ambiance_;
   this->ambiance_ = ambiance;
   this->apply_idle_style_();
   this->update_idle_anims_();
-  this->tint_all_(ambiance != Ambiance::NORMAL);
-  bool hw = ambiance == Ambiance::HALLOWEEN;
-  this->swap_accent_(hw ? COL_HW_TIME : COL_ACCENT, hw ? COL_HW_ACCENT_DARK : COL_ACCENT_DARK);
+  this->tint_all_(was, ambiance);
+  const Season &s = season_of(ambiance);
+  this->swap_accent_(s.accent, s.accent_dark);
   this->apply_ambiance_accents_();
+}
+
+void LvglRenderer::set_season_note(const char *text) {
+  if (this->idle_note_lbl_ == nullptr)
+    return;
+  lv_label_set_text(this->idle_note_lbl_, text);
+  this->apply_idle_style_();
 }
 
 // Built objects keep the accent they were given: rewrite it in place. A lit light shares the
 // stock amber, so it may turn orange here for an instant: the re-render that follows the
 // ambiance change (HaDashboard) paints entity colours back.
 void LvglRenderer::swap_accent_(uint32_t accent, uint32_t dark) {
-  const NeutralTint swaps[] = {{g_ui_accent, accent}, {g_ui_accent_dark, dark}};
+  const ColorSwap swaps[] = {{g_ui_accent, accent}, {g_ui_accent_dark, dark}};
   g_ui_accent = accent;
   g_ui_accent_dark = dark;
-  if (swaps[0].neutral == accent)
+  if (swaps[0].from == accent)
     return;
   for (lv_obj_t *root : {this->dashboard_scr_, this->now_playing_scr_, this->menu_scr_, this->card_scr_,
                          lv_layer_top()}) {
@@ -3901,7 +3997,7 @@ void LvglRenderer::swap_accent_(uint32_t accent, uint32_t dark) {
   }
 }
 
-void LvglRenderer::remap_tree_(lv_obj_t *obj, const NeutralTint *pairs, size_t n) {
+void LvglRenderer::remap_tree_(lv_obj_t *obj, const ColorSwap *pairs, size_t n) {
   static const lv_style_prop_t PROPS[] = {LV_STYLE_TEXT_COLOR, LV_STYLE_BG_COLOR, LV_STYLE_BG_GRAD_COLOR,
                                           LV_STYLE_BORDER_COLOR, LV_STYLE_ARC_COLOR, LV_STYLE_SHADOW_COLOR};
   for (uint32_t i = 0; i < obj->style_cnt; i++) {
@@ -3914,8 +4010,8 @@ void LvglRenderer::remap_tree_(lv_obj_t *obj, const NeutralTint *pairs, size_t n
         continue;
       uint32_t c = ((uint32_t) v.color.red << 16) | ((uint32_t) v.color.green << 8) | v.color.blue;
       for (size_t k = 0; k < n; k++) {
-        if (c == pairs[k].neutral) {
-          v.color = lv_color_hex(pairs[k].halloween);
+        if (c == pairs[k].from) {
+          v.color = lv_color_hex(pairs[k].to);
           lv_obj_set_local_style_prop(obj, prop, v, os.selector);
           break;
         }
@@ -3929,18 +4025,22 @@ void LvglRenderer::remap_tree_(lv_obj_t *obj, const NeutralTint *pairs, size_t n
 
 // A few accents follow the idle clock's colours: the header time and the underline of the
 // active tab (both set once at build). Not the accent colour as a whole: it is also the
-// colour of a lit light.
+// colour of a lit light. The dashboard backdrop shows the season's glyph.
 void LvglRenderer::apply_ambiance_accents_() {
-  bool hw = this->ambiance_ == Ambiance::HALLOWEEN;
+  const Season &s = season_of(this->ambiance_);
   if (this->time_lbl_ != nullptr)
-    lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(hw ? COL_HW_TIME : COL_TEXT), 0);
+    lv_obj_set_style_text_color(this->time_lbl_, lv_color_hex(s.time), 0);
   for (lv_obj_t *tab : this->tab_btns_)
     lv_obj_set_style_border_color(tab, lv_color_hex(ui_accent()), 0);
   if (this->dash_backdrop_ != nullptr) {
-    if (hw)
-      lv_obj_clear_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
-    else
+    bool xm = this->ambiance_ == Ambiance::CHRISTMAS;
+    if (this->ambiance_ == Ambiance::NORMAL) {
       lv_obj_add_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_label_set_text(this->dash_backdrop_, xm ? GLYPH_TREE : GLYPH_HALLOWEEN);
+      lv_obj_set_style_text_color(this->dash_backdrop_, lv_color_hex(xm ? COL_XM_TREE : COL_HW_TIME), 0);
+      lv_obj_clear_flag(this->dash_backdrop_, LV_OBJ_FLAG_HIDDEN);
+    }
   }
 }
 
@@ -3948,25 +4048,40 @@ void LvglRenderer::apply_ambiance_accents_() {
 // at build time and at render time; rather than threading a palette through every call,
 // a pass rewrites the local style colours that match a known grey. Entity colours (light
 // amber, cover blue, ...) are not in the table and keep their meaning. Same lightness,
-// night-purple hue.
-static const NeutralTint NEUTRAL_TINTS[] = {
-    {0x0B0B10, 0x100716}, {0x0E0E12, 0x13091A}, {0x15151C, 0x1D0D28}, {0x1A1A20, 0x22102F},
-    {0x1E1E26, 0x281237}, {0x20202A, 0x2B143C}, {0x23232C, 0x2E1540}, {0x232330, 0x311643},
-    {0x2C2C38, 0x3A1B51}, {0x33333F, 0x431F5C}, {0x3A3A44, 0x4A2266}, {0x3A3A46, 0x4B2368},
-    {0x26262F, 0x321745},
+// night-purple hue (Halloween) or winter-night blue (Christmas).
+struct SeasonGrey {
+  uint32_t neutral, halloween, christmas;
+};
+static const SeasonGrey SEASON_GREYS[] = {
+    {0x0B0B10, 0x100716, 0x070C16}, {0x0E0E12, 0x13091A, 0x090F1A}, {0x15151C, 0x1D0D28, 0x0D1728},
+    {0x1A1A20, 0x22102F, 0x101B2F}, {0x1E1E26, 0x281237, 0x122037}, {0x20202A, 0x2B143C, 0x14233C},
+    {0x23232C, 0x2E1540, 0x152540}, {0x232330, 0x311643, 0x162643}, {0x2C2C38, 0x3A1B51, 0x1B2F51},
+    {0x33333F, 0x431F5C, 0x1F355C}, {0x3A3A44, 0x4A2266, 0x223B66}, {0x3A3A46, 0x4B2368, 0x233C68},
+    {0x26262F, 0x321745, 0x172845},
 };
 static const lv_style_prop_t TINT_PROPS[] = {LV_STYLE_BG_COLOR, LV_STYLE_BG_GRAD_COLOR, LV_STYLE_BORDER_COLOR,
                                              LV_STYLE_ARC_COLOR, LV_STYLE_OUTLINE_COLOR};
 
-static uint32_t tint_color(uint32_t c, bool to_season) {
-  for (const auto &t : NEUTRAL_TINTS) {
-    if (c == (to_season ? t.neutral : t.halloween))
-      return to_season ? t.halloween : t.neutral;
+static uint32_t grey_of(const SeasonGrey &g, Ambiance a) {
+  switch (a) {
+    case Ambiance::HALLOWEEN:
+      return g.halloween;
+    case Ambiance::CHRISTMAS:
+      return g.christmas;
+    default:
+      return g.neutral;
+  }
+}
+
+static uint32_t tint_color(uint32_t c, Ambiance from, Ambiance to) {
+  for (const auto &g : SEASON_GREYS) {
+    if (c == grey_of(g, from))
+      return grey_of(g, to);
   }
   return c;
 }
 
-uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, bool to_season) {
+uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, Ambiance from, Ambiance to) {
   uint32_t visited = 1;
   for (uint32_t i = 0; i < obj->style_cnt; i++) {
     const lv_obj_style_t &os = obj->styles[i];
@@ -3977,7 +4092,7 @@ uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, bool to_season) {
       if (lv_style_get_prop(os.style, prop, &v) != LV_STYLE_RES_FOUND)
         continue;
       uint32_t c = ((uint32_t) v.color.red << 16) | ((uint32_t) v.color.green << 8) | v.color.blue;
-      uint32_t t = tint_color(c, to_season);
+      uint32_t t = tint_color(c, from, to);
       if (t != c) {
         v.color = lv_color_hex(t);
         lv_obj_set_local_style_prop(obj, prop, v, os.selector);
@@ -3986,7 +4101,7 @@ uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, bool to_season) {
   }
   uint32_t n = lv_obj_get_child_count(obj);
   for (uint32_t i = 0; i < n; i++)
-    visited += this->tint_tree_(lv_obj_get_child(obj, i), to_season);
+    visited += this->tint_tree_(lv_obj_get_child(obj, i), from, to);
   return visited;
 }
 
@@ -3994,18 +4109,18 @@ uint32_t LvglRenderer::tint_tree_(lv_obj_t *obj, bool to_season) {
 // use and restyled when they open: tint them there, after their own colours are applied.
 void LvglRenderer::season_tint_(lv_obj_t *root) {
   if (root != nullptr && this->ambiance_ != Ambiance::NORMAL)
-    this->tint_tree_(root, true);
+    this->tint_tree_(root, Ambiance::NORMAL, this->ambiance_);
 }
 
 // Every screen but the idle one (which has its own decor), plus the overlay layer.
-void LvglRenderer::tint_all_(bool to_season) {
+void LvglRenderer::tint_all_(Ambiance from, Ambiance to) {
   uint32_t t0 = millis(), visited = 0;
   for (lv_obj_t *root : {this->dashboard_scr_, this->now_playing_scr_, this->menu_scr_, this->card_scr_,
                          lv_layer_top()}) {
     if (root != nullptr)
-      visited += this->tint_tree_(root, to_season);
+      visited += this->tint_tree_(root, from, to);
   }
-  ESP_LOGD(TAG, "ambiance tint %s: %u objects in %u ms", to_season ? "on" : "off", (unsigned) visited,
+  ESP_LOGD(TAG, "ambiance tint %d -> %d: %u objects in %u ms", (int) from, (int) to, (unsigned) visited,
            (unsigned) (millis() - t0));
 }
 
@@ -4026,62 +4141,141 @@ static void idle_bat_cb(lv_anim_t *a, int32_t x) {
   lv_obj_set_pos(bat, x, base + lv_trigo_sin((int16_t) (done % 360)) * 24 / LV_TRIGO_SIN_MAX);
 }
 
+// Snowflake fall: the animation drives y; x drifts on a slow sine around its lane (user_data).
+static void idle_flake_cb(lv_anim_t *a, int32_t y) {
+  auto *flake = static_cast<lv_obj_t *>(a->var);
+  int32_t span = a->end_value - a->start_value;
+  int32_t done = span != 0 ? (y - a->start_value) * 540 / span : 0;
+  int32_t lane = (int32_t) (intptr_t) lv_anim_get_user_data(a);
+  lv_obj_set_pos(flake, lane + lv_trigo_sin((int16_t) (done % 360)) * 30 / LV_TRIGO_SIN_MAX, y);
+}
+
+// Tree lights: each bauble steps through the light colours. The value runs over the colour
+// indexes; repainting only on a change keeps the redraws to one per step.
+static void idle_bauble_cb(void *obj, int32_t step) {
+  auto *bauble = static_cast<lv_obj_t *>(obj);
+  lv_color_t c = lv_color_hex(XM_LIGHTS[step % XM_LIGHT_COUNT]);
+  if (!lv_color_eq(lv_obj_get_style_bg_color(bauble, LV_PART_MAIN), c))
+    lv_obj_set_style_bg_color(bauble, c, 0);
+}
+
+// Stops every decor animation and parks the moving glyphs off screen.
+void LvglRenderer::stop_idle_anims_() {
+  for (lv_obj_t *o : {this->idle_ghost_, this->idle_gift_}) {
+    if (o != nullptr)
+      lv_anim_delete(o, nullptr);
+  }
+  for (lv_obj_t *bat : this->idle_bats_) {
+    if (bat != nullptr) {
+      lv_anim_delete(bat, nullptr);
+      lv_obj_set_pos(bat, -this->w_, 0);
+    }
+  }
+  for (lv_obj_t *flake : this->idle_flakes_) {
+    if (flake != nullptr) {
+      lv_anim_delete(flake, nullptr);
+      lv_obj_set_pos(flake, 0, -this->h_);
+    }
+  }
+  for (lv_obj_t *bauble : this->idle_baubles_) {
+    if (bauble != nullptr)
+      lv_anim_delete(bauble, nullptr);
+  }
+}
+
+// The ghost or the gift floats up and down in its corner.
+static void float_in_corner(lv_obj_t *o, int32_t y0, int32_t rise) {
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, o);
+  lv_anim_set_exec_cb(&a, idle_anim_y_cb);
+  lv_anim_set_values(&a, y0, y0 - rise);
+  lv_anim_set_duration(&a, 2600);
+  lv_anim_set_reverse_duration(&a, 2600);
+  lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+  lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+  lv_anim_start(&a);
+}
+
 // Animations run only while the decorated idle screen is on display with the backlight on.
 void LvglRenderer::update_idle_anims_() {
-  bool want = this->idle_shown_ && !this->idle_paused_ && this->ambiance_ == Ambiance::HALLOWEEN;
-  if (want == this->idle_anims_on_)
+  Ambiance want = this->idle_shown_ && !this->idle_paused_ ? this->ambiance_ : Ambiance::NORMAL;
+  if (want == this->idle_anims_for_)
     return;
-  this->idle_anims_on_ = want;
-  if (!want) {
+  if (this->idle_anims_for_ != Ambiance::NORMAL)
+    this->stop_idle_anims_();
+  this->idle_anims_for_ = want;
+  if (want == Ambiance::HALLOWEEN) {
     if (this->idle_ghost_ != nullptr)
-      lv_anim_delete(this->idle_ghost_, nullptr);
-    for (lv_obj_t *bat : this->idle_bats_) {
-      if (bat != nullptr) {
-        lv_anim_delete(bat, nullptr);
-        lv_obj_set_pos(bat, -this->w_, 0);
-      }
+      float_in_corner(this->idle_ghost_, -this->h_ / 10, this->h_ / 25);
+    // Two bats cross the screen now and then, one each way, at different heights and paces.
+    struct Flight {
+      int32_t from, to, cruise_y;
+      uint32_t duration, delay, pause;
+    };
+    const int32_t off = this->w_ / 6;
+    const Flight flights[2] = {
+        {-off, this->w_ + off, this->h_ * 12 / 100, 9000, 2000, 14000},
+        {this->w_ + off, -off, this->h_ * 22 / 100, 13000, 9000, 21000},
+    };
+    for (int i = 0; i < 2; i++) {
+      if (this->idle_bats_[i] == nullptr)
+        continue;
+      lv_anim_t a;
+      lv_anim_init(&a);
+      lv_anim_set_var(&a, this->idle_bats_[i]);
+      lv_anim_set_custom_exec_cb(&a, idle_bat_cb);
+      lv_anim_set_user_data(&a, (void *) (intptr_t) flights[i].cruise_y);
+      lv_anim_set_values(&a, flights[i].from, flights[i].to);
+      lv_anim_set_duration(&a, flights[i].duration);
+      lv_anim_set_delay(&a, flights[i].delay);
+      lv_anim_set_repeat_delay(&a, flights[i].pause);
+      lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+      lv_anim_set_path_cb(&a, lv_anim_path_linear);
+      lv_anim_start(&a);
     }
-    return;
-  }
-  if (this->idle_ghost_ != nullptr) {
-    // The ghost floats up and down in its corner.
-    int32_t y0 = -this->h_ / 10;
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, this->idle_ghost_);
-    lv_anim_set_exec_cb(&a, idle_anim_y_cb);
-    lv_anim_set_values(&a, y0, y0 - this->h_ / 25);
-    lv_anim_set_duration(&a, 2600);
-    lv_anim_set_reverse_duration(&a, 2600);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-  }
-  // Two bats cross the screen now and then, one each way, at different heights and paces.
-  struct Flight {
-    int32_t from, to, cruise_y;
-    uint32_t duration, delay, pause;
-  };
-  const int32_t off = this->w_ / 6;
-  const Flight flights[2] = {
-      {-off, this->w_ + off, this->h_ * 12 / 100, 9000, 2000, 14000},
-      {this->w_ + off, -off, this->h_ * 22 / 100, 13000, 9000, 21000},
-  };
-  for (int i = 0; i < 2; i++) {
-    if (this->idle_bats_[i] == nullptr)
-      continue;
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, this->idle_bats_[i]);
-    lv_anim_set_custom_exec_cb(&a, idle_bat_cb);
-    lv_anim_set_user_data(&a, (void *) (intptr_t) flights[i].cruise_y);
-    lv_anim_set_values(&a, flights[i].from, flights[i].to);
-    lv_anim_set_duration(&a, flights[i].duration);
-    lv_anim_set_delay(&a, flights[i].delay);
-    lv_anim_set_repeat_delay(&a, flights[i].pause);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&a, lv_anim_path_linear);
-    lv_anim_start(&a);
+  } else if (want == Ambiance::CHRISTMAS) {
+    if (this->idle_gift_ != nullptr)
+      float_in_corner(this->idle_gift_, -this->h_ / 10, this->h_ / 40);
+    // Snowflakes fall slowly in four lanes, each at its own pace, all through the screen.
+    struct Fall {
+      int32_t lane_pct;
+      uint32_t duration, delay, pause;
+    };
+    static const Fall FALLS[4] = {{8, 15000, 0, 1500}, {34, 12000, 5000, 3000}, {60, 17000, 9000, 1000},
+                                  {82, 13000, 2500, 4000}};
+    for (int i = 0; i < 4; i++) {
+      lv_obj_t *flake = this->idle_flakes_[i];
+      if (flake == nullptr)
+        continue;
+      int32_t size = lv_font_get_line_height(this->font_decor_sm_->get_lv_font());
+      lv_anim_t a;
+      lv_anim_init(&a);
+      lv_anim_set_var(&a, flake);
+      lv_anim_set_custom_exec_cb(&a, idle_flake_cb);
+      lv_anim_set_user_data(&a, (void *) (intptr_t) (this->w_ * FALLS[i].lane_pct / 100 - size / 2));
+      lv_anim_set_values(&a, -size, this->h_);
+      lv_anim_set_duration(&a, FALLS[i].duration);
+      lv_anim_set_delay(&a, FALLS[i].delay);
+      lv_anim_set_repeat_delay(&a, FALLS[i].pause);
+      lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+      lv_anim_set_path_cb(&a, lv_anim_path_linear);
+      lv_anim_start(&a);
+    }
+    // The tree's lights change colour, each at its own pace, starting on different colours.
+    for (int i = 0; i < 6; i++) {
+      if (this->idle_baubles_[i] == nullptr)
+        continue;
+      lv_anim_t a;
+      lv_anim_init(&a);
+      lv_anim_set_var(&a, this->idle_baubles_[i]);
+      lv_anim_set_exec_cb(&a, idle_bauble_cb);
+      lv_anim_set_values(&a, i, i + XM_LIGHT_COUNT);
+      lv_anim_set_duration(&a, 3000 + 400 * i);
+      lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+      lv_anim_set_path_cb(&a, lv_anim_path_linear);
+      lv_anim_start(&a);
+    }
   }
 }
 
@@ -4203,8 +4397,8 @@ void LvglRenderer::render(const ViewModel &vm) {
   }
   // Render paths re-apply the stock greys: tint what is on display before it is drawn.
   if (this->ambiance_ != Ambiance::NORMAL && vm.state != NavState::IDLE) {
-    this->tint_tree_(lv_screen_active(), true);
-    this->tint_tree_(lv_layer_top(), true);
+    this->tint_tree_(lv_screen_active(), Ambiance::NORMAL, this->ambiance_);
+    this->tint_tree_(lv_layer_top(), Ambiance::NORMAL, this->ambiance_);
   }
 }
 
